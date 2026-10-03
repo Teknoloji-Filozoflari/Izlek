@@ -1,0 +1,54 @@
+# Maintainer: İzlek contributors
+#
+# AUR'a gönderirken `sha256sums` değerini yayımlanan v${pkgver} kaynak
+# arşivinin gerçek SHA-256 değeriyle değiştirin.
+
+pkgname=izlek
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Local-first film and TV tracking desktop application'
+arch=('any')
+url='https://github.com/Teknoloji-Filozoflari/Izlek'
+license=('GPL-3.0-or-later')
+depends=(
+  'pyside6'
+  'python-alembic'
+  'python-httpx'
+  'python-keyring'
+  'python-pydantic'
+  'python-sqlalchemy'
+)
+makedepends=(
+  'python-build'
+  'python-installer'
+  'python-setuptools'
+  'python-wheel'
+)
+checkdepends=(
+  'python-pytest'
+  'python-ruff'
+)
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "${pkgname}-${pkgver}"
+  python -m build --wheel --no-isolation
+}
+
+check() {
+  cd "${pkgname}-${pkgver}"
+  QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest
+  ruff check .
+}
+
+package() {
+  cd "${pkgname}-${pkgver}"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+
+  install -Dm644 src/izlek/resources/desktop/izlek.desktop \
+    "$pkgdir/usr/share/applications/izlek.desktop"
+  install -Dm644 src/izlek/resources/icons/izlek.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/izlek.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

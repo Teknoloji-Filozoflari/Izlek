@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450">
+  <rect width="300" height="450" fill="#172735"/>
+  <circle cx="218" cy="94" r="54" fill="#D4DBCB"/>
+  <path d="M0 210 120 144l88 70 92-58v294H0Z" fill="#253E4C"/>
+  <path d="M0 294 130 242l170 72v136H0Z" fill="#10202B"/>
+  <path d="m129 450 14-193h15l14 193M77 450l53-193h8L91 450M209 450l-52-193h8l56 193" fill="#78A9A6" opacity=".7"/>
+  <text x="150" y="389" fill="#F0F0E8" font-family="sans-serif" font-size="29" font-weight="700" text-anchor="middle">NIGHT LINE</text>
+</svg>

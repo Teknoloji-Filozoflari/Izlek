@@ -1,0 +1,115 @@
+name: AppImage
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container: quay.io/pypa/manylinux_2_28_x86_64:latest
+    timeout-minutes: 30
+    env:
+      PYTHON: /opt/python/cp311-cp311/bin/python
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux runtime libraries
+        run: >-
+          dnf install -y
+          curl dbus-libs desktop-file-utils fontconfig glib2 jq libSM libX11 libX11-xcb libXext
+          libXi libXrender libxcb libxkbcommon libxkbcommon-x11 mesa-libGL
+      - name: Install project, quality, and packaging tools
+        run: >-
+          $PYTHON -m pip install
+          --constraint packaging/constraints-appimage.txt
+          -e '.[dev,package]'
+      - name: Run quality gate before packaging
+        run: $PYTHON scripts/quality.py
+      - name: Download and verify versioned AppImage tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_asset() {
+            local repository=$1 tag=$2 asset=$3 output=$4 metadata url digest
+            metadata=$(curl --fail --location --retry 3 \
+              "https://api.github.com/repos/$repository/releases/tags/$tag")
+            url=$(jq -r --arg asset "$asset" \
+              '.assets[] | select(.name == $asset) | .browser_download_url' \
+              <<<"$metadata")
+            digest=$(jq -r --arg asset "$asset" \
+              '.assets[] | select(.name == $asset) | .digest' \
+              <<<"$metadata")
+            test -n "$url" && test "$url" != null
+            test "${digest#sha256:}" != "$digest"
+            curl --fail --location --retry 3 --output "$output" "$url"
+            echo "${digest#sha256:}  $output" | sha256sum --check --strict
+          }
+          download_asset AppImage/appimagetool 1.9.1 \
+            appimagetool-x86_64.AppImage /tmp/appimagetool.AppImage
+          download_asset AppImage/type2-runtime 20251108 \
+            runtime-x86_64 /tmp/runtime-x86_64
+          chmod +x /tmp/appimagetool.AppImage
+      - name: Build and smoke-test AppImage
+        run: >-
+          $PYTHON scripts/build_appimage.py
+          --appimagetool /tmp/appimagetool.AppImage
+          --runtime-file /tmp/runtime-x86_64
+      - name: Validate desktop metadata
+        run: desktop-file-validate build/appimage/Izlek.AppDir/izlek.desktop
+      - name: Record compatibility baseline
+        run: |
+          ldd --version | head -n 1 > dist/AppImage-build-info.txt
+          $PYTHON --version >> dist/AppImage-build-info.txt
+          $PYTHON -m PyInstaller --version >> dist/AppImage-build-info.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: izlek-appimage-x86_64
+          path: |
+            dist/Izlek-*.AppImage
+            dist/Izlek-*.AppImage.sha256
+            dist/AppImage-build-info.txt
+          if-no-files-found: error
+
+  smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: izlek-appimage-x86_64
+          path: dist
+      - name: Install clean-host Qt runtime libraries
+        run: >-
+          sudo apt-get update && sudo apt-get install --yes
+          libegl1 libfontconfig1 libgl1 libx11-6 libx11-xcb1 libxcb1
+          libxkbcommon0 libxkbcommon-x11-0
+      - name: Smoke-test artifact with isolated user directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          appimage=$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -name 'Izlek-*.AppImage' -print -quit)
+          test -n "$appimage"
+          chmod +x "$appimage"
+          smoke_root=$(mktemp -d)
+          cd "$smoke_root"
+          env \
+            APPIMAGE_EXTRACT_AND_RUN=1 \
+            QT_QPA_PLATFORM=offscreen \
+            QT_QUICK_BACKEND=software \
+            XDG_CONFIG_HOME="$smoke_root/config" \
+            XDG_DATA_HOME="$smoke_root/data" \
+            XDG_CACHE_HOME="$smoke_root/cache" \
+            XDG_STATE_HOME="$smoke_root/state" \
+            "$appimage" --package-smoke-test
+          test -f "$smoke_root/data/izlek/izlek.sqlite3"
+          test -f "$smoke_root/config/izlek/window.ini"

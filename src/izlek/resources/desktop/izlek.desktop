@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=İzlek
+GenericName=Film ve Dizi Takip Uygulaması
+Comment=Filmleri ve dizileri yerel olarak takip edin
+Exec=izlek
+Icon=izlek
+Terminal=false
+Categories=AudioVideo;Video;
+StartupWMClass=izlek

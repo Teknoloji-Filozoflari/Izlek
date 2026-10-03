@@ -1,0 +1,78 @@
+name: Release Linux artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  appimage:
+    uses: ./.github/workflows/appimage.yml
+
+  deb:
+    uses: ./.github/workflows/deb.yml
+
+  publish:
+    needs: [appimage, deb]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download verified Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: izlek-*
+          path: release-assets
+          merge-multiple: true
+      - name: Validate tag and prepare source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=${GITHUB_REF_NAME#v}
+          project_version=$(python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(data["project"]["version"])
+          PY
+          )
+          test "$version" = "$project_version"
+          test -f "docs/release-notes/${GITHUB_REF_NAME}.md"
+          git archive \
+            --format=tar.gz \
+            --prefix="izlek-${version}/" \
+            --output="release-assets/Izlek-${version}-source.tar.gz" \
+            "$GITHUB_REF_NAME"
+          sha256sum "release-assets/Izlek-${version}-source.tar.gz" \
+            > "release-assets/Izlek-${version}-source.tar.gz.sha256"
+          test -f "release-assets/Izlek-${version}-x86_64.AppImage"
+          test -f "release-assets/izlek_${version}_amd64.deb"
+          find release-assets -maxdepth 1 -type f -print
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "İzlek $GITHUB_REF_NAME" \
+              --notes-file "$notes"
+            gh release upload "$GITHUB_REF_NAME" --clobber release-assets/*
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "İzlek $GITHUB_REF_NAME" \
+              --notes-file "$notes" \
+              release-assets/*
+          fi

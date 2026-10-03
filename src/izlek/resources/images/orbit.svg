@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450">
+  <rect width="300" height="450" fill="#101B2F"/>
+  <circle cx="150" cy="198" r="97" fill="#237A81"/>
+  <path d="M59 181c58-69 135-87 192-50" fill="none" stroke="#86CFC7" stroke-width="16" opacity=".7"/>
+  <ellipse cx="150" cy="196" rx="137" ry="39" fill="none" stroke="#E8BF81" stroke-width="8" transform="rotate(-24 150 196)"/>
+  <circle cx="65" cy="73" r="4" fill="#F6E4BB"/><circle cx="239" cy="48" r="3" fill="#F6E4BB"/><circle cx="262" cy="294" r="3" fill="#F6E4BB"/>
+  <text x="150" y="394" fill="#EAF5F2" font-family="sans-serif" font-size="38" letter-spacing="6" text-anchor="middle">ORBIT</text>
+</svg>

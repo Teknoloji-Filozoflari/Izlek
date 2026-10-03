@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450">
+  <rect width="300" height="450" fill="#4B2734"/>
+  <circle cx="150" cy="168" r="95" fill="#E9A66B"/>
+  <path d="M0 211h40v-72h39v124h30V174h50v91h28v-61h43v80h70v166H0Z" fill="#392334"/>
+  <path d="M0 289h58v-70h38v67h29v-48h46v94h37v-67h92v185H0Z" fill="#231C2A"/>
+  <text x="150" y="396" fill="#FFE5C5" font-family="sans-serif" font-size="30" font-weight="700" text-anchor="middle">AFTERLIGHT</text>
+</svg>

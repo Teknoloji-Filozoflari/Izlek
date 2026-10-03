@@ -1,0 +1,10 @@
+Package: izlek
+Version: @VERSION@
+Section: video
+Priority: optional
+Architecture: @ARCHITECTURE@
+Maintainer: @MAINTAINER@
+Homepage: @HOMEPAGE@
+Depends: libegl1, libfontconfig1, libgl1, libx11-6, libx11-xcb1, libxcb1, libxkbcommon0, libxkbcommon-x11-0
+Description: Local-first film and TV tracking desktop application
+ İzlek is a local-first desktop application for tracking films and TV shows.

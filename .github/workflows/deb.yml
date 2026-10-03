@@ -1,0 +1,93 @@
+name: Debian package
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Debian packaging and Qt runtime tools
+        run: >-
+          sudo apt-get update && sudo apt-get install --yes
+          desktop-file-utils dpkg-dev
+      - name: Install project and package builder
+        run: >-
+          python -m pip install
+          --constraint packaging/constraints-appimage.txt
+          -e '.[dev,package]'
+      - name: Run quality gate before packaging
+        run: python scripts/quality.py
+      - name: Build Debian package
+        env:
+          IZLEK_HOMEPAGE: https://github.com/${{ github.repository }}
+          IZLEK_MAINTAINER: >-
+            ${{ github.repository_owner }}
+            <${{ github.repository_owner }}@users.noreply.github.com>
+        run: python scripts/build_deb.py
+      - name: Validate Debian package metadata and launcher assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          package=$(find dist -maxdepth 1 -name 'izlek_*.deb' -print -quit)
+          test -n "$package"
+          dpkg-deb --info "$package"
+          dpkg-deb --contents "$package" | grep -F 'usr/bin/izlek'
+          dpkg-deb --contents "$package" | grep -F 'usr/share/applications/izlek.desktop'
+          dpkg-deb --contents "$package" | grep -F 'usr/share/icons/hicolor/scalable/apps/izlek.svg'
+          extract=$(mktemp -d)
+          dpkg-deb --extract "$package" "$extract"
+          desktop-file-validate "$extract/usr/share/applications/izlek.desktop"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: izlek-deb-amd64
+          path: dist/izlek_*.deb
+          if-no-files-found: error
+
+  smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: izlek-deb-amd64
+          path: dist
+      - name: Install and smoke-test the clean-host package
+        shell: bash
+        run: |
+          set -euo pipefail
+          package=$(find dist -maxdepth 1 -name 'izlek_*.deb' -print -quit)
+          test -n "$package"
+          sudo apt-get update
+          sudo apt-get install --yes "$package"
+          smoke_root=$(mktemp -d)
+          env \
+            QT_QPA_PLATFORM=offscreen \
+            QT_QUICK_BACKEND=software \
+            XDG_CONFIG_HOME="$smoke_root/config" \
+            XDG_DATA_HOME="$smoke_root/data" \
+            XDG_CACHE_HOME="$smoke_root/cache" \
+            XDG_STATE_HOME="$smoke_root/state" \
+            izlek --package-smoke-test
+          test -f "$smoke_root/data/izlek/izlek.sqlite3"
+          test -f "$smoke_root/config/izlek/window.ini"
+          sudo apt-get remove --yes izlek
+          test -f "$smoke_root/data/izlek/izlek.sqlite3"
+          test -f "$smoke_root/config/izlek/window.ini"

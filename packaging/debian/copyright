@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: İzlek
+Source: @HOMEPAGE@
+
+Files: *
+Copyright: İzlek contributors
+License: GPL-3.0-or-later
+ On Debian systems, the complete text of the GNU General Public License,
+ version 3 or later, can be found in /usr/share/common-licenses/GPL-3.
