@@ -1,0 +1,94 @@
+name: Installed package X11 check
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        type: choice
+        options: [appimage, deb, rpm, snap]
+        required: true
+      run_id:
+        description: Successful package build run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ubuntu:
+    if: inputs.package != 'rpm'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: packages
+          merge-multiple: true
+      - name: Install package and open actual Qt X11 window
+        env:
+          PACKAGE_KIND: ${{ inputs.package }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes xvfb libegl1 libgl1 libfontconfig1 \
+            libxkbcommon-x11-0
+          case "$PACKAGE_KIND" in
+            deb)
+              package=$(find "$PWD/packages" -name '*.deb' -print -quit)
+              sudo apt-get install --yes "$package"
+              command=(izlek)
+              ;;
+            appimage)
+              package=$(find "$PWD/packages" -name '*.AppImage' -print -quit)
+              chmod +x "$package"
+              export APPIMAGE_EXTRACT_AND_RUN=1
+              command=("$package")
+              ;;
+            snap)
+              package=$(find "$PWD/packages" -name '*.snap' -print -quit)
+              sudo snap install --dangerous "$package"
+              sudo snap connect izlek:x11
+              command=(snap run izlek)
+              ;;
+          esac
+          Xvfb :99 -screen 0 1440x1000x24 -ac -nolisten tcp &
+          display_pid=$!
+          trap 'kill "$display_pid"' EXIT
+          sleep 2
+          user_root=$(mktemp -d)
+          export DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software
+          export XDG_CONFIG_HOME="$user_root/config" XDG_DATA_HOME="$user_root/data"
+          export XDG_CACHE_HOME="$user_root/cache" XDG_STATE_HOME="$user_root/state"
+          timeout 30s "${command[@]}" --package-smoke-test
+
+  fedora:
+    if: inputs.package == 'rpm'
+    runs-on: ubuntu-24.04
+    container: fedora:43
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: packages
+          merge-multiple: true
+      - name: Install RPM and open actual Qt X11 window
+        shell: bash
+        run: |
+          set -euo pipefail
+          dnf install -y xorg-x11-server-Xvfb ./packages/izlek-*.rpm
+          Xvfb :99 -screen 0 1440x1000x24 -ac -nolisten tcp &
+          display_pid=$!
+          trap 'kill "$display_pid"' EXIT
+          sleep 2
+          user_root=$(mktemp -d)
+          env DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software \
+            XDG_CONFIG_HOME="$user_root/config" XDG_DATA_HOME="$user_root/data" \
+            XDG_CACHE_HOME="$user_root/cache" XDG_STATE_HOME="$user_root/state" \
+            timeout 30s izlek --package-smoke-test
