@@ -122,6 +122,8 @@ Film ve dizi favorileri SQLite içindeki `user_media.favorite` alanından okunur
 | AppImage | x86_64 Linux | Build betiği ve GitHub Actions build/smoke akışı mevcut; yayımlanmış binary yok. |
 | `.deb` | Debian/Ubuntu amd64 | Build betiği ve Ubuntu 22.04/24.04 CI kontrolü mevcut; yayımlanmış binary yok. |
 | Arch / AUR | Arch Linux | PKGBUILD mevcut; checksum ve `.SRCINFO` tamamlandıktan sonra ayrıca AUR'a gönderilmeli. |
+| `.rpm` | Fedora x86_64 | Build betiği ve elle başlatılan Fedora 43 CI akışı eklendi; binary doğrulaması bekliyor. |
+| Snap | core24 amd64 | Strict Snapcraft tanımı ve elle başlatılan CI akışı eklendi; Store yayını yok. |
 | Wheel / kaynak arşivi | Python 3.11+ Linux | Yerel build ile üretilebilir; Python/Qt bağımlılıkları gerekir. |
 
 `main` dalına kaynak kod göndermek paketleri yayımlamaz. AppImage ve `.deb`
@@ -216,6 +218,38 @@ kontrolü release workflow'u ile otomatik çalışır. `REPOSITORY_URL` gerçek 
 upstream adresi, `DEBIAN_MAINTAINER` ise `Ad <eposta>` biçimindeki paket
 sorumlusudur. Tag workflow'u bu değerleri GitHub repository bağlamından üretir;
 build betiği yer tutucu metadata ile paket oluşturmayı reddeder.
+
+## Fedora / RPM
+
+Mevcut PyInstaller uygulama çıktısından RPM üretmek için Fedora ortamında
+`rpm-build` ve Python paketleme bağımlılıklarını kurup:
+
+```bash
+python scripts/build_rpm.py
+sudo dnf install ./dist/izlek-*.rpm
+```
+
+Kurulum ön koşulları ve glibc/dağıtım sınırları
+[RPM belgesinde](packaging/rpm/README.md). **RPM package** Actions workflow'u
+elle başlatılır; Fedora 43 x86_64 build ve temiz container smoke akışı içerir.
+openSUSE ve diğer RPM dağıtımları ayrıca doğrulanmalıdır.
+
+## Snap
+
+Snapcraft/LXD bulunan ortamda proje kökünden:
+
+```bash
+snapcraft
+sudo snap install --dangerous ./izlek_1.0.0_amd64.snap
+izlek
+```
+
+core24, amd64 ve strict confinement kullanılır. **Snap package** Actions
+workflow'u elle başlatılır. Tanım `grade: devel` ile başlar; Snap Store yayını
+ve paket adı kaydı ayrıca yapılmalıdır. Snap verileri sistem paketinden ayrı,
+revizyonlar arasında kalıcı `~/snap/izlek/common` altında tutulur.
+Anahtarlık bağlantısı, JSON aktarımı ve kurulum ayrıntıları
+[Snap belgesinde](snap/README.md).
 
 ## Mimari
 

@@ -167,3 +167,11 @@ oluşturur ve config/data/cache/state yollarının executable dizininin altında
 olmadığını doğrular. AppImage workflow'u build sonrasında artifact'ı temiz
 Ubuntu 22.04 ve 24.04 ortamlarında tekrar çalıştırır; ayrıntılar
 [Faz 26 AppImage notunda](PHASE_26_APPIMAGE.md) yer alır.
+
+
+RPM/Snap paketleri mevcut `packaging/izlek.spec` PyInstaller payload'ını
+kullanır; uygulama katmanları değişmez. RPM build geçici rpmbuild topdir
+kullanır ve yalnız uygulama payload'ı/masaüstü kaynaklarını arşivler. Snap
+launcher XDG dizinlerini `SNAP_USER_COMMON` altında yönlendirir; host SQLite
+veritabanını otomatik paylaşmaz. RPM/Snap workflow'ları elle başlatılır ve
+mevcut tag tabanlı AppImage/.deb release akışından bağımsızdır.

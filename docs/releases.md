@@ -42,3 +42,13 @@ bağlantılarını gösterir. Workflow'un ürettiği source archive sabit
 GitHub release notlarını, artefact adlarını ve checksum'u gözden geçirin.
 PKGBUILD, AUR'a gönderilecekse release asset'i yerine AUR repository'sindeki
 doğrulanmış HTTPS tag kaynağı ve checksum ile güncel kalmalıdır.
+
+## RPM ve Snap geliştirme build'leri
+
+`RPM package` ve `Snap package` workflow'ları `workflow_dispatch` ile elle
+başlatılır. Çıktılar Actions artifact'i olarak saklanır; mevcut tag release
+akışına otomatik eklenmez. RPM için Fedora 43 x86_64, Snap için core24 amd64
+hedeflenir. Başarılı build/kurulum kontrollerinden sonra RPM release asset
+olarak ayrıca yüklenebilir. Snap Store yayını için ad kaydı, gerçek masaüstü
+sandbox kontrolü ve uygun grade/channel gerekir; Store upload otomasyonu yok.
+Snap sürümü `snap/snapcraft.yaml` ve `pyproject.toml` içinde birlikte güncellenir.

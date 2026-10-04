@@ -579,6 +579,29 @@ Global arama, Keşfet, film ve dizi detay sayfaları TMDb ve görsel servisine b
   mevcut sistem bağımlılıklarını kullanır; bağımsız dağıtım testi değildir.
 - **Sonraki faz:** Linux binary sürümü yayımlama.
 
+## RPM ve Snap paketleme — 2026-10-04
+
+- **Yapılanlar:** Mevcut PyInstaller build/smoke üzerinden RPM üretim betiği
+  ve spec; core24 amd64 strict Snapcraft tanımı/launcher eklendi. Fedora 43
+  RPM ve Snap için elle başlatılan build/kurulum smoke workflow'ları eklendi.
+  Snap XDG verileri revizyonlardan bağımsız SNAP_USER_COMMON altında kalır.
+  SNAP_USER_COMMON refresh/revert ile otomatik veri rollback'i yapmaz.
+- **Değiştirilen önemli dosyalar:** scripts/build_rpm.py, packaging/rpm/,
+  snap/, .github/workflows/{rpm,snap}.yml, MANIFEST.in, .gitignore,
+  README/CHANGELOG ve release/mimari belgeleri, tests/test_linux_packages.py.
+- **Test sonucu:** 225 pytest testi ve Ruff başarılı; YAML/shell syntax,
+  RPM payload arşivi, launcher argüman/XDG davranışı doğrulandı. Wheel/sdist
+  üretildi ve yeni paketleme/workflow kaynaklarının sdist içinde olduğu
+  kontrol edildi.
+- **Manuel kontrol:** RPM/Snap kurulum ve yayın komutları belgelendi.
+  Masaüstü arayüzü değişmedi; canlı Wayland/X11 testi yapılmadı.
+- **Bilinen sorunlar:** Yerelde rpmbuild/Snapcraft/PyInstaller yok;
+  Docker socket erişimi yok. Gerçek RPM/Snap binary build ve confinement
+  testleri çalıştırılmadı; CI tanımlarının başarılı koşusu henüz görülmedi.
+  Snap devel grade ile başlar; Store adı/yayın ve anahtarlık interface
+  bağlantısı ayrıca doğrulanmalı. openSUSE/aarch64 CI kapsamı yok.
+- **Sonraki faz:** RPM/Snap binary ve masaüstü doğrulaması.
+
 ## Devam ederken
 
 Önce mevcut dosyaları ve bu notu inceleyin; çalışan önceki faz davranışlarını koruyun. Her faz sonunda pytest ve Ruff çalıştırın, istenen Türkçe faz raporunu verin. Kullanıcının bir sonraki faz promptunu bekleyin.

@@ -5,6 +5,12 @@ __pycache__/
 build/
 dist/
 .venv/
+# Snapcraft build outputs
+/parts/
+/stage/
+/prime/
+/.snapcraft/
+*.snap
 
 # Tool caches
 .pytest_cache/

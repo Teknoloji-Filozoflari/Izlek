@@ -37,6 +37,9 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ### Added
 
+- PyInstaller bundle üzerinden RPM üretimi, core24 strict Snap tanımı ve
+  iki biçim için elle başlatılabilir GitHub Actions build/smoke workflow'ları.
+
 - Listeye medya eklerken yerel kütüphanede arama, detaydan kütüphaneden
   kaldırma ve kütüphane görsellerini indirip yerelde koruma.
 

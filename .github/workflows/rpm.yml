@@ -1,0 +1,61 @@
+name: RPM package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container: fedora:43
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install RPM and Qt runtime tools
+        run: >-
+          dnf install -y python3 python3-pip gcc binutils rpm-build
+          mesa-libEGL mesa-libGL fontconfig libX11 libX11-xcb libxcb
+          libxkbcommon libxkbcommon-x11 desktop-file-utils
+      - name: Install application and build tools
+        run: |
+          python3 -m venv /tmp/izlek-rpm-env
+          /tmp/izlek-rpm-env/bin/python -m pip install -e '.[dev,package]'
+      - name: Validate and build RPM
+        run: |
+          /tmp/izlek-rpm-env/bin/python scripts/quality.py
+          /tmp/izlek-rpm-env/bin/python scripts/build_rpm.py
+          desktop-file-validate src/izlek/resources/desktop/izlek.desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: izlek-rpm-x86_64
+          path: dist/izlek-*.rpm
+          if-no-files-found: error
+
+  smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    container: fedora:43
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: izlek-rpm-x86_64
+          path: dist
+      - name: Install and run package in a clean Fedora container
+        shell: bash
+        run: |
+          set -euo pipefail
+          dnf install -y ./dist/izlek-*.rpm
+          smoke_root=$(mktemp -d)
+          env QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+            XDG_CONFIG_HOME="$smoke_root/config" XDG_DATA_HOME="$smoke_root/data" \
+            XDG_CACHE_HOME="$smoke_root/cache" XDG_STATE_HOME="$smoke_root/state" \
+            izlek --package-smoke-test
+          test -f "$smoke_root/data/izlek/izlek.sqlite3"
+          dnf remove -y izlek
+          test -f "$smoke_root/data/izlek/izlek.sqlite3"

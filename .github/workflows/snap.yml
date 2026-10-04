@@ -1,0 +1,31 @@
+name: Snap package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: canonical/action-build@v1
+        id: build
+      - name: Install and smoke-test confined snap
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo snap install --dangerous "${{ steps.build.outputs.snap }}"
+          sudo snap connect izlek:home
+          sudo snap connect izlek:network
+          env QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+            snap run izlek --package-smoke-test
+          test -f "$HOME/snap/izlek/common/data/izlek/izlek.sqlite3"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: izlek-snap-amd64
+          path: ${{ steps.build.outputs.snap }}
+          if-no-files-found: error
