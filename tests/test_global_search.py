@@ -264,9 +264,7 @@ def test_ctrl_k_works_across_pages_escape_and_result_opens_detail(
         for index, name in ((0, "navHome"), (1, "navMovies"), (5, "navSettings")):
             if index:
                 item = window.findChild(QQuickItem, name)
-                center = item.mapToScene(
-                    QPointF(item.width() / 2, item.height() / 2)
-                )
+                center = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
                 QTest.mouseClick(
                     window,
                     Qt.MouseButton.LeftButton,
@@ -275,6 +273,10 @@ def test_ctrl_k_works_across_pages_escape_and_result_opens_detail(
                 )
                 application.processEvents()
             QTest.keyClick(window, Qt.Key.Key_K, Qt.KeyboardModifier.ControlModifier)
+            if index == 0:
+                assert window.findChild(QQuickItem, "dashboardSearch").hasActiveFocus()
+                assert not overlay.property("opened")
+                continue
             wait_for(application, lambda: overlay.property("opened"))
             QTest.keyClick(window, Qt.Key.Key_Escape)
             wait_for(application, lambda: not overlay.property("opened"))
@@ -289,14 +291,13 @@ def test_ctrl_k_works_across_pages_escape_and_result_opens_detail(
         field.setProperty("text", "arri")
         field.setProperty("text", "arrival")
         wait_for(application, lambda: len(search.movies) > 0 and not search.busy)
-        assert tmdb.calls == [("movie", "arrival"), ("tv", "arrival")] or (
-            tmdb.calls == [("tv", "arrival"), ("movie", "arrival")]
-        )
+        assert tmdb.calls == [("movie", "arrival")]
         wait_for(
             application,
-            lambda: find_visual(
-                overlay.property("contentItem"), "movieSearchResult"
-            ) is not None,
+            lambda: (
+                find_visual(overlay.property("contentItem"), "movieSearchResult")
+                is not None
+            ),
         )
         card = find_visual(overlay.property("contentItem"), "movieSearchResult")
         center = card.mapToScene(QPointF(card.width() / 2, card.height() / 2))
@@ -308,8 +309,9 @@ def test_ctrl_k_works_across_pages_escape_and_result_opens_detail(
         )
         wait_for(
             application,
-            lambda: stack.property("currentItem").property("pageTitle")
-            == "Film Detayı",
+            lambda: (
+                stack.property("currentItem").property("pageTitle") == "Film Detayı"
+            ),
         )
         wait_for(application, lambda: movie.detail.get("title") == "Original Detail")
         assert not overlay.property("opened")
@@ -320,6 +322,17 @@ def test_ctrl_k_works_across_pages_escape_and_result_opens_detail(
         add_button.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
         wait_for(application, lambda: movie.detail.get("status") == "PLANNED")
+        assert window.findChild(QQuickItem, "movieStatusSelector") is None
+        watched_button = window.findChild(QQuickItem, "movieWatched")
+        watched_button.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        wait_for(application, lambda: movie.detail.get("status") == "WATCHED")
+        wait_for(application, lambda: not movie.saving)
+        unwatched_button = window.findChild(QQuickItem, "movieUnwatched")
+        unwatched_button.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        wait_for(application, lambda: movie.detail.get("status") == "PLANNED")
+        wait_for(application, lambda: not movie.saving)
         favorite = window.findChild(QQuickItem, "movieFavorite")
         favorite.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
@@ -342,3 +355,205 @@ def test_ctrl_k_works_across_pages_escape_and_result_opens_detail(
         movie.close()
         application.processEvents()
         qInstallMessageHandler(previous_handler)
+
+
+@pytest.mark.parametrize("kind", ["movie", "tv"])
+def test_home_quick_add_without_detail_or_losing_query(qapp, kind, tmp_path):
+    from izlek.db.engine import create_session_factory, initialize_database
+    from izlek.db.models import MediaType, TrackingStatus
+    from izlek.repositories.local import MediaRepository, UserMediaRepository
+    from izlek.services.quick_library import QuickLibraryService
+    from izlek.ui.controllers.quick_library_controller import QuickLibraryController
+
+    database = initialize_database(tmp_path / "quick.sqlite3")
+    factory = create_session_factory(database)
+    quick = QuickLibraryController(QuickLibraryService(factory))
+    search = SearchController(client=FakeTmdb(), images=FakeImages())
+    application, engine, window = create_application(
+        token_controller=TokenController(store=ExistingTokenStore()),
+        search_controller=search, quick_library_controller=quick,
+    )
+    try:
+        selector = window.findChild(QQuickItem, "discoverMedia")
+        selector.setProperty("currentIndex", 0 if kind == "movie" else 1)
+        selector.activated.emit(0 if kind == "movie" else 1)
+        field = window.findChild(QQuickItem, "dashboardSearch")
+        field.setProperty("text", "series")
+        wait_for(application, lambda: not search.busy
+                 and bool(search.movies or search.shows))
+        grid = window.findChild(QQuickItem, "discoverResults")
+        QTest.qWait(100)
+        button = find_visual(grid.property("currentItem"), "quickLibraryAdd")
+        assert button is not None and button.isVisible()
+        assert button.property("text") == "+ Kütüphaneye Ekle"
+        item = (search.movies or search.shows)[0]
+        key = f"{kind}:{item['id']}"
+        point = button.mapToScene(QPointF(button.width() / 2, button.height() / 2))
+        if kind == "movie":
+            QTest.mouseClick(window, Qt.MouseButton.LeftButton,
+                             Qt.KeyboardModifier.NoModifier, point.toPoint())
+        else:
+            button.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+        wait_for(application, lambda: quick.states.get(key) == "added")
+        assert button.property("text") == "✓ Kütüphanede"
+        assert not button.property("enabled")
+        assert field.property("text") == "series"
+        assert window.property("currentIndex") == 0
+        assert window.findChild(QQuickItem, "contentStack").property("depth") == 1
+        assert search._client.calls == [(kind, "series")]
+        with factory() as session:
+            media = MediaRepository(session).get_by_tmdb(
+                item["id"], MediaType(kind.upper())
+            )
+            assert UserMediaRepository(session).get(media.id).status == (
+                TrackingStatus.PLANNED if kind == "movie" else TrackingStatus.WATCHING
+            )
+            assert (media.poster_path or "") == item["posterPath"]
+        # Searching again keeps the added marker without opening a detail page.
+        search.search("series")
+        wait_for(application, lambda: not search.busy
+                 and bool(search.movies or search.shows))
+        QTest.qWait(100)
+        button = find_visual(grid.property("currentItem"), "quickLibraryAdd")
+        assert button.property("text") == "✓ Kütüphanede"
+    finally:
+        window.close()
+        quick.close()
+        search.close()
+        application.processEvents()
+        database.dispose()
+
+
+@pytest.mark.parametrize("kind", ["movie", "tv"])
+def test_home_search_preserves_inline_results_after_back(qapp, monkeypatch, kind):
+    search = SearchController(client=FakeTmdb(), images=FakeImages())
+    application, engine, window = create_application(
+        token_controller=TokenController(store=ExistingTokenStore()),
+        search_controller=search,
+    )
+    tv = engine.rootContext().contextProperty("tvController")
+    monkeypatch.setattr(tv, "loadTv", lambda item_id: None)
+    movie = engine.rootContext().contextProperty("movieController")
+    monkeypatch.setattr(movie, "loadMovie", lambda item_id: None)
+    try:
+        field = window.findChild(QQuickItem, "dashboardSearch")
+        center = field.mapToScene(QPointF(field.width() / 2, field.height() / 2))
+        QTest.mouseClick(
+            window,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            center.toPoint(),
+        )
+        overlay = window.findChild(QObject, "globalSearch")
+        assert not overlay.property("visible")
+        assert field.hasActiveFocus()
+        assert window.findChild(QQuickItem, "homeSearchMediaType") is None
+        selector = window.findChild(QQuickItem, "discoverMedia")
+        selector.setProperty("currentIndex", 0 if kind == "movie" else 1)
+        selector.activated.emit(0 if kind == "movie" else 1)
+        assert search.mediaType == kind
+        field.setProperty("text", "series")
+        wait_for(
+            application, lambda: not search.busy and bool(search.movies or search.shows)
+        )
+        assert search._client.calls == [(kind, "series")]
+        grid = window.findChild(QQuickItem, "discoverResults")
+        QTest.qWait(100)
+        card = grid.property("currentItem")
+        assert card is not None
+        center = card.mapToScene(QPointF(card.width() / 2, card.height() / 2))
+        QTest.mouseClick(
+            window,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            center.toPoint(),
+        )
+        QTest.qWait(400)
+        assert not overlay.property("visible")
+        stack = window.findChild(QQuickItem, "contentStack")
+        assert stack.property("currentItem").property("pageTitle") == (
+            "Film Detayı" if kind == "movie" else "Dizi Detayı"
+        )
+        window.goBack()
+        QTest.qWait(300)
+        assert stack.property("currentItem").property("pageTitle") == "Ana Sayfa"
+        assert field.property("text") == "series"
+        assert grid.isVisible() and grid.property("count") == 1
+        assert search._client.calls == [(kind, "series")]
+        # The same retained result can be opened again without a new search.
+        card = grid.property("currentItem")
+        card.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Return)
+        QTest.qWait(300)
+        assert stack.property("depth") == 2
+        nav = window.findChild(QQuickItem, "navShows")
+        center = nav.mapToScene(QPointF(nav.width() / 2, nav.height() / 2))
+        QTest.mouseClick(
+            window,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            center.toPoint(),
+        )
+        QTest.qWait(300)
+        assert window.property("currentIndex") == 2
+    finally:
+        window.close()
+        search.close()
+        application.processEvents()
+
+
+def test_home_left_media_choice_repeats_existing_query(qapp):
+    search = SearchController(client=FakeTmdb(), images=FakeImages())
+    application, engine, window = create_application(
+        token_controller=TokenController(store=ExistingTokenStore()),
+        search_controller=search,
+    )
+    try:
+        field = window.findChild(QQuickItem, "dashboardSearch")
+        field.setProperty("text", "example")
+        wait_for(application, lambda: not search.busy and bool(search.movies))
+        assert search.shows == []
+        selector = window.findChild(QQuickItem, "discoverMedia")
+        selector.setProperty("currentIndex", 1)
+        selector.activated.emit(1)
+        wait_for(application, lambda: not search.busy and bool(search.shows))
+        assert search.movies == [] and search.mediaType == "tv"
+        assert field.property("text") == "example"
+        assert field.property("placeholderText").startswith("Dizi")
+        selector.setProperty("currentIndex", 0)
+        selector.activated.emit(0)
+        wait_for(application, lambda: not search.busy and bool(search.movies))
+        assert search.shows == [] and search.mediaType == "movie"
+        assert field.property("placeholderText").startswith("Film")
+    finally:
+        window.close()
+        search.close()
+        application.processEvents()
+
+
+def test_search_category_change_discards_inflight_results(qapp):
+    tmdb = FakeTmdb()
+    tmdb.block_old = Event()
+    search = SearchController(client=tmdb, images=FakeImages())
+    try:
+        search.search("old")
+        wait_for(qapp, lambda: len(tmdb.calls) == 2)
+        search.setMediaType("tv")
+        search.search("new")
+        wait_for(qapp, lambda: not search.busy and bool(search.shows))
+        tmdb.block_old.set()
+        QTest.qWait(100)
+        assert search.movies == []
+        assert search.shows[0]["title"] == "new Series"
+        assert tmdb.calls.count(("tv", "new")) == 1
+        assert ("movie", "new") not in tmdb.calls
+        search.setMediaType("invalid")
+        assert search.mediaType == "tv"
+        search.setMediaType("movie")
+        search.search("movie")
+        wait_for(qapp, lambda: not search.busy and bool(search.movies))
+        assert search.shows == []
+    finally:
+        tmdb.block_old.set()
+        search.close()

@@ -19,4 +19,4 @@ def metadata_is_fresh(
     synced = last_synced_at
     if synced.tzinfo is not None:
         synced = synced.astimezone(UTC).replace(tzinfo=None)
-    return synced >= current - METADATA_MAX_AGE
+    return current - METADATA_MAX_AGE <= synced <= current

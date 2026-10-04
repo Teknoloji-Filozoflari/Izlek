@@ -30,20 +30,21 @@ checkdepends=(
 )
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
+_srcdir="Izlek-${pkgver}"
 
 build() {
-  cd "${pkgname}-${pkgver}"
+  cd "${_srcdir}"
   python -m build --wheel --no-isolation
 }
 
 check() {
-  cd "${pkgname}-${pkgver}"
+  cd "${_srcdir}"
   QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest
   ruff check .
 }
 
 package() {
-  cd "${pkgname}-${pkgver}"
+  cd "${_srcdir}"
   python -m installer --destdir="$pkgdir" dist/*.whl
 
   install -Dm644 src/izlek/resources/desktop/izlek.desktop \

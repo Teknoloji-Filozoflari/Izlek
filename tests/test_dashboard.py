@@ -24,7 +24,7 @@ def _wait_for(application, predicate):
     raise AssertionError("Dashboard hazır olmadı")
 
 
-def test_empty_dashboard_search_and_quick_entry(tmp_path, monkeypatch):
+def test_statistics_without_tracking_sections_and_home_search(tmp_path, monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     monkeypatch.setenv("QT_QUICK_BACKEND", "software")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -34,29 +34,27 @@ def test_empty_dashboard_search_and_quick_entry(tmp_path, monkeypatch):
         token_controller=TokenController(store=_Store())
     )
     try:
-        empty = window.findChild(QQuickItem, "emptyDashboard")
-        _wait_for(application, lambda: empty.isVisible())
-        message = window.findChild(QQuickItem, "emptyDashboardMessage")
-        assert "Film veya dizi arayarak" in message.property("text")
+        assert window.findChild(QQuickItem, "discoverFilters") is not None
+        assert window.findChild(QQuickItem, "dashboardSearch") is not None
+        window.navigate(4)
 
-        movies = window.findChild(QQuickItem, "dashboardMovies")
-        movies.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Space)
-        _wait_for(application, lambda: window.property("currentIndex") == 1)
-
-        window.navigate(0)
-        shows = window.findChild(QQuickItem, "dashboardShows")
-        shows.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Space)
-        _wait_for(application, lambda: window.property("currentIndex") == 2)
+        assert window.findChild(QQuickItem, "dashboardStats") is not None
+        for name in ("dashboardMovies", "dashboardShows", "dashboardFavorites",
+                     "allFavoritesButton"):
+            assert window.findChild(QQuickItem, name) is None
 
         window.navigate(0)
-        search = window.findChild(QQuickItem, "dashboardSearch")
-        search.forceActiveFocus()
-        _wait_for(
-            application,
-            lambda: window.findChild(QObject, "globalSearch").property("opened"),
+        QTest.qWait(300)
+        current_page = window.findChild(QQuickItem, "contentStack").property(
+            "currentItem"
         )
+        search = current_page.findChild(QQuickItem, "dashboardSearch")
+        search.forceActiveFocus()
+        application.processEvents()
+        assert not window.findChild(QObject, "globalSearch").property("visible")
+        QTest.keyClick(window, Qt.Key.Key_K, Qt.KeyboardModifier.ControlModifier)
+        _wait_for(application, lambda: search.hasActiveFocus())
+        assert not window.findChild(QObject, "globalSearch").property("visible")
     finally:
         window.close()
         application.processEvents()

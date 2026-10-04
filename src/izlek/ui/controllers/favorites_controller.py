@@ -70,5 +70,6 @@ class FavoritesController(QObject):
             self._load(self._generation)
 
     def close(self) -> None:
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._generation += 1
+        self._executor.shutdown(wait=True, cancel_futures=True)
         self._service.close()

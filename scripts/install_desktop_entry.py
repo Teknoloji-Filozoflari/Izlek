@@ -1,9 +1,10 @@
 """Install the development launcher and icon in the user's XDG data directory."""
 
-import os
 import sys
 from importlib.resources import files
 from pathlib import Path
+
+from izlek.core.paths import app_paths
 
 
 def main() -> int:
@@ -15,7 +16,7 @@ def main() -> int:
         )
         return 1
 
-    data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    data_home = app_paths().data.parent
     desktop_target = data_home / "applications/izlek.desktop"
     icon_target = data_home / "icons/hicolor/scalable/apps/izlek.svg"
     if desktop_target.exists() and "X-Izlek-Development=true" not in (

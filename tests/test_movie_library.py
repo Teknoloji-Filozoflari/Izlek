@@ -4,8 +4,8 @@ from concurrent.futures import Future
 from datetime import date, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, Qt, QtMsgType, qInstallMessageHandler
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtGui import QColor, QGuiApplication, QImage
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
@@ -80,6 +80,7 @@ def test_movie_library_filters_sorts_and_counts(tmp_path):
     assert [item.tmdb_id for item in watched.favorites] == [6, 4, 2]
     assert watched.stats == {"total": 5, "planned": 3, "watching": 1, "watched": 1}
     assert service.snapshot(TrackingStatus.WATCHING).items[0].tmdb_id == 5
+    assert {item.tmdb_id for item in service.snapshot(None).items} == {1, 2, 3, 4, 5}
     engine.dispose()
 
 
@@ -136,15 +137,16 @@ def test_movies_page_status_grid_and_compact_sections(tmp_path, monkeypatch):
     )
     try:
         window.navigate(1)
-        _wait_for(application, lambda: not library.busy and len(library.items) == 3)
+        _wait_for(application, lambda: not library.busy and len(library.items) == 5)
         grid = window.findChild(QQuickItem, "movieLibraryGrid")
         tabs = window.findChild(QQuickItem, "movieStatusTabs")
         sort_box = window.findChild(QQuickItem, "movieSort")
         favorite_strip = window.findChild(QQuickItem, "favoriteMoviesStrip")
         stats = window.findChild(QQuickItem, "movieStats")
-        assert all(
-            item is not None for item in (grid, tabs, sort_box, favorite_strip, stats)
-        )
+        assert all(item is not None for item in (grid, tabs, sort_box, favorite_strip))
+        assert stats is None
+        assert not tabs.isVisible()
+        assert not window.findChild(QQuickItem, "showsContinueSection").isVisible()
         assert favorite_strip.property("count") == 3
         for width, height in ((800, 600), (1366, 768), (1920, 1080)):
             window.resize(width, height)
@@ -153,21 +155,15 @@ def test_movies_page_status_grid_and_compact_sections(tmp_path, monkeypatch):
             assert grid.height() < 330
             assert favorite_strip.height() < 120
             assert grid.property("columns") >= (4 if width == 800 else 6)
-            assert stats.mapToScene(QPointF(0, stats.height())).y() <= height
         QTest.qWait(300)
         application.processEvents()
         sort_box.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Down)
         _wait_for(application, lambda: library.sortBy == "title" and not library.busy)
-        assert [item["tmdb_id"] for item in library.items] == [3, 2, 1]
-        third_tab = tabs.childItems()[0].childItems()[2]
-        third_tab.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Space)
-        _wait_for(
-            application,
-            lambda: library.status == "WATCHED" and not library.busy,
-        )
-        assert [item["tmdb_id"] for item in library.items] == [4]
+        assert [item["tmdb_id"] for item in library.items] == [3, 2, 4, 5, 1]
+        QTest.qWait(300)
+        grid.setProperty("currentIndex", 2)
+        application.processEvents()
 
         def visible_favorite(item):
             if item.objectName() == "cardFavorite" and item.isVisible():
@@ -184,11 +180,12 @@ def test_movies_page_status_grid_and_compact_sections(tmp_path, monkeypatch):
         _wait_for(
             application,
             lambda: (
-                visible_favorite(grid) is not None
-                and visible_favorite(grid).property("checked") is True
+                visible_favorite(grid.property("currentItem")) is not None
+                and visible_favorite(grid.property("currentItem")).property("checked")
+                is True
             ),
         )
-        card_favorite = visible_favorite(grid)
+        card_favorite = visible_favorite(grid.property("currentItem"))
         card_favorite.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
         _wait_for(application, lambda: not library.busy and len(library.favorites) == 2)
@@ -237,5 +234,118 @@ def test_movies_page_empty_state(tmp_path, monkeypatch):
         window.close()
         library.close()
         continuing.close()
+        application.processEvents()
+        engine.dispose()
+
+
+def test_library_displays_real_posters_after_refresh_and_sort(tmp_path):
+    application = QGuiApplication.instance() or QGuiApplication([])
+    poster = QImage(34, 51, QImage.Format.Format_RGB32)
+    poster.fill(QColor("red"))
+    path = tmp_path / "poster.img"
+    assert poster.save(str(path), "JPEG")
+    requests = []
+
+    class LocalImages:
+        def poster(self, remote_path):
+            requests.append(remote_path)
+            future = Future()
+            future.set_result(path)
+            return future
+
+    engine = initialize_database(tmp_path / "library.sqlite3")
+    factory = create_session_factory(engine)
+    _seed(factory)
+    library = MovieLibraryController(
+        service=MovieLibraryService(factory), images=LocalImages()
+    )
+    application, qml_engine, window = create_application(
+        token_controller=TokenController(store=_Store()),
+        movie_library_controller=library,
+    )
+
+    def cards(item):
+        found = []
+        if item.property("posterReady") is not None:
+            found.append(item)
+        for child in item.childItems():
+            found.extend(cards(child))
+        return found
+
+    try:
+        window.navigate(1)
+        grid = window.findChild(QQuickItem, "movieLibraryGrid")
+        initial_requests = None
+        for action in (
+            lambda: None, library.refresh, lambda: library.setSort("title"),
+            lambda: (window.navigate(2), window.navigate(1)),
+        ):
+            action()
+            application.processEvents()
+            current_page = window.findChild(QQuickItem, "contentStack").property(
+                "currentItem"
+            )
+            grid = current_page.findChild(QQuickItem, "movieLibraryGrid")
+            _wait_for(application, lambda: not library.busy and len(library.items) == 5)
+            QTest.qWait(150)
+            _wait_for(
+                application,
+                lambda grid=grid: (
+                    len(cards(grid)) >= 3
+                    and all(card.property("posterReady") for card in cards(grid))
+                ),
+            )
+            assert all(item["poster"].endswith("poster.img") for item in library.items)
+            if initial_requests is None:
+                initial_requests = len(requests)
+            else:
+                assert len(requests) == initial_requests
+    finally:
+        window.close()
+        library.close()
+        application.processEvents()
+        engine.dispose()
+
+
+def test_poster_arrival_preserves_card_focus_and_refresh_has_no_overlay(tmp_path):
+    from shiboken6 import isValid
+
+    application = QGuiApplication.instance() or QGuiApplication([])
+    image = QImage(34, 51, QImage.Format.Format_RGB32)
+    image.fill(QColor("red"))
+    path = tmp_path / "focus-poster.jpg"
+    assert image.save(str(path), "JPEG")
+    pending = {}
+
+    class PendingImages:
+        def poster(self, remote_path):
+            return pending.setdefault(remote_path, Future())
+
+    engine = initialize_database(tmp_path / "focus.sqlite3")
+    factory = create_session_factory(engine)
+    _seed(factory)
+    library = MovieLibraryController(MovieLibraryService(factory), PendingImages())
+    application, qml, window = create_application(
+        token_controller=TokenController(store=_Store()),
+        movie_library_controller=library,
+    )
+    try:
+        window.navigate(1)
+        _wait_for(application, lambda: not library.busy and bool(pending))
+        grid = window.findChild(QQuickItem, "movieLibraryGrid")
+        card = grid.property("currentItem")
+        card.forceActiveFocus()
+        remote_path = card.property("modelData")["poster_path"]
+        pending[remote_path].set_result(path)
+        _wait_for(application, lambda: isValid(card) and card.property("posterReady"))
+        assert grid.property("currentItem") is card
+        assert card.hasActiveFocus()
+        library.refresh()
+        assert library.busy
+        assert not window.findChild(QQuickItem, "libraryLoadingState").isVisible()
+        assert window.findChild(QQuickItem, "libraryGridFrame").property("clip")
+    finally:
+        window.close()
+        library.close()
         application.processEvents()
         engine.dispose()

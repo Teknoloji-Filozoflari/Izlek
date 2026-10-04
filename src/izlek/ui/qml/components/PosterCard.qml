@@ -5,6 +5,7 @@ import "../theme" as Tokens
 Button {
     id: card
     property url posterSource
+    property bool posterLoading: false
     property string mediaTitle: ""
     property string year: ""
     property string status: ""
@@ -53,11 +54,11 @@ Button {
 
             Skeleton {
                 anchors.fill: parent
-                visible: poster.status === Image.Loading
+                visible: card.posterLoading || poster.status === Image.Loading
             }
 
             Column {
-                visible: poster.status !== Image.Loading && !card.posterReady
+                visible: !card.posterLoading && poster.status !== Image.Loading && !card.posterReady
                 anchors.centerIn: parent
                 spacing: Tokens.Theme.spaceSm
                 Label {
@@ -133,14 +134,14 @@ Button {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.margins: Tokens.Theme.spaceSm
-                height: 4
+                height: 5
                 radius: 2
                 color: Tokens.Theme.border
                 Rectangle {
                     width: parent.width * Math.max(0, Math.min(1, card.progress))
                     height: parent.height
                     radius: parent.radius
-                    color: Tokens.Theme.accent
+                    color: Tokens.Theme.statsAccent
                 }
             }
         }

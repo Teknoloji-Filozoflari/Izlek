@@ -61,8 +61,10 @@ def test_favorite_update_rejects_unknown_media_without_creating_rows(tmp_path):
         engine.dispose()
 
 
-def test_home_favorites_limit_and_expand(tmp_path, monkeypatch):
-    from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
+def test_statistics_hides_favorites_without_removing_saved_favorites(
+    tmp_path, monkeypatch
+):
+    from PySide6.QtCore import QtMsgType, qInstallMessageHandler
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
@@ -102,19 +104,17 @@ def test_home_favorites_limit_and_expand(tmp_path, monkeypatch):
         favorites_controller=favorites,
     )
     try:
+        favorites.refresh()
+        window.navigate(4)
         for _ in range(100):
             application.processEvents()
             if len(favorites.items) == 7:
                 break
             QTest.qWait(10)
         assert len(favorites.items) == 7
-        button = window.findChild(QQuickItem, "allFavoritesButton")
-        assert button is not None and button.isVisible()
-        assert button.property("text") == "Tümünü Gör"
-        button.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Space)
-        application.processEvents()
-        assert button.property("text") == "Daha Az Göster"
+        assert window.findChild(QQuickItem, "allFavoritesButton") is None
+        assert window.findChild(QQuickItem, "dashboardFavorites") is None
+        assert window.findChild(QQuickItem, "dashboardStats").isVisible()
         assert not warnings
     finally:
         window.close()

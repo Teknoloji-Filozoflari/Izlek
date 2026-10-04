@@ -1,7 +1,10 @@
 """Local-only aggregate statistics and missing-runtime behavior."""
 
 from concurrent.futures import Future
+from datetime import date, datetime
 from pathlib import Path
+
+import pytest
 
 from izlek.app import create_application
 from izlek.db.engine import create_session_factory, initialize_database
@@ -46,7 +49,11 @@ def test_empty_statistics_snapshot_has_stable_zero_values(tmp_path):
     engine = initialize_database(tmp_path / "empty.sqlite3")
     try:
         snapshot = StatisticsService(create_session_factory(engine)).snapshot()
-        assert snapshot.as_dict() == {
+        values = snapshot.as_dict()
+        assert len(values.pop("monthly_activity")) == 12
+        assert values.pop("top_shows") == []
+        assert values.pop("genre_distribution") == []
+        assert values == {
             "watched_movies": 0,
             "completed_tv": 0,
             "watched_episodes": 0,
@@ -65,7 +72,43 @@ def test_empty_statistics_snapshot_has_stable_zero_values(tmp_path):
         engine.dispose()
 
 
-def test_statistics_uses_local_tracking_and_hides_incomplete_durations(tmp_path):
+@pytest.mark.parametrize("unknown_runtime", [None, 0, -1])
+@pytest.mark.parametrize("include_known", [False, True])
+def test_invalid_runtimes_are_excluded_without_hiding_totals(
+    tmp_path, unknown_runtime, include_known
+):
+    engine = initialize_database(tmp_path / "runtimes.sqlite3")
+    factory = create_session_factory(engine)
+    with factory.begin() as session:
+        media = MediaRepository(session)
+        users = UserMediaRepository(session)
+        movie = media.upsert(1, MediaType.MOVIE, "Unknown", runtime=unknown_runtime)
+        users.set_status(movie.id, TrackingStatus.WATCHED)
+        show = media.upsert(1, MediaType.TV, "Show")
+        season = SeasonRepository(session).upsert(show.id, 1)
+        episodes = EpisodeRepository(session)
+        episode = episodes.upsert(season.id, 1, runtime=unknown_runtime)
+        episodes.set_watched(episode.id, True)
+        if include_known:
+            movie = media.upsert(2, MediaType.MOVIE, "Known", runtime=100)
+            users.set_status(movie.id, TrackingStatus.WATCHED)
+            episode = episodes.upsert(season.id, 2, runtime=40)
+            episodes.set_watched(episode.id, True)
+    try:
+        result = StatisticsService(factory).snapshot()
+        assert result.watched_movie_minutes == (100 if include_known else 0)
+        assert result.watched_episode_minutes == (40 if include_known else 0)
+        assert result.estimated_total_minutes == (140 if include_known else 0)
+        assert result.missing_movie_runtime_count == 1
+        assert result.missing_episode_runtime_count == 1
+        assert result.watched_movies == (2 if include_known else 1)
+        assert result.watched_episodes == (2 if include_known else 1)
+        assert result.top_shows[0]["minutes"] == (40 if include_known else 0)
+    finally:
+        engine.dispose()
+
+
+def test_statistics_uses_local_tracking_and_sums_known_durations(tmp_path):
     engine = initialize_database(tmp_path / "izlek.sqlite3")
     factory = create_session_factory(engine)
     with factory.begin() as session:
@@ -115,9 +158,9 @@ def test_statistics_uses_local_tracking_and_hides_incomplete_durations(tmp_path)
     assert incomplete.watched_movies == 2
     assert incomplete.completed_tv == 1
     assert incomplete.watched_episodes == 2
-    assert incomplete.watched_movie_minutes is None
-    assert incomplete.watched_episode_minutes is None
-    assert incomplete.estimated_total_minutes is None
+    assert incomplete.watched_movie_minutes == 100
+    assert incomplete.watched_episode_minutes == 50
+    assert incomplete.estimated_total_minutes == 150
     assert incomplete.missing_movie_runtime_count == 1
     assert incomplete.missing_episode_runtime_count == 1
     assert incomplete.favorite_movies == 1
@@ -152,7 +195,6 @@ def test_statistics_uses_local_tracking_and_hides_incomplete_durations(tmp_path)
 
 
 def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch):
-    from PySide6.QtCore import QObject
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
@@ -169,6 +211,8 @@ def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch
             10, MediaType.MOVIE, "Watched", runtime=95
         )
         UserMediaRepository(session).set_status(media.id, TrackingStatus.WATCHED)
+        unknown = MediaRepository(session).upsert(11, MediaType.MOVIE, "Unknown")
+        UserMediaRepository(session).set_status(unknown.id, TrackingStatus.WATCHED)
     statistics = StatisticsController(service=StatisticsService(factory))
     movie_library = MovieLibraryController(
         service=MovieLibraryService(factory), images=_Images()
@@ -187,28 +231,34 @@ def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch
         continue_controller=continuing,
     )
     try:
+        window.navigate(4)
         dashboard = window.findChild(QQuickItem, "dashboardStats")
         for _ in range(100):
             application.processEvents()
             if (
                 not statistics.busy
-                and statistics.stats.get("watched_movies") == 1
+                and statistics.stats.get("watched_movies") == 2
                 and dashboard.isVisible()
             ):
                 break
             QTest.qWait(10)
         else:
             raise AssertionError("İstatistikler yüklenmedi")
-        button = window.findChild(QQuickItem, "allStatisticsButton")
         assert dashboard is not None and dashboard.isVisible()
         for width, height in ((1366, 768), (1920, 1080)):
             window.resize(width, height)
             application.processEvents()
+            QTest.qWait(50)
             assert dashboard.width() > 260 and dashboard.height() > 200
-        button.forceActiveFocus()
-        QTest.keyClick(window, " ")
-        dialog = window.findChild(QObject, "statisticsDialog")
-        assert dialog is not None and dialog.property("opened")
+            assert abs(dashboard.width() - dashboard.parentItem().width()) < 1
+            assert dashboard.width() > width - 350
+        assert window.findChild(QQuickItem, "totalScreenTime") is not None
+        assert statistics.stats["estimated_total_minutes"] == 95
+        description = window.findChild(QQuickItem, "screenTimeDescription")
+        assert "1 film ve 0 bölüm hesaba katılmadı" in description.property("text")
+        assert window.findChild(QQuickItem, "monthlyStatistics") is None
+        assert window.findChild(QQuickItem, "genreStatistics") is not None
+        assert window.findChild(QQuickItem, "topShowStatistics") is not None
     finally:
         window.close()
         statistics.close()
@@ -216,4 +266,56 @@ def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch
         tv_library.close()
         continuing.close()
         application.processEvents()
+        engine.dispose()
+
+
+def test_monthly_activity_uses_watch_dates_and_top_shows_use_real_runtimes(tmp_path):
+    engine = initialize_database(tmp_path / "activity.sqlite3")
+    factory = create_session_factory(engine)
+    with factory.begin() as session:
+        media = MediaRepository(session).upsert(
+            77,
+            MediaType.TV,
+            "Friends",
+            poster_path="/friends.jpg",
+            metadata_json={
+                "detail": {"genres": [{"name": "Komedi"}, {"name": "Dram"}]}
+            },
+        )
+        season = SeasonRepository(session).upsert(media.id, 1)
+        for number, runtime, watched_at in (
+            (1, 25, datetime(2025, 2, 1)),
+            (2, 30, datetime(2025, 12, 31)),
+            (3, 40, datetime(2026, 1, 10)),
+            (4, None, datetime(2026, 1, 11)),
+            (5, 20, None),
+            (6, 50, datetime(2025, 1, 1)),
+        ):
+            episode = EpisodeRepository(session).upsert(
+                season.id, number, runtime=runtime
+            )
+            progress = EpisodeRepository(session).set_watched(episode.id, True)
+            progress.watched_at = watched_at
+    try:
+        result = StatisticsService(factory).snapshot(today=date(2026, 1, 31))
+        assert len(result.monthly_activity) == 12
+        assert result.monthly_activity[0]["month"] == 2
+        assert result.monthly_activity[0]["year"] == 2025
+        assert result.monthly_activity[0]["minutes"] == 25
+        assert result.monthly_activity[-2]["minutes"] == 30
+        assert result.monthly_activity[-1]["minutes"] == 40
+        assert result.monthly_activity[-1]["episodes"] == 2
+        assert result.monthly_activity[-1]["missing_runtime"] == 1
+        assert result.top_shows[0]["title"] == "Friends"
+        assert result.top_shows[0]["minutes"] == 165
+        assert result.top_shows[0]["missing_runtime"] == 1
+        assert result.watched_episode_minutes == 165
+        assert result.estimated_total_minutes == 165
+        assert sum(row["share"] for row in result.genre_distribution) == 1
+        assert result.genre_distribution[0]["share"] == 0.5
+        # Unmarking immediately removes the episode from charts and totals.
+        with factory.begin() as session:
+            EpisodeRepository(session).set_watched(episode.id, False)
+        assert StatisticsService(factory).snapshot().top_shows[0]["episodes"] == 5
+    finally:
         engine.dispose()

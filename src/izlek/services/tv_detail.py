@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
+from threading import Lock
 from typing import Any
 
 from sqlalchemy import Engine
@@ -18,6 +19,7 @@ from izlek.repositories.local import (
 )
 from izlek.services.custom_lists import CustomListsService
 from izlek.services.metadata_freshness import metadata_is_fresh
+from izlek.services.metadata_retention import merge_remote_metadata
 from izlek.services.movie_detail import _trailer_url
 from izlek.services.provider_presentation import present_providers
 from izlek.services.tv_status import TvProgress, automatic_status
@@ -57,11 +59,13 @@ class TvDetailService:
         self.client = client
         self._factory = session_factory
         self._owned_engine: Engine | None = None
+        self._session_lock = Lock()
 
     def _sessions(self) -> sessionmaker[Session]:
-        if self._factory is None:
-            self._owned_engine = initialize_database()
-            self._factory = create_session_factory(self._owned_engine)
+        with self._session_lock:
+            if self._factory is None:
+                self._owned_engine = initialize_database()
+                self._factory = create_session_factory(self._owned_engine)
         return self._factory
 
     def close(self) -> None:
@@ -75,9 +79,7 @@ class TvDetailService:
         rows = EpisodeRepository(session).list_for_media_with_progress(media_id)
         by_season: dict[int, list[tuple[Any, Any]]] = {}
         for season, episode, progress in rows:
-            by_season.setdefault(season.season_number, []).append(
-                (episode, progress)
-            )
+            by_season.setdefault(season.season_number, []).append((episode, progress))
         today = date.today()
         watched_count = aired_count = unwatched_aired_count = missing = 0
         season_watched: dict[int, int] = {}
@@ -93,7 +95,13 @@ class TvDetailService:
                     aired_count += 1
                     unwatched_aired_count += not watched
         return (
-            TvProgress(watched_count, aired_count, unwatched_aired_count, missing),
+            TvProgress(
+                watched_count,
+                aired_count,
+                unwatched_aired_count,
+                missing,
+                sum(season.episode_count for season in detail.seasons),
+            ),
             season_watched,
         )
 
@@ -102,9 +110,33 @@ class TvDetailService:
     ) -> None:
         """Apply automatic status in the same transaction as a progress change."""
         media = MediaRepository(session).get(media_id)
-        assert media is not None and media.metadata_json is not None
-        detail = TvDetail.model_validate(media.metadata_json["detail"])
-        progress, _ = self._progress(session, media_id, detail)
+        if media is None:
+            raise LookupError("Dizi bulunamadı")
+        blob = media.metadata_json or {}
+        if blob.get("detail"):
+            detail = TvDetail.model_validate(blob["detail"])
+            progress, _ = self._progress(session, media_id, detail)
+        else:
+            # Portable imports may contain progress without full TMDb details.
+            # Completion cannot be inferred from a partially known episode list.
+            rows = EpisodeRepository(session).list_for_media_with_progress(media_id)
+            today = date.today()
+            progress = TvProgress(
+                watched_count=sum(
+                    bool(state and state.watched) for _, _, state in rows
+                ),
+                aired_count=sum(
+                    episode.air_date is not None and episode.air_date <= today
+                    for _, episode, _ in rows
+                ),
+                unwatched_aired_count=sum(
+                    episode.air_date is not None
+                    and episode.air_date <= today
+                    and not (state and state.watched)
+                    for _, episode, state in rows
+                ),
+                missing_metadata_count=1,
+            )
         repository = UserMediaRepository(session)
         user = repository.get(media_id)
         current = user.status if user else None
@@ -114,8 +146,10 @@ class TvDetailService:
             progress=progress,
             explicit_unwatch=explicit_unwatch,
         )
-        if selected != current:
-            repository.set_status(media_id, selected, manual=False)
+        if selected != current or (user and user.status_is_manual):
+            repository.set_status(
+                media_id, selected, manual=False, override_manual=True
+            )
 
     def load(self, tv_id: int) -> dict[str, Any]:
         """Fetch show sections, merge optional metadata, and keep local state."""
@@ -142,8 +176,8 @@ class TvDetailService:
         with self._sessions().begin() as session:
             media_repo = MediaRepository(session)
             existing = media_repo.get_by_tmdb(tv_id, MediaType.TV)
-            if existing and existing.metadata_json:
-                blob = {**existing.metadata_json, **blob}
+            synced_at = utc_now()
+            blob = merge_remote_metadata(existing, blob, synced_at)
             media = media_repo.upsert(
                 tv_id,
                 MediaType.TV,
@@ -154,7 +188,7 @@ class TvDetailService:
                 backdrop_path=detail.backdrop_path,
                 first_air_date=_date(detail.first_air_date),
                 metadata_json=blob,
-                last_synced_at=utc_now(),
+                last_synced_at=synced_at,
             )
             seasons = SeasonRepository(session)
             for season in detail.seasons:
@@ -172,15 +206,13 @@ class TvDetailService:
         """Check TV detail freshness using only the local media record."""
         with self._sessions()() as session:
             media = MediaRepository(session).get_by_tmdb(tv_id, MediaType.TV)
-            return media is None or not metadata_is_fresh(
-                media.last_synced_at, now=now
-            )
+            return media is None or not metadata_is_fresh(media.last_synced_at, now=now)
 
     def cached(self, tv_id: int) -> dict[str, Any] | None:
         """Read saved TV metadata and user state, including watched counts."""
         with self._sessions()() as session:
             media = MediaRepository(session).get_by_tmdb(tv_id, MediaType.TV)
-            if media is None or not media.metadata_json:
+            if media is None or not (media.metadata_json or {}).get("detail"):
                 return None
             blob = media.metadata_json
             detail = TvDetail.model_validate(blob["detail"])
@@ -229,7 +261,11 @@ class TvDetailService:
                 "backdrop": "",
                 "creators": [person.name for person in detail.created_by],
                 "cast": [
-                    {"name": person["name"], "character": person.get("character", "")}
+                    {
+                        "name": person["name"],
+                        "character": person.get("character", ""),
+                        "profilePath": person.get("profile_path") or "",
+                    }
                     for person in sorted(
                         credits.get("cast", []), key=lambda item: item.get("order", 0)
                     )[:12]
@@ -256,6 +292,14 @@ class TvDetailService:
                 "lists": selected_lists,
                 "availableLists": [entry.name for entry in available_lists],
                 "watchedEpisodeCount": progress.watched_count,
+                "watchedRegularEpisodeCount": sum(
+                    count for number, count in counts.items() if number > 0
+                ),
+                "totalEpisodeCount": sum(
+                    max(0, season.episode_count)
+                    for season in detail.seasons
+                    if season.season_number > 0
+                ),
                 "airedEpisodeCount": progress.aired_count,
                 "unwatchedAiredCount": progress.unwatched_aired_count,
                 "missingEpisodeMetadataCount": progress.missing_metadata_count,
@@ -392,13 +436,20 @@ class TvDetailService:
             return result
 
     def set_episode_watched(
-        self, tv_id: int, season_number: int, episode_number: int, watched: bool
+        self, tv_id: int, season_number: int, episode_number: int, watched: bool,
+        *, require_in_library: bool = False,
     ) -> list[dict[str, Any]]:
         """Change exactly one local episode progress row."""
         with self._sessions().begin() as session:
+            if require_in_library:
+                session.connection().exec_driver_sql("BEGIN IMMEDIATE")
             media = MediaRepository(session).get_by_tmdb(tv_id, MediaType.TV)
             if media is None:
                 raise LookupError("Dizi bulunamadı")
+            if require_in_library:
+                user = UserMediaRepository(session).get(media.id)
+                if user is None or user.status is None:
+                    raise LookupError("Dizi kütüphanede değil")
             season = next(
                 (
                     item
@@ -420,6 +471,11 @@ class TvDetailService:
             )
             if episode is None:
                 raise LookupError("Bölüm bulunamadı")
+            if require_in_library and (
+                season_number <= 0 or episode.air_date is None
+                or episode.air_date > date.today()
+            ):
+                raise ValueError("Devam Et yalnız yayınlanmış normal bölümler içindir")
             repo.set_watched(episode.id, watched)
             self._sync_status(session, media.id, explicit_unwatch=not watched)
         return self.cached_season(tv_id, season_number) or []
@@ -468,8 +524,9 @@ class TvDetailService:
             return []
         return self.cached_season(tv_id, season_number) or []
 
-    def set_status(self, tv_id: int, status: str) -> dict[str, Any]:
-        selected = TrackingStatus(status)
+    def set_status(self, tv_id: int, status: str | None) -> dict[str, Any]:
+        """Set tracking status; None preserves episodes, favorites and lists."""
+        selected = TrackingStatus(status) if status is not None else None
         with self._sessions().begin() as session:
             media = MediaRepository(session).get_by_tmdb(tv_id, MediaType.TV)
             if media is None:

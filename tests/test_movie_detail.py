@@ -7,15 +7,87 @@ from threading import Event
 
 import httpx
 import pytest
+from PySide6.QtCore import QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QDesktopServices, QGuiApplication
+from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
+from sqlalchemy.exc import OperationalError
 
+from izlek.app import create_application
 from izlek.db.engine import create_session_factory, initialize_database
 from izlek.db.models import MediaType, TrackingStatus, utc_now
 from izlek.repositories.local import MediaRepository
 from izlek.services.movie_detail import MovieDetailService
 from izlek.tmdb.client import TmdbClient
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
+from izlek.ui.controllers.token_controller import TokenController
+from test_tv_detail import ExistingTokenStore
+
+
+def test_movie_detail_photo_cards_and_responsive_lower_layout(tmp_path):
+    app = QGuiApplication.instance() or QGuiApplication([])
+    payload = responses()
+    payload["/3/movie/42/credits"]["cast"][0]["profile_path"] = "/actor.jpg"
+    db = initialize_database(tmp_path / "layout.sqlite3")
+    warnings = []
+
+    def collect(kind, context, message):
+        if kind in (QtMsgType.QtWarningMsg, QtMsgType.QtCriticalMsg):
+            warnings.append(message)
+
+    def find_visual(item, name):
+        if item.objectName() == name:
+            return item
+        for child in item.childItems():
+            found = find_visual(child, name)
+            if found is not None:
+                return found
+        return None
+
+    previous = qInstallMessageHandler(collect)
+    with httpx.Client(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, json=payload[request.url.path])
+    )) as http:
+        movie = MovieDetailController(
+            MovieDetailService(TmdbClient(http, token="test-only"),
+                               create_session_factory(db)),
+            images=FakeImages(),
+        )
+        app, qml, window = create_application(
+            token_controller=TokenController(store=ExistingTokenStore()),
+            movie_controller=movie,
+        )
+        try:
+            window.openMediaDetail("movie", 42)
+            wait_for(app, lambda: not movie.busy
+                     and bool(movie.detail["cast"][0].get("poster")))
+            cast = window.findChild(QQuickItem, "movieCastGrid")
+            photo = find_visual(cast, "movieActorPhoto")
+            assert photo.property("source").toString()
+            assert movie.detail["cast"][0]["profilePath"] == "/actor.jpg"
+            info = window.findChild(QQuickItem, "movieProductionInfo")
+            related = window.findChild(QQuickItem, "movieRelatedGrid")
+            for width, height in ((1366, 768), (1920, 1080)):
+                window.resize(width, height)
+                app.processEvents()
+                assert info.property("columns") == 3
+                strip = find_visual(related, "movieRelatedStrip")
+                assert strip.property("count") == 1
+                assert strip.width() == related.width()
+                assert strip.property("items")[0]["title"] == "Recommended Original"
+            window.resize(900, 768)
+            app.processEvents()
+            assert info.property("columns") == 1
+            movie.setStatus("PLANNED")
+            wait_for(app, lambda: not movie.saving)
+            assert movie.detail["cast"][0]["poster"]
+            assert not warnings
+        finally:
+            window.close()
+            movie.close()
+            app.processEvents()
+            qInstallMessageHandler(previous)
+    db.dispose()
 
 
 def responses():
@@ -96,6 +168,9 @@ class FakeImages:
     def backdrop(self, path):
         return self._done()
 
+    def profile(self, path):
+        return self._done()
+
 
 def wait_for(application, predicate):
     for _ in range(100):
@@ -104,6 +179,52 @@ def wait_for(application, predicate):
             return
         QTest.qWait(10)
     raise AssertionError("Timed out waiting for movie state")
+
+
+def test_movie_database_failure_releases_loading_and_saving(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    application = QGuiApplication.instance() or QGuiApplication([])
+
+    class BrokenService:
+        def cached(self, movie_id):
+            raise OperationalError("SELECT", {}, Exception("locked"))
+
+        load = cached
+
+        def set_favorite(self, movie_id, value):
+            return self.cached(movie_id)
+
+        def close(self):
+            pass
+
+    controller = MovieDetailController(service=BrokenService(), images=FakeImages())
+    try:
+        controller.loadMovie(42)
+        wait_for(application, lambda: not controller.busy)
+        assert controller.error
+        controller._detail = {"id": 42}
+        controller.setFavorite(True)
+        wait_for(application, lambda: not controller.saving)
+        assert controller.feedback == "Değişiklik kaydedilemedi."
+    finally:
+        controller.close()
+
+
+def test_switch_movie_while_saving_unlocks_new_page(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QGuiApplication.instance() or QGuiApplication([])
+    class Service:
+        def close(self):
+            pass
+
+    controller = MovieDetailController(service=Service(), images=FakeImages())
+    monkeypatch.setattr(controller, "_submit", lambda *args: None)
+    try:
+        controller._saving = True
+        controller.loadMovie(42)
+        assert not controller.saving
+    finally:
+        controller.close()
 
 
 def test_movie_sections_save_metadata_and_personal_state_survives_restart(tmp_path):
@@ -131,7 +252,9 @@ def test_movie_sections_save_metadata_and_personal_state_survives_restart(tmp_pa
         assert detail["runtime"] == 124
         assert detail["genres"] == ["Dram"]
         assert detail["score"] == 7.6
-        assert detail["cast"] == [{"name": "Actor", "character": "Lead"}]
+        assert detail["cast"] == [
+            {"name": "Actor", "character": "Lead", "profilePath": ""}
+        ]
         assert detail["directors"] == ["Director"]
         assert detail["companies"] == ["Studio"]
         assert detail["countries"] == ["ABD"]
@@ -210,6 +333,15 @@ def test_movie_controller_actions_update_qml_state(tmp_path, monkeypatch):
             controller.addToList("My List")
             wait_for(application, lambda: not controller.saving)
             assert controller.detail["lists"] == ["My List"]
+            controller.removeFromLibrary()
+            wait_for(application, lambda: not controller.saving)
+            assert not controller.detail["status"]
+            assert controller.detail["favorite"] is True
+            assert controller.detail["lists"] == ["My List"]
+            assert service.cached(42)["status"] == ""
+            controller.setStatus("PLANNED")
+            wait_for(application, lambda: not controller.saving)
+            assert controller.detail["status"] == "PLANNED"
             opened = []
             monkeypatch.setattr(
                 QDesktopServices, "openUrl", lambda url: opened.append(url.toString())
@@ -278,8 +410,10 @@ def test_movie_controller_uses_fresh_cache_then_refreshes_stale_in_background(
             controller.loadMovie(42)
             wait_for(
                 application,
-                lambda: not controller.busy and controller.detail.get("title")
-                == "Original Film",
+                lambda: (
+                    not controller.busy
+                    and controller.detail.get("title") == "Original Film"
+                ),
             )
             QTest.qWait(50)
             assert paths == []
@@ -292,8 +426,10 @@ def test_movie_controller_uses_fresh_cache_then_refreshes_stale_in_background(
             controller.loadMovie(42)
             wait_for(
                 application,
-                lambda: not controller.busy and controller.detail.get("title")
-                == "Original Film",
+                lambda: (
+                    not controller.busy
+                    and controller.detail.get("title") == "Original Film"
+                ),
             )
             assert controller.detail["status"] == TrackingStatus.WATCHED
             assert controller.detail["favorite"] is True

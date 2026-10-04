@@ -41,7 +41,9 @@ bağlantılarını engeller; TMDb yanıtları `httpx.MockTransport` ile sağland
 CI ortamında gerçek token gerekmez. Tek tek çalıştırmak için `python -m pytest`
 ve `ruff check .` komutları da kullanılabilir.
 
-`python -m izlek` masaüstü penceresini açar. Ana Sayfa'da global arama, Film/Dizi hızlı girişleri, öncelikli **Devam Et**, yerel favoriler ve takip istatistikleri görünür. Kütüphane boşsa aramayla başlamaya yönlendiren tek bir başlangıç görünümü gösterilir. İstatistik özeti izlenen film, tamamlanan dizi, izlenen bölüm ve tahmini süreyi; **Tümünü Gör** ise favori, izlenecek ve tür özetini yalnızca yerel SQLite verisinden gösterir. Eksik runtime varsa süre toplamı gösterilmez. Filmler ve Diziler sayfalarında yerel kütüphaneler, Listeler sayfasında yerel özel listeler, Keşfet sayfasında ise TMDb Discover sonuçları görünür. Diziler kartında yerel bölüm metadata'sı varsa sıradaki yayınlanmış bölüm veya izlenen/toplam bölüm sayısı gösterilir; özel sezon ilerleme hesabına katılmaz. `--gallery`, [bileşen kütüphanesini](docs/components.md) çevrimdışı örnek veriyle gösterir. Pencere boyutu ve büyütülmüş durumu XDG config dizininde saklanır. İçe aktarım için kurulum gereklidir; `src/` düzeni kullanılır. Diğer XDG yolları [mimari belgesinde](docs/architecture.md) açıklanır. Ekransız CI ortamında testler için `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest` kullanın.
+`python -m izlek` masaüstü penceresini açar. İlk açılan **Ana Sayfa**, Keşfet filtreleri ve Film/Dizi seçilebilen global aramayı içerir. **İstatistikler** (Ctrl+5) altında toplam ekran süresi, izleme sayaçları, son 12 ay bölüm grafiği, tür halkası ve en çok zaman ayrılan diziler toplanır. Aylık grafik yalnız gerçek izleme tarihi ve süresi kayıtlı bölümleri kullanır; film izleme tarihi tutulmadığı için filmler grafiğe dahil edilmez. Toplam süre yalnız süresi bilinen film ve bölümlerden hesaplanır; süresi bilinmeyen içerikler süre toplamına katılmaz ve kaç içerik dışarıda kaldığı gösterilir. **Devam Et** Diziler sekmesindedir; İstatistikler sayfası yalnız istatistikleri gösterir.
+
+Filmler ve Diziler yerel kütüphaneleri, Listeler özel listeleri gösterir. Dizi kartı ve detay ekranında bölüm sayacı ile ilerleme çubuğu bulunur; özel sezonlar ana ilerleme çubuğuna katılmaz. Bölüm satırlarındaki yazısız yuvarlak tik fare veya Space ile değiştirilir. `--gallery`, [bileşen kütüphanesini](docs/components.md) çevrimdışı örnek veriyle gösterir. Pencere boyutu ve büyütülmüş durumu XDG config dizininde saklanır; diğer XDG yolları [mimari belgesinde](docs/architecture.md) açıklanır. Ekransız CI için `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest` kullanın.
 
 İlk açılışta Alembic migration'ları otomatik uygulanır. Kişisel veritabanı `$XDG_DATA_HOME/izlek/izlek.sqlite3` konumundadır; değişken tanımlı değilse `~/.local/share/izlek/izlek.sqlite3` kullanılır. Komut satırından migration çalıştırmak için kurulu sanal ortamda `python -m alembic -c alembic.ini upgrade head` kullanın. SQLite dosyasını yedeklemeden elle değiştirmeyin.
 
@@ -93,9 +95,9 @@ Ana penceredeki her sayfadan **Ctrl+K** ile arama açılır, **Esc** ile kapanı
 
 ## Film detayı ve yerel takip
 
-Film arama sonucundan açılan ekran; TMDb detay, oyuncu/yönetmen, video, benzer film, öneri ve Türkiye izleme sağlayıcısı verilerini arka planda yükler. Poster ve backdrop görsel servisini kullanır. **Kütüphaneye Ekle** filmi `PLANNED` durumuyla yerel kütüphaneye ekler; takip durumu, favori ve özel liste üyeliği SQLite'ta kalıcıdır. Film metadata'sı aynı veritabanında kişisel durumdan ayrı saklanır. Detay açıldığında kayıtlı metadata hemen gösterilir; son başarılı sync 24 saatten eskiyse arka planda yenilenir. Offline, timeout veya TMDb'de silinmiş kayıt durumunda yerel kopya korunur. **Fragmanı İzle**, uygun YouTube fragmanını sistem tarayıcısında açar. İzleme sağlayıcısı verisi [TMDb'nin JustWatch ortaklığı](https://developer.themoviedb.org/reference/movie-watch-providers) kaynaklıdır.
+Film arama sonucundan açılan ekran; TMDb detay, oyuncu/yönetmen, video, öneri ve Türkiye izleme sağlayıcısı verilerini arka planda yükler. Poster ve backdrop görsel servisini kullanır. **Kütüphaneye Ekle** filmi `PLANNED` durumuyla yerel kütüphaneye ekler; takip durumu, favori ve özel liste üyeliği SQLite'ta kalıcıdır. Film metadata'sı aynı veritabanında kişisel durumdan ayrı saklanır. Detay açıldığında kayıtlı metadata hemen gösterilir; son başarılı sync 24 saatten eskiyse arka planda yenilenir. Offline, timeout veya TMDb'de silinmiş kayıt durumunda yerel kopya korunur. **Fragmanı İzle**, uygun YouTube fragmanını sistem tarayıcısında açar. İzleme sağlayıcısı verisi [TMDb'nin JustWatch ortaklığı](https://developer.themoviedb.org/reference/movie-watch-providers) kaynaklıdır.
 
-Dizi detayında orijinal ad, yayın tarihleri, yaratıcılar, oyuncular, yapım bilgileri, Türkiye izleme sağlayıcıları, fragman, benzer diziler ve öneriler gösterilir. Sezon seçimi bölüm listesini açar; her bölüm ayrı işaretlenebilir. Sezonun veya dizinin tüm bölümlerini izlendi/izlenmedi yapmak için onay gerekir. Dizi detayı ve her sezonun bölüm metadata'sı kendi son başarılı sync zamanına göre 24 saatlik freshness uygular. Bölüm ilerlemesi yalnızca yerel veritabanındadır ve metadata yenilemesiyle silinmez. Daha önce indirilen metadata çevrimdışı kullanılabilir. Diziler için durum ve favori de kalıcıdır.
+Dizi detayında orijinal ad, yayın tarihleri, yaratıcılar, oyuncular, yapım bilgileri, Türkiye izleme sağlayıcıları, fragman ve öneriler gösterilir. Sezon seçimi bölüm listesini açar; her bölüm ayrı işaretlenebilir. Sezonun veya dizinin tüm bölümlerini izlendi/izlenmedi yapmak için onay gerekir. Dizi detayı ve her sezonun bölüm metadata'sı kendi son başarılı sync zamanına göre 24 saatlik freshness uygular. Bölüm ilerlemesi yalnızca yerel veritabanındadır ve metadata yenilemesiyle silinmez. Daha önce indirilen metadata çevrimdışı kullanılabilir. Diziler için durum ve favori de kalıcıdır.
 
 Film ve dizi detaylarındaki **Nerede İzlenir** bölümü varsayılan olarak TR bölgesinin TMDb watch-provider yanıtını gösterir. Abonelik, kiralama ve satın alma grupları boşsa Türkiye için açıklayıcı bir empty state görünür; geçerli TMDb bağlantısı varsa sağlayıcı seçenekleri sistem tarayıcısında açılır. Provider metadata'sı cache'lenir ve takip durumunun parçası değildir. Bölümde JustWatch attribution'ı görünür.
 
@@ -103,7 +105,7 @@ Film ve dizi detaylarındaki **Nerede İzlenir** bölümü varsayılan olarak TR
 
 ## Favoriler
 
-Film ve dizi favorileri SQLite içindeki `user_media.favorite` alanından okunur. Detay sayfalarında, kütüphane kartlarında ve favori şeridinde aynı kalp düğmesi kullanılır. Ana sayfadaki **Favorilerim** en yeni altı yerel favoriyi gösterir; daha fazlası varsa **Tümünü Gör** aynı bölümde tümünü açar. Favori ekleme ve çıkarma takip durumunu değiştirmez; durum olmadan da favori tutulabilir.
+Film ve dizi favorileri SQLite içindeki `user_media.favorite` alanından okunur. Detay sayfalarında ve kütüphane kartlarında kalp düğmesi kullanılır. İstatistikler sayfasında Favorilerim bölümü bulunmaz. Favori ekleme ve çıkarma takip durumunu değiştirmez; durum olmadan da favori tutulabilir.
 
 ## Özel listeler
 
@@ -113,7 +115,18 @@ Film ve dizi favorileri SQLite içindeki `user_media.favorite` alanından okunur
 
 **Ayarlar → İçe / Dışa Aktarma** bölümünden tüm taşınabilir İzlek durumunu tek bir JSON dosyasına aktarabilirsin. Dosya film/dizi metadata'sını, takip durumlarını, bölüm ilerlemesini, favorileri ve özel listeleri içerir; TMDb tokenı ile indirilen görsel cache yollarını içermez. Import öncesinde şema doğrulanır ve medya/liste özeti gösterilir. Aynı TMDb kimliği ve medya türü birleştirilir; izlenmiş bölüm ilerlemesi ile mevcut liste üyelikleri kaybolmaz. Biçim ve sürüm stratejisi [İzlek JSON belgesinde](docs/izlek-json.md) açıklanır.
 
-## Kurulum
+## Linux paketlerinin durumu
+
+| Biçim | Hedef | Durum |
+| --- | --- | --- |
+| AppImage | x86_64 Linux | Build betiği ve GitHub Actions build/smoke akışı mevcut; yayımlanmış binary yok. |
+| `.deb` | Debian/Ubuntu amd64 | Build betiği ve Ubuntu 22.04/24.04 CI kontrolü mevcut; yayımlanmış binary yok. |
+| Arch / AUR | Arch Linux | PKGBUILD mevcut; checksum ve `.SRCINFO` tamamlandıktan sonra ayrıca AUR'a gönderilmeli. |
+| Wheel / kaynak arşivi | Python 3.11+ Linux | Yerel build ile üretilebilir; Python/Qt bağımlılıkları gerekir. |
+
+`main` dalına kaynak kod göndermek paketleri yayımlamaz. AppImage ve `.deb`
+üretimi Actions üzerinden elle başlatılabilir; GitHub Releases yayını sürüm
+etiketiyle çalışır. AUR gönderimi ayrı bir işlemdir.
 
 ## AppImage
 
@@ -161,16 +174,17 @@ pakete bağımlılık olarak tanımlıdır; build/test araçları runtime'a ekle
 `v1.0.0` tag'inden yerelde paket sınamak için:
 
 ```bash
-git archive --format=tar.gz --prefix=izlek-1.0.0/ v1.0.0 \
+git archive --format=tar.gz --prefix=Izlek-1.0.0/ v1.0.0 \
   -o packaging/arch/izlek-1.0.0.tar.gz
 cd packaging/arch
 makepkg --syncdeps --install
 ```
 
 PKGBUILD, [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD) altında yer alır.
-Resmî upstream GitHub URL'si ve release tag'i henüz bu depoda tanımlı değildir;
-AUR'a gönderimden önce `source` URL'si ve SHA-256 değeri gerçek release
-arşiviyle güncellenmelidir. Paket kaldırıldığında pacman yalnızca sistem
+Upstream GitHub URL'si tanımlıdır. AUR'a gönderimden önce sürüm tag'i
+yayımlanmalı, `updpkgsums` ile gerçek SHA-256 yazılmalı ve
+`makepkg --printsrcinfo > .SRCINFO` çalıştırılmalıdır. Mevcut `SKIP` değeri
+AUR yayını için tamamlanmış bir doğrulama değildir. Paket kaldırıldığında pacman yalnızca sistem
 dosyalarını kaldırır; `$XDG_DATA_HOME/izlek`, `$XDG_CONFIG_HOME/izlek` ve
 `$XDG_CACHE_HOME/izlek` altındaki kullanıcı verileri silinmez.
 
@@ -221,7 +235,7 @@ PR'a koymayın, [SECURITY.md](SECURITY.md) sürecini izleyin.
 
 ## Roadmap
 
-- Doğrulanmış upstream URL'si ve imzalı release tag'leri
+- Sürüm tag'leri ve doğrulanmış Linux paket yayınları
 - AppImage, Arch ve Debian/Ubuntu artefact'larının gerçek release'lerle yayımlanması
 - Offline-first akışların ve desteklenen Linux dağıtımlarının genişletilmesi
 - Erişilebilirlik, yerelleştirme ve paketleme doğrulamalarının genişletilmesi
@@ -236,6 +250,16 @@ anahtarlığında saklanır; anahtarlık kullanılamazsa yalnızca kullanıcı i
 `$XDG_CONFIG_HOME/izlek/tmdb-token` dosyasına yazılır ve loglara, SQLite'a veya
 export dosyalarına konmaz. Taşınabilir export tokenı ve indirilebilir görsel
 cache yollarını içermez.
+
+Uzak film/dizi bilgileri, sezon/bölüm metadata'sı, sağlayıcı yanıtları ve
+kütüphaneye ait olmayan görseller 180 günlük saklama süresi sonunda temizlenir.
+Kütüphane afişleri ve arka planları yerelde korunur. Kontrol uygulama
+açılışında ve açık kaldığı sürece saatlik olarak arka planda yapılır. Takip
+durumları, bölüm ilerlemeleri, favoriler ve listeler silinmez. Süresi dolmuş
+başlıklar yeni metadata indirilene kadar `Film #42` / `Dizi #77` biçiminde
+gösterilir; temizlenen süre bilgileri istatistiklerde eksik veri sayılır.
+Geliştirme testleri ve ekran deneme betiği geçici XDG dizinleri kullanır;
+gerçek kütüphaneye ve sistem anahtarlığına erişmez.
 
 ## TMDb / JustWatch attribution
 

@@ -138,11 +138,16 @@ class UserMediaRepository:
         return item
 
     def set_status(
-        self, media_id: int, status: TrackingStatus | None, *, manual: bool = True
+        self,
+        media_id: int,
+        status: TrackingStatus | None,
+        *,
+        manual: bool = True,
+        override_manual: bool = False,
     ) -> UserMedia:
-        """Persist a selection; automatic updates never replace manual choices."""
+        """Persist status; replacing manual choices requires an explicit opt-in."""
         item = self._get_or_create(media_id)
-        if not manual and item.status_is_manual:
+        if not manual and item.status_is_manual and not override_manual:
             return item
         item.status = status
         item.status_is_manual = manual and status is not None
@@ -185,6 +190,23 @@ class StatisticsRepository:
                 select(Episode)
                 .join(EpisodeProgress, EpisodeProgress.episode_id == Episode.id)
                 .where(EpisodeProgress.watched.is_(True))
+            )
+        )
+
+    def watched_episode_activity(
+        self,
+    ) -> list[tuple[MediaItem, Episode, EpisodeProgress]]:
+        """Read show identity, runtime and actual watch timestamps in one query."""
+        return list(
+            self.session.execute(
+                select(MediaItem, Episode, EpisodeProgress)
+                .join(Season, Season.media_id == MediaItem.id)
+                .join(Episode, Episode.season_id == Season.id)
+                .join(EpisodeProgress, EpisodeProgress.episode_id == Episode.id)
+                .where(
+                    MediaItem.media_type == MediaType.TV,
+                    EpisodeProgress.watched.is_(True),
+                )
             )
         )
 
@@ -313,9 +335,7 @@ class EpisodeRepository:
         return list(
             self.session.execute(
                 select(Episode, EpisodeProgress)
-                .outerjoin(
-                    EpisodeProgress, EpisodeProgress.episode_id == Episode.id
-                )
+                .outerjoin(EpisodeProgress, EpisodeProgress.episode_id == Episode.id)
                 .where(Episode.season_id == season_id)
                 .order_by(Episode.episode_number)
             )
@@ -329,9 +349,7 @@ class EpisodeRepository:
             self.session.execute(
                 select(Season, Episode, EpisodeProgress)
                 .join(Episode, Episode.season_id == Season.id)
-                .outerjoin(
-                    EpisodeProgress, EpisodeProgress.episode_id == Episode.id
-                )
+                .outerjoin(EpisodeProgress, EpisodeProgress.episode_id == Episode.id)
                 .where(Season.media_id == media_id)
                 .order_by(Season.season_number, Episode.episode_number)
             )
@@ -359,6 +377,8 @@ class EpisodeRepository:
     def list_continue_candidates(
         self,
         media_ids: set[int] | None = None,
+        *,
+        tracked_only: bool = False,
     ) -> list[
         tuple[MediaItem, UserMedia | None, Season, Episode, EpisodeProgress | None]
     ]:
@@ -379,6 +399,8 @@ class EpisodeRepository:
         )
         if media_ids is not None:
             query = query.where(MediaItem.id.in_(media_ids))
+        if tracked_only:
+            query = query.where(UserMedia.status.is_not(None))
         return list(self.session.execute(query))
 
     def set_watched(self, episode_id: int, watched: bool) -> EpisodeProgress:

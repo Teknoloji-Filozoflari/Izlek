@@ -65,13 +65,13 @@ class MovieLibraryService:
 
     def snapshot(
         self,
-        status: TrackingStatus = TrackingStatus.PLANNED,
+        status: TrackingStatus | None = TrackingStatus.PLANNED,
         sort_by: str = SORT_RECENT,
     ) -> MovieLibrarySnapshot:
         """Return one status grid plus favorites and all tracked movie counts."""
         if sort_by not in SORT_OPTIONS:
             raise ValueError(f"Bilinmeyen sıralama: {sort_by}")
-        status = TrackingStatus(status)
+        status = TrackingStatus(status) if status is not None else None
         with self._sessions()() as session:
             entries = [
                 _item(media, user)
@@ -82,7 +82,8 @@ class MovieLibraryService:
         tracked = [item for item in entries if item.status]
         return MovieLibrarySnapshot(
             items=sort_items(
-                [item for item in tracked if item.status == status], sort_by
+                [item for item in tracked if status is None or item.status == status],
+                sort_by,
             ),
             favorites=sort_items(
                 [item for item in entries if item.favorite], SORT_RECENT

@@ -17,7 +17,7 @@ PKGBUILD source URL'sini geçici olarak bu dosyaya yönlendirin veya tag
 yayımlandıktan sonra doğrudan `makepkg` çalıştırın:
 
 ```bash
-git archive --format=tar.gz --prefix=izlek-1.0.0/ v1.0.0 \
+git archive --format=tar.gz --prefix=Izlek-1.0.0/ v1.0.0 \
   -o packaging/arch/izlek-1.0.0.tar.gz
 cd packaging/arch
 makepkg --syncdeps --install

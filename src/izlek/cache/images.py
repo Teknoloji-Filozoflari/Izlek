@@ -31,13 +31,22 @@ class ImageDiskCache:
             modified_at = datetime.fromtimestamp(path.stat().st_mtime, UTC)
         except OSError:
             return None
-        if modified_at >= datetime.now(UTC) - IMAGE_CACHE_MAX_AGE:
+        if path.with_suffix(".keep").exists() or (
+            modified_at >= datetime.now(UTC) - IMAGE_CACHE_MAX_AGE
+        ):
             return path
         try:
             path.unlink()
         except OSError:
             pass
         return None
+
+    def keep(self, kind: str, image_path: str) -> None:
+        """Protect a library image from automatic expiry and cache clearing."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        marker = self.path_for(kind, image_path).with_suffix(".keep")
+        if not marker.exists():
+            marker.touch()
 
     def put(self, kind: str, image_path: str, content: bytes) -> Path:
         """Atomically replace a cache entry after the caller validates content."""
@@ -57,11 +66,15 @@ class ImageDiskCache:
         """Measure image cache bytes for a future settings display."""
         if not self.root.exists():
             return 0
-        return sum(
-            path.stat().st_size
-            for path in self.root.glob("*.img")
-            if path.is_file()
-        )
+        total = 0
+        for path in self.root.glob("*.img"):
+            try:
+                if path.is_file():
+                    total += path.stat().st_size
+            except FileNotFoundError:
+                # Another worker may clear/expire an entry during measurement.
+                continue
+        return total
 
     def clear(self) -> int:
         """Remove disposable image entries and return the number removed."""
@@ -69,6 +82,8 @@ class ImageDiskCache:
             return 0
         removed = 0
         for path in self.root.glob("*.img"):
+            if path.with_suffix(".keep").exists():
+                continue
             if not path.is_file():
                 continue
             try:
@@ -76,4 +91,19 @@ class ImageDiskCache:
             except OSError:
                 continue
             removed += 1
+        return removed
+
+    def prune_expired(self) -> int:
+        """Remove expired entries even when no page requests them again."""
+        cutoff = (datetime.now(UTC) - IMAGE_CACHE_MAX_AGE).timestamp()
+        removed = 0
+        for path in self.root.glob("*.img"):
+            if path.with_suffix(".keep").exists():
+                continue
+            try:
+                if path.is_file() and path.stat().st_mtime <= cutoff:
+                    path.unlink()
+                    removed += 1
+            except FileNotFoundError:
+                continue
         return removed

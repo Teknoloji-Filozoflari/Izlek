@@ -6,6 +6,7 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
+from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
@@ -22,6 +23,7 @@ class MovieDetailController(QObject):
     """Load remote sections and persist actions without blocking QML."""
 
     changed = Signal()
+    libraryChanged = Signal()
     _loaded = Signal(int, object, str)
     _saved = Signal(int, object, str)
     _imageReady = Signal(int, str, int, str)
@@ -37,6 +39,7 @@ class MovieDetailController(QObject):
         self._store = store or TokenStore()
         self._service = service or MovieDetailService(TmdbClient())
         self._images = images
+        self._retired_images: list[ImageService] = []
         self._own_images = images is None
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._futures: set[Future] = set()
@@ -81,7 +84,9 @@ class MovieDetailController(QObject):
             stored = None
         if self._own_images and self._images is not None:
             old_images = self._images
-            self._submit(old_images.close)
+            self._retired_images.append(old_images)
+            # Resource cleanup must survive page-request cancellation.
+            self._executor.submit(old_images.close)
             self._images = None
         self._service.client = TmdbClient(token=stored.value if stored else None)
 
@@ -93,6 +98,7 @@ class MovieDetailController(QObject):
         generation = self._generation
         self._detail = {}
         self._busy = True
+        self._saving = False
         self._error = ""
         self._feedback = ""
         self.changed.emit()
@@ -121,13 +127,13 @@ class MovieDetailController(QObject):
     def _load(self, generation: int, movie_id: int) -> None:
         try:
             cached = self._service.cached(movie_id)
-        except (OSError, ValueError, KeyError):
+        except (OSError, ValueError, KeyError, SQLAlchemyError):
             cached = None
         if cached is not None:
             self._loaded.emit(generation, cached, "")
-            if not self._service.needs_refresh(movie_id):
-                return
         try:
+            if cached is not None and not self._service.needs_refresh(movie_id):
+                return
             detail = self._service.load(movie_id)
         except NetworkError:
             if cached is None:
@@ -136,7 +142,7 @@ class MovieDetailController(QObject):
                     {},
                     NETWORK_UNAVAILABLE,
                 )
-        except (TMDbError, OSError, ValueError):
+        except (TMDbError, OSError, ValueError, KeyError, SQLAlchemyError):
             if cached is None:
                 self._loaded.emit(generation, {}, "Film bilgisi yüklenemedi.")
         else:
@@ -163,17 +169,28 @@ class MovieDetailController(QObject):
             **detail,
             "poster": placeholder,
             "backdrop": backdrop_placeholder,
-            "similar": [{**item, "poster": placeholder}
-                        for item in detail["similar"]],
-            "recommendations": [{**item, "poster": placeholder}
-                                for item in detail["recommendations"]],
+            "cast": [{**item, "poster": ""} for item in detail.get("cast", [])],
+            "similar": [{**item, "poster": placeholder} for item in detail["similar"]],
+            "recommendations": [
+                {**item, "poster": placeholder} for item in detail["recommendations"]
+            ],
         }
         self.changed.emit()
-        self._schedule_image(generation, "poster", -1,
-                             self._images.poster(detail["posterPath"], "detail"))
-        self._schedule_image(generation, "backdrop", -1,
-                             self._images.backdrop(detail["backdropPath"]))
-        for role in ("similar", "recommendations"):
+        self._schedule_image(
+            generation,
+            "poster",
+            -1,
+            self._images.poster(detail["posterPath"], "detail"),
+        )
+        self._schedule_image(
+            generation, "backdrop", -1, self._images.backdrop(detail["backdropPath"])
+        )
+        for index, item in enumerate(detail.get("cast", [])):
+            self._schedule_image(
+                generation, "cast", index,
+                self._images.profile(item.get("profilePath")),
+            )
+        for role in ("recommendations",):
             for index, item in enumerate(detail[role]):
                 self._schedule_image(
                     generation, role, index, self._images.poster(item["posterPath"])
@@ -218,6 +235,10 @@ class MovieDetailController(QObject):
     def setFavorite(self, favorite: bool) -> None:
         self._submit_action("favorite", favorite)
 
+    @Slot()
+    def removeFromLibrary(self) -> None:
+        self._submit_action("status", None)
+
     @Slot(str)
     def addToList(self, name: str) -> None:
         self._submit_action("list", name)
@@ -232,9 +253,7 @@ class MovieDetailController(QObject):
         movie_id = self._detail["id"]
         self._submit(self._save, generation, movie_id, action, value)
 
-    def _save(
-        self, generation: int, movie_id: int, action: str, value: Any
-    ) -> None:
+    def _save(self, generation: int, movie_id: int, action: str, value: Any) -> None:
         try:
             if action == "status":
                 detail = self._service.set_status(movie_id, value)
@@ -242,7 +261,7 @@ class MovieDetailController(QObject):
                 detail = self._service.set_favorite(movie_id, value)
             else:
                 detail = self._service.add_to_list(movie_id, value)
-        except (OSError, ValueError, LookupError):
+        except (OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             self._saved.emit(generation, {}, "Değişiklik kaydedilemedi.")
         else:
             self._saved.emit(generation, detail, "Kaydedildi.")
@@ -260,10 +279,13 @@ class MovieDetailController(QObject):
                 "poster": self._detail.get("poster", ""),
                 "backdrop": self._detail.get("backdrop", ""),
                 "similar": self._detail.get("similar", []),
+                "cast": self._detail.get("cast", []),
                 "recommendations": self._detail.get("recommendations", []),
             }
         self._feedback = feedback
         self.changed.emit()
+        if detail:
+            self.libraryChanged.emit()
 
     @Slot()
     def openTrailer(self) -> None:
@@ -283,7 +305,10 @@ class MovieDetailController(QObject):
         """Release worker, image, and database resources."""
         self._generation += 1
         self._cancel_futures()
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._executor.shutdown(wait=True, cancel_futures=True)
         if self._own_images and self._images is not None:
             self._images.close()
+        for images in self._retired_images:
+            images.close()
+        self._retired_images.clear()
         self._service.close()

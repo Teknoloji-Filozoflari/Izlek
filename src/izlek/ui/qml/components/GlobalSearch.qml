@@ -69,6 +69,26 @@ Popup {
                 event.accepted = true
             }
         }
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                text: "Arama türü"
+                color: Tokens.Theme.textSecondary
+            }
+            ComboBox {
+                objectName: "globalSearchMediaType"
+                Layout.fillWidth: true
+                model: ["Film ve Dizi", "Film", "Dizi"]
+                currentIndex: ["all", "movie", "tv"].indexOf(overlay.controller.mediaType)
+                Accessible.name: "Arama türü"
+                onActivated: {
+                    debounce.stop()
+                    overlay.controller.setMediaType(["all", "movie", "tv"][currentIndex])
+                    if (searchInput.text.trim().length >= 3)
+                        debounce.start()
+                }
+            }
+        }
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true

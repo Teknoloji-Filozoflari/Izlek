@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
+from sqlalchemy.exc import OperationalError
 
 from izlek.app import create_application
 from izlek.db.engine import create_session_factory, initialize_database
@@ -47,7 +48,8 @@ def payloads():
         "/3/tv/77": tv,
         "/3/tv/77/credits": {
             "id": 77,
-            "cast": [{"id": 3, "name": "Actor", "character": "Lead", "order": 0}],
+            "cast": [{"id": 3, "name": "Actor", "character": "Lead", "order": 0,
+                      "profile_path": "/actor.jpg"}],
         },
         "/3/tv/77/videos": {
             "id": 77,
@@ -102,6 +104,110 @@ def payloads():
     return data
 
 
+def test_refresh_preserves_selected_season(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QGuiApplication.instance() or QGuiApplication([])
+    controller = TvDetailController(service=object(), images=FakeImages())
+    selected = []
+    monkeypatch.setattr(controller, "selectSeason", selected.append)
+    try:
+        controller._selected_season = 2
+        controller._apply_loaded(
+            0,
+            {
+                "id": 77,
+                "similar": [],
+                "recommendations": [],
+                "posterPath": "",
+                "backdropPath": "",
+                "seasons": [{"number": 1}, {"number": 2}],
+            },
+            "",
+        )
+        assert controller.selectedSeason == 2
+        assert selected == []
+    finally:
+        controller._executor.shutdown()
+
+
+def test_tv_database_failure_reports_error_instead_of_staying_busy(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    application = QGuiApplication.instance() or QGuiApplication([])
+
+    class BrokenService:
+        def cached(self, tv_id):
+            raise OperationalError("SELECT", {}, Exception("locked"))
+
+        load = cached
+
+        def close(self):
+            pass
+
+    controller = TvDetailController(service=BrokenService(), images=FakeImages())
+    try:
+        controller.loadTv(77)
+        for _ in range(100):
+            application.processEvents()
+            if not controller.busy:
+                break
+            QTest.qWait(10)
+        assert not controller.busy
+        assert controller.error
+    finally:
+        controller.close()
+
+
+def test_season_cache_check_failure_releases_loading(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    application = QGuiApplication.instance() or QGuiApplication([])
+
+    class Service:
+        def cached_season(self, *args):
+            return []
+
+        def cached(self, *args):
+            return {}
+
+        def has_cached_season(self, *args):
+            raise OperationalError("SELECT", {}, Exception("locked"))
+
+        def close(self):
+            pass
+
+    controller = TvDetailController(service=Service(), images=FakeImages())
+    try:
+        controller._detail = {"id": 77, "seasons": [{"number": 1}]}
+        controller.selectSeason(1)
+        wait_for(application, lambda: not controller.seasonBusy)
+        assert controller.seasonError
+    finally:
+        controller.close()
+
+
+def test_imported_progress_without_detail_can_be_updated(tmp_path):
+    from izlek.repositories.local import EpisodeRepository
+
+    engine = initialize_database(tmp_path / "state.sqlite3")
+    factory = create_session_factory(engine)
+    with factory.begin() as session:
+        media = MediaRepository(session).upsert(77, MediaType.TV, "Portable Show")
+        season = SeasonRepository(session).upsert(media.id, 1)
+        EpisodeRepository(session).upsert(season.id, 1)
+    service = TvDetailService(TmdbClient(), factory)
+    try:
+        assert service.cached(77) is None
+        assert service.set_episode_watched(77, 1, 1, True)[0]["watched"]
+        with factory() as session:
+            from izlek.repositories.local import UserMediaRepository
+
+            assert (
+                UserMediaRepository(session).get(media.id).status
+                == TrackingStatus.WATCHING
+            )
+    finally:
+        engine.dispose()
+
+
 def test_tv_progress_bulk_refresh_and_restart(tmp_path):
     data = payloads()
     online = True
@@ -128,7 +234,9 @@ def test_tv_progress_bulk_refresh_and_restart(tmp_path):
         assert detail["companies"] == ["Studio"]
         assert detail["countries"] == ["ABD"]
         assert detail["providers"]["Abonelik"] == ["Stream"]
-        assert detail["providerLink"] == "https://www.themoviedb.org/tv/77/watch?locale=TR"
+        assert (
+            detail["providerLink"] == "https://www.themoviedb.org/tv/77/watch?locale=TR"
+        )
         assert detail["trailerUrl"].endswith("abc_123")
         assert detail["similar"][0]["title"] == "Similar Show"
         assert service.set_status(77, "WATCHING")["status"] == "WATCHING"
@@ -206,7 +314,7 @@ def test_tv_progress_bulk_refresh_and_restart(tmp_path):
             True,
             TvProgress(2, 2, 0, 0),
             False,
-            TrackingStatus.PLANNED,
+            TrackingStatus.WATCHED,
         ),
         (
             TrackingStatus.WATCHED,
@@ -222,7 +330,20 @@ def test_tv_progress_bulk_refresh_and_restart(tmp_path):
             True,
             TrackingStatus.WATCHING,
         ),
-        (TrackingStatus.WATCHING, False, TvProgress(0, 2, 2, 0), True, None),
+        (
+            TrackingStatus.WATCHING,
+            False,
+            TvProgress(0, 2, 2, 0),
+            True,
+            TrackingStatus.WATCHING,
+        ),
+        (
+            TrackingStatus.WATCHING,
+            True,
+            TvProgress(2, 0, 0, 0, 2),
+            False,
+            TrackingStatus.WATCHED,
+        ),
     ],
 )
 def test_automatic_status_rules(current, manual, progress, explicit_unwatch, expected):
@@ -284,12 +405,13 @@ def test_auto_status_and_new_episode_notice_without_demotion(tmp_path):
         service.set_episode_watched(77, 1, 3, False)
         assert service.cached(77)["status"] == "WATCHING"
         service.set_bulk_watched(77, None, False)
-        assert service.cached(77)["status"] == ""
+        assert service.cached(77)["status"] == "WATCHING"
         service.close()
     engine.dispose()
 
 
-def test_manual_tv_status_survives_progress_changes(tmp_path):
+@pytest.mark.parametrize("initial_status", ["PLANNED", "WATCHING", "WATCHED"])
+def test_progress_overrides_legacy_manual_tv_status(tmp_path, initial_status):
     data = payloads()
     engine = initialize_database(tmp_path / "izlek.sqlite3")
     with httpx.Client(
@@ -301,13 +423,14 @@ def test_manual_tv_status_survives_progress_changes(tmp_path):
             TmdbClient(http_client, token="test-only"), create_session_factory(engine)
         )
         service.load(77)
-        service.set_status(77, "PLANNED")
+        service.set_status(77, initial_status)
         service.set_bulk_watched(77, None, True)
-        assert service.cached(77)["status"] == "PLANNED"
+        assert service.cached(77)["status"] == "WATCHED"
+        assert service.cached(77)["statusIsManual"] is False
         service.set_status(77, "WATCHED")
         service.set_bulk_watched(77, None, False)
-        assert service.cached(77)["status"] == "WATCHED"
-        assert service.cached(77)["statusIsManual"] is True
+        assert service.cached(77)["status"] == "WATCHING"
+        assert service.cached(77)["statusIsManual"] is False
         service.close()
     engine.dispose()
 
@@ -420,6 +543,9 @@ class FakeImages:
     def still(self, path):
         return self._done()
 
+    def profile(self, path):
+        return self._done()
+
 
 def wait_for(application, predicate):
     for _ in range(100):
@@ -468,12 +594,17 @@ class ExistingTokenStore:
         return StoredToken("test-only", "keyring")
 
 
-def test_tv_page_bulk_requires_confirmation(tmp_path, monkeypatch):
+def test_tv_page_adds_watching_and_applies_season_without_confirmation(
+    tmp_path, monkeypatch
+):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     monkeypatch.setenv("QT_QUICK_BACKEND", "software")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     application = QGuiApplication.instance() or QGuiApplication([])
     data = payloads()
+    data["/3/tv/77/recommendations"]["results"] = [
+        {"id": 99, "name": "Recommended Show", "original_name": "Recommended Show"}
+    ]
     engine = initialize_database(tmp_path / "izlek.sqlite3")
     warnings = []
 
@@ -500,6 +631,60 @@ def test_tv_page_bulk_requires_confirmation(tmp_path, monkeypatch):
             wait_for(application, lambda: not tv.busy and not tv.seasonBusy)
             stack = window.findChild(QQuickItem, "contentStack")
             assert stack.property("currentItem").property("pageTitle") == "Dizi Detayı"
+            progress_bar = window.findChild(QQuickItem, "tvEpisodeProgress")
+            assert progress_bar.property("total") == 3
+            assert progress_bar.property("watched") == 0
+            wait_for(application, lambda: bool(tv.detail["cast"][0].get("poster")))
+            assert tv.detail["cast"][0]["profilePath"] == "/actor.jpg"
+            def find_visual(item, name):
+                if item.objectName() == name:
+                    return item
+                for child in item.childItems():
+                    found = find_visual(child, name)
+                    if found is not None:
+                        return found
+                return None
+
+            cast_grid = window.findChild(QQuickItem, "tvCastGrid")
+            actor_photo = find_visual(cast_grid, "tvActorPhoto")
+            assert actor_photo is not None
+            assert actor_photo.property("source").toString()
+            assert window.findChild(QQuickItem, "tvStatusSelector") is None
+            add_button = window.findChild(QQuickItem, "addTvToLibrary")
+            add_button.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(application, lambda: tv.detail.get("status") == "WATCHING")
+            assert not add_button.isVisible()
+            QTest.qWait(300)
+            episodes_list = window.findChild(QQuickItem, "episodesList")
+
+            def find_episode_check(item):
+                if item.objectName() == "episodeWatched":
+                    return item
+                for child in item.childItems():
+                    found = find_episode_check(child)
+                    if found is not None:
+                        return found
+                return None
+
+            episode_check = find_episode_check(episodes_list)
+            assert episode_check is not None
+            assert episode_check.property("text") == ""
+            episode_check.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(
+                application, lambda: tv.detail.get("watchedRegularEpisodeCount") == 1
+            )
+            assert progress_bar.property("watched") == 1
+            assert progress_bar.property("fraction") == pytest.approx(1 / 3)
+            # Saving reuses delegates: reacquire the current visual check.
+            wait_for(application, lambda: not tv.saving)
+            episode_check = find_episode_check(episodes_list)
+            episode_check.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(
+                application, lambda: tv.detail.get("watchedRegularEpisodeCount") == 0
+            )
             providers = window.findChild(QQuickItem, "tvProviders")
             assert providers is not None and providers.isVisible()
             provider_link = providers.findChild(QQuickItem, "providerLinkButton")
@@ -509,6 +694,18 @@ def test_tv_page_bulk_requires_confirmation(tmp_path, monkeypatch):
                 application.processEvents()
                 assert window.width() == width
                 assert window.height() == height
+                info = window.findChild(QQuickItem, "tvProductionInfo")
+                related = window.findChild(QQuickItem, "tvRelatedGrid")
+                assert info.property("columns") == 3
+                strip = find_visual(related, "tvRelatedStrip")
+                assert strip.width() == related.width()
+                assert strip.property("count") == 1
+                assert strip.property("items")[0]["title"] == "Recommended Show"
+            window.resize(900, 768)
+            application.processEvents()
+            assert info.property("columns") == 1
+            window.resize(1366, 768)
+            application.processEvents()
             list_open = window.findChild(QQuickItem, "tvListOpen")
             list_open.forceActiveFocus()
             QTest.keyClick(window, Qt.Key.Key_Space)
@@ -524,10 +721,46 @@ def test_tv_page_bulk_requires_confirmation(tmp_path, monkeypatch):
             button.forceActiveFocus()
             QTest.keyClick(window, " ")
             dialog = window.findChild(QObject, "tvBulkDialog")
-            wait_for(application, lambda: dialog.property("opened"))
-            assert not any(item["watched"] for item in tv.episodes)
-            dialog.accept()
             wait_for(application, lambda: all(item["watched"] for item in tv.episodes))
+            assert not dialog.property("opened")
+            wait_for(application, lambda: not tv.saving)
+            clear_button = window.findChild(QQuickItem, "seasonUnwatched")
+            clear_button.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(
+                application, lambda: not any(item["watched"] for item in tv.episodes)
+            )
+            assert not dialog.property("opened")
+            series_button = window.findChild(QQuickItem, "seriesWatched")
+            assert button.parentItem() == series_button.parentItem()
+            assert abs(button.y() - series_button.y()) < 1
+            wait_for(application, lambda: not tv.saving)
+            series_button.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(application, lambda: dialog.property("opened"))
+            dialog.accept()
+            wait_for(
+                application, lambda: tv.detail.get("watchedRegularEpisodeCount") == 3
+            )
+            assert tv.detail["status"] == "WATCHED"
+            assert tv.detail["statusIsManual"] is False
+            remove_button = window.findChild(QQuickItem, "removeTvFromLibrary")
+            assert remove_button.isVisible()
+            tv.setFavorite(True)
+            wait_for(application, lambda: not tv.saving)
+            remove_button.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(application, lambda: not tv.saving and not tv.detail["status"])
+            assert add_button.isVisible()
+            assert not remove_button.isVisible()
+            assert tv.detail["favorite"] is True
+            assert tv.detail["lists"] == ["Dizi Listesi"]
+            assert tv.detail["watchedRegularEpisodeCount"] == 3
+            assert service.cached(77)["status"] == ""
+            add_button.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            wait_for(application, lambda: not tv.saving)
+            assert tv.detail["status"] == "WATCHING"
             assert not warnings
         finally:
             window.close()

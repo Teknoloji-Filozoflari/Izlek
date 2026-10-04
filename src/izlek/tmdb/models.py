@@ -14,6 +14,7 @@ class ImageConfiguration(ApiModel):
     poster_sizes: list[str]
     backdrop_sizes: list[str]
     still_sizes: list[str] = Field(default_factory=list)
+    profile_sizes: list[str] = Field(default_factory=list)
 
 
 class Configuration(ApiModel):

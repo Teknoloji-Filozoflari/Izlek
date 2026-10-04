@@ -1,0 +1,7 @@
+include AGENTS.md CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md alembic.ini
+recursive-include scripts *.py
+recursive-include tests *.py
+recursive-include packaging *
+recursive-include docs *.md *.png
+recursive-include .github *.yml *.md
+global-exclude __pycache__ *.py[cod]

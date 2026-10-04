@@ -8,6 +8,7 @@ Rectangle {
     id: page
     property string pageTitle: "Listeler"
     property var controller
+    readonly property bool filterPopupOpen: mediaPicker.popup.visible
     signal mediaSelected(string kind, int tmdbId)
     color: Tokens.Theme.background
 
@@ -141,65 +142,54 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: controller.selectedId > 0
-                    ComboBox {
+                    TextField {
+                        id: mediaSearchInput
+                        objectName: "listMediaSearchInput"
+                        Layout.fillWidth: true
+                        placeholderText: "Kütüphanede başlığa göre ara"
+                        Accessible.name: "Kütüphanede medya ara"
+                        color: Tokens.Theme.textPrimary
+                        onAccepted: controller.searchCandidates(text)
+                        background: Rectangle {
+                            color: Tokens.Theme.surfaceElevated
+                            radius: Tokens.Theme.radiusSm
+                            border.color: mediaSearchInput.activeFocus
+                                          ? Tokens.Theme.accent : Tokens.Theme.border
+                        }
+                    }
+                    IzlekButton {
+                        objectName: "searchListMediaButton"
+                        text: "Ara"
+                        enabled: !controller.busy
+                        onClicked: controller.searchCandidates(mediaSearchInput.text)
+                    }
+                    IzlekButton {
+                        objectName: "clearListMediaSearchButton"
+                        text: "Temizle"
+                        variant: "secondary"
+                        onClicked: {
+                            mediaSearchInput.clear()
+                            controller.searchCandidates("")
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: controller.selectedId > 0
+                    FilterComboBox {
                         id: mediaPicker
                         objectName: "listMediaPicker"
                         Layout.fillWidth: true
                         model: controller.candidates
-                        textRole: "title"
+                        textRole: "display_title"
                         enabled: count > 0 && !controller.busy
                         Accessible.name: "Yerel medya seç"
-                        contentItem: Label {
-                            text: mediaPicker.count > 0 ? mediaPicker.displayText
-                                                        : "Yerel medya seç"
-                            color: mediaPicker.enabled ? Tokens.Theme.textPrimary
-                                                       : Tokens.Theme.textMuted
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: Tokens.Theme.spaceSm
-                            elide: Text.ElideRight
-                        }
-                        background: Rectangle {
-                            color: Tokens.Theme.surfaceElevated
-                            radius: Tokens.Theme.radiusSm
-                            border.color: mediaPicker.activeFocus
-                                          ? Tokens.Theme.accent : Tokens.Theme.border
-                            border.width: mediaPicker.activeFocus ? 2 : 1
-                        }
-                        delegate: ItemDelegate {
-                            width: mediaPicker.width
-                            text: modelData.title + " · "
-                                  + (modelData.kind === "movie" ? "Film" : "Dizi")
-                            contentItem: Label {
-                                text: parent.text
-                                color: Tokens.Theme.textPrimary
-                                verticalAlignment: Text.AlignVCenter
-                                elide: Text.ElideRight
-                            }
-                            background: Rectangle {
-                                color: parent.hovered ? Tokens.Theme.hoverSurface
-                                                      : Tokens.Theme.surfaceElevated
-                            }
-                        }
-                        popup: Popup {
-                            y: mediaPicker.height
-                            width: mediaPicker.width
-                            padding: 0
-                            contentItem: ListView {
-                                implicitHeight: Math.min(contentHeight, 240)
-                                model: mediaPicker.popup.visible
-                                       ? mediaPicker.delegateModel : null
-                            }
-                            background: Rectangle {
-                                color: Tokens.Theme.surfaceElevated
-                                border.color: Tokens.Theme.border
-                                radius: Tokens.Theme.radiusSm
-                            }
-                        }
                     }
                     IzlekButton {
                         objectName: "addMediaToListButton"
                         text: "Medya Ekle"
-                        enabled: mediaPicker.count > 0 && !controller.busy
+                        enabled: mediaPicker.currentIndex >= 0
+                                 && mediaPicker.count > 0 && !controller.busy
                         onClicked: {
                             var item = controller.candidates[mediaPicker.currentIndex]
                             if (item) controller.addMedia(controller.selectedId,
@@ -210,7 +200,7 @@ Rectangle {
                 Label {
                     visible: controller.selectedId > 0
                              && controller.candidates.length === 0
-                    text: "Eklenebilecek yerel medya yok. Film veya dizi arayıp detayını açabilirsin."
+                    text: "Eklenebilecek içerik bulunamadı. Aramayı temizle veya kütüphanene içerik ekle."
                     color: Tokens.Theme.textMuted
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
@@ -252,6 +242,16 @@ Rectangle {
                             anchors.fill: parent
                             anchors.margins: Tokens.Theme.spaceSm
                             spacing: Tokens.Theme.spaceSm
+                            Image {
+                                objectName: "customListPoster"
+                                Layout.preferredWidth: 36
+                                Layout.preferredHeight: 54
+                                source: modelData.poster || ""
+                                asynchronous: true
+                                fillMode: Image.PreserveAspectFit
+                                sourceSize.width: 72
+                                sourceSize.height: 108
+                            }
                             ItemDelegate {
                                 Layout.fillWidth: true
                                 text: modelData.title + " · "

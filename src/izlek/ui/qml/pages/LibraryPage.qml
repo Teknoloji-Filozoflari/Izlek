@@ -9,22 +9,37 @@ Rectangle {
     property string kind: "movie"
     property string pageTitle: kind === "movie" ? "Filmler" : "Diziler"
     property var controller
+    property var continueModelController: null
+    property bool pageReady: false
     readonly property string emptyTitle:
-        controller.status === "PLANNED" ? "İzlenecek " + mediaNoun + " yok"
-        : controller.status === "WATCHING" ? "İzleniyor " + mediaNoun + " yok"
-        : "İzlenen " + mediaNoun + " yok"
+        kind === "tv" ? "Henüz dizi eklemedin" : "Henüz film eklemedin"
     readonly property string mediaNoun: kind === "movie" ? "film" : "dizi"
     signal mediaSelected(int tmdbId)
     color: Tokens.Theme.background
 
-    Component.onCompleted: controller.refresh()
+    function refreshLibrary() {
+        controller.refresh()
+        if (kind === "tv" && continueModelController) continueModelController.refresh()
+    }
+    Component.onCompleted: {
+        pageReady = true
+        if (visible) refreshLibrary()
+    }
     onVisibleChanged: {
-        if (visible) controller.refresh()
+        if (visible && pageReady) refreshLibrary()
+    }
+    Connections {
+        target: page.continueModelController
+        function onProgressSaved() { page.controller.refresh() }
     }
 
-    Column {
+    ScrollView {
         anchors.fill: parent
         anchors.margins: Tokens.Theme.spaceLg
+        contentWidth: availableWidth
+        clip: true
+    Column {
+        width: parent.width
         spacing: Tokens.Theme.spaceSm
 
         RowLayout {
@@ -50,9 +65,10 @@ Rectangle {
             spacing: Tokens.Theme.spaceMd
             SegmentedControl {
                 id: statusTabs
+                visible: false
                 objectName: page.kind === "movie" ? "movieStatusTabs" : "tvStatusTabs"
                 options: ["İzlenecek", "İzleniyor", "İzlendi"]
-                currentIndex: 0
+                currentIndex: ["PLANNED", "WATCHING", "WATCHED"].indexOf(controller.status)
                 onSelected: function(index) {
                     controller.setStatus(["PLANNED", "WATCHING", "WATCHED"][index])
                 }
@@ -75,6 +91,7 @@ Rectangle {
                 ]
                 textRole: "text"
                 valueRole: "value"
+                currentIndex: ["recent", "title", "year", "score"].indexOf(controller.sortBy)
                 onActivated: controller.setSort(currentValue)
                 contentItem: Label {
                     text: sortBox.displayText
@@ -120,12 +137,14 @@ Rectangle {
         }
 
         Rectangle {
+            objectName: "libraryGridFrame"
             width: parent.width
+            clip: true
             readonly property int rowCount: Math.max(
                 1, Math.ceil(controller.items.length / Math.max(1, movieGrid.columns)))
             height: Math.min(
                 rowCount * movieGrid.cellHeight + 2 * Tokens.Theme.spaceSm,
-                Math.max(160, page.height - 410))
+                Math.max(160, page.height - 310))
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusLg
             border.color: Tokens.Theme.border
@@ -138,6 +157,7 @@ Rectangle {
                 anchors.margins: Tokens.Theme.spaceSm
                 visible: controller.items.length > 0
                 items: controller.items
+                controller: page.controller
                 onPosterRequested: function(tmdbId) { controller.requestPoster(tmdbId) }
                 onMediaActivated: function(tmdbId) { page.mediaSelected(tmdbId) }
                 onFavoriteToggled: function(tmdbId, favorite) {
@@ -145,9 +165,10 @@ Rectangle {
                 }
             }
             LoadingState {
+                objectName: "libraryLoadingState"
                 anchors.centerIn: parent
                 width: parent.width - 2 * Tokens.Theme.spaceMd
-                visible: controller.busy
+                visible: controller.busy && controller.items.length === 0
                 count: Math.max(2, Math.floor(width / (Tokens.Theme.cardWidth
                                                        + Tokens.Theme.gridGap)))
                 skeletonPosterHeight: 210
@@ -207,7 +228,16 @@ Rectangle {
                     clip: true
                     model: controller.favorites
                     delegate: ItemDelegate {
+                        id: favoriteCard
                         required property var modelData
+                        property string resolvedPoster: modelData.poster || ""
+                        Connections {
+                            target: page.controller
+                            function onPosterAvailable(tmdbId, url) {
+                                if (tmdbId === favoriteCard.modelData.tmdb_id)
+                                    favoriteCard.resolvedPoster = url
+                            }
+                        }
                         width: 198
                         height: favoritesStrip.height
                         Component.onCompleted: Qt.callLater(function() {
@@ -224,7 +254,7 @@ Rectangle {
                             Image {
                                 Layout.preferredWidth: 57
                                 Layout.fillHeight: true
-                                source: modelData.poster || ""
+                                source: favoriteCard.resolvedPoster
                                 fillMode: Image.PreserveAspectCrop
                                 sourceSize.width: Math.round(57 * Screen.devicePixelRatio)
                                 sourceSize.height: Math.round(height * Screen.devicePixelRatio)
@@ -259,54 +289,51 @@ Rectangle {
         }
 
         ColumnLayout {
-            objectName: page.kind === "movie" ? "movieStats" : "tvStats"
+            objectName: "showsContinueSection"
+            visible: page.kind === "tv" && !!page.continueModelController
             width: parent.width
-            height: 101
-            spacing: Tokens.Theme.spaceXs
-            Label {
-                text: page.kind === "movie" ? "Film İstatistikleri"
-                                             : "Dizi İstatistikleri"
-                color: Tokens.Theme.textPrimary
-                font.pixelSize: Tokens.Theme.textEmpty
-                font.weight: Tokens.Theme.weightDemiBold
+            spacing: Tokens.Theme.spaceMd
+            SectionHeader { title: "Devam Et"; Layout.fillWidth: true }
+            BusyIndicator {
+                visible: !!page.continueModelController && page.continueModelController.busy
+                running: visible
             }
-            Rectangle {
+            Flow {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                color: Tokens.Theme.surface
-                radius: Tokens.Theme.radiusMd
-                border.color: Tokens.Theme.border
-                RowLayout {
-                    id: statsRow
-                    anchors.fill: parent
-                    anchors.margins: Tokens.Theme.spaceSm
-                    spacing: Tokens.Theme.spaceSm
-                    Repeater {
-                        model: [
-                            { label: "Toplam", count: controller.stats.total || 0 },
-                            { label: "İzlenecek", count: controller.stats.planned || 0 },
-                            { label: "İzleniyor", count: controller.stats.watching || 0 },
-                            { label: "İzlendi", count: controller.stats.watched || 0 }
-                        ]
-                        ColumnLayout {
-                            parent: statsRow
-                            Layout.fillWidth: true
-                            spacing: 0
-                            Label {
-                                text: modelData.count
-                                color: Tokens.Theme.textPrimary
-                                font.pixelSize: Tokens.Theme.textEmpty
-                                font.weight: Tokens.Theme.weightDemiBold
-                            }
-                            Label {
-                                text: modelData.label
-                                color: Tokens.Theme.textSecondary
-                                font.pixelSize: Tokens.Theme.textSmall
-                            }
+                Layout.preferredHeight: implicitHeight
+                spacing: Tokens.Theme.spaceMd
+                Repeater {
+                    model: page.continueModelController ? page.continueModelController.items : []
+                    ContinueWatchingCard {
+                        width: Math.min(510, parent.width)
+                        itemData: modelData
+                        controller: page.continueModelController
+                        busy: page.continueModelController.busy
+                        onOpened: function(tmdbId) { page.mediaSelected(tmdbId) }
+                        onWatched: function(tmdbId, seasonNumber, episodeNumber) {
+                            page.continueModelController.markWatched(tmdbId, seasonNumber, episodeNumber)
                         }
                     }
                 }
             }
+            Label {
+                Layout.fillWidth: true
+                visible: !!page.continueModelController && !page.continueModelController.busy
+                         && page.continueModelController.items.length === 0
+                text: page.continueModelController ? page.continueModelController.error
+                      || "İzlemeye devam edebileceğin dizi yok." : ""
+                color: Tokens.Theme.textMuted
+            }
+            IzlekButton {
+                visible: !!page.continueModelController
+                         && !!page.continueModelController.error
+                enabled: !!page.continueModelController
+                         && !page.continueModelController.busy
+                text: "Devam Et'i Yenile"
+                variant: "secondary"
+                onClicked: page.continueModelController.refresh()
+            }
         }
+    }
     }
 }

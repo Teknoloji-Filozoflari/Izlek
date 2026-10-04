@@ -28,7 +28,8 @@ class TokenController(QObject):
         super().__init__(parent)
         self._store = store or TokenStore()
         self._client = client or TmdbClient()
-        self._runner = runner or QThreadPool.globalInstance().start
+        self._pool = QThreadPool(self)
+        self._runner = runner or self._pool.start
         self._has_token = False
         self._busy = False
         self._feedback = ""
@@ -137,3 +138,8 @@ class TokenController(QObject):
             self.tokenSaved.emit()
         else:
             self._set_feedback("Token geçerli.", "success")
+
+    def close(self) -> None:
+        """Finish token storage before destroying the controller on shutdown."""
+        self._request_id += 1
+        self._pool.waitForDone()

@@ -60,22 +60,24 @@ Rectangle {
             }
 
             Card { objectName: "cacheSettingsCard"; title: "Cache"
+                Label { Layout.fillWidth: true; text: "Kütüphanedeki film ve dizilerin indirilen görselleri yerelde tutulur ve cache temizliğinde korunur. Diğer görseller ve film/dizi bilgileri 180 gün sonunda temizlenir. İzleme durumları, bölüm ilerlemeleri, favoriler ve listeler korunur."; color: Tokens.Theme.textMuted; wrapMode: Text.WordWrap }
                 Label { text: "Mevcut cache boyutu: " + cacheController.sizeLabel; color: Tokens.Theme.textSecondary }
                 RowLayout { IzlekButton { objectName: "refreshCacheButton"; text: "Yenile"; variant: "secondary"; enabled: !cacheController.busy; onClicked: cacheController.refresh() } IzlekButton { objectName: "clearCacheButton"; text: "Cache Temizle"; enabled: !cacheController.busy; onClicked: cacheController.clear() } }
                 Label { visible: cacheController.feedback.length > 0; text: cacheController.feedback; color: cacheController.feedbackKind === "danger" ? Tokens.Theme.danger : Tokens.Theme.success; wrapMode: Text.WordWrap }
             }
 
             Card { objectName: "shortcutsSettingsCard"; title: "Kısayollar"
-                Repeater { model: ["Ctrl+K  Arama", "Ctrl+1  Ana Sayfa", "Ctrl+2  Filmler", "Ctrl+3  Diziler", "Ctrl+4  Listeler", "Ctrl+5  Keşfet", "Ctrl+,  Ayarlar", "Esc  Kapat / Geri"]; delegate: Label { text: modelData; color: Tokens.Theme.textSecondary } }
+                Repeater { model: ["Ctrl+K  Arama", "Ctrl+1  Ana Sayfa / Keşfet", "Ctrl+2  Filmler", "Ctrl+3  Diziler", "Ctrl+4  Listeler", "Ctrl+5  İstatistikler", "Ctrl+,  Ayarlar", "Esc  Kapat / Geri"]; delegate: Label { text: modelData; color: Tokens.Theme.textSecondary } }
             }
             Card { objectName: "aboutSettingsCard"; title: "Hakkında"
+                Image { objectName: "tmdbLogo"; source: "../../../resources/images/tmdb.svg"; Layout.preferredWidth: 116; Layout.preferredHeight: 16; fillMode: Image.PreserveAspectFit; Accessible.name: "The Movie Database (TMDB)" }
                 Label { text: "İzlek  ·  sürüm " + appVersion; color: Tokens.Theme.textSecondary }
                 Label { text: "GPL-3.0-or-later"; color: Tokens.Theme.textSecondary }
                 Label { objectName: "tmdbDataSourceLabel"; Layout.fillWidth: true; text: "Film, dizi, kişi, puan ve görsel bilgileri TMDB tarafından sağlanır; takip durumları, favoriler ve listeler yalnızca İzlek'in yerel verisidir."; color: Tokens.Theme.textMuted; wrapMode: Text.WordWrap }
                 Label { objectName: "tmdbAttributionNotice"; Layout.fillWidth: true; text: "This product uses the TMDB API but is not endorsed or certified by TMDB."; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
                 Label { objectName: "justWatchAttributionLabel"; Layout.fillWidth: true; text: "İzleme sağlayıcısı uygunluğu verisi JustWatch tarafından sağlanır."; color: Tokens.Theme.textMuted; wrapMode: Text.WordWrap }
                 IzlekButton { objectName: "tmdbWebsiteButton"; text: "TMDB"; variant: "secondary"; onClicked: Qt.openUrlExternally("https://www.themoviedb.org") }
-                IzlekButton { objectName: "githubButton"; text: "GitHub"; variant: "secondary"; onClicked: Qt.openUrlExternally("https://github.com") }
+                IzlekButton { objectName: "githubButton"; text: "GitHub"; variant: "secondary"; onClicked: Qt.openUrlExternally("https://github.com/Teknoloji-Filozoflari/Izlek") }
             }
             Item { Layout.preferredHeight: Tokens.Theme.spaceLg }
         }

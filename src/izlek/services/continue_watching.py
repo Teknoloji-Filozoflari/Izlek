@@ -39,10 +39,12 @@ class ContinueWatchingService:
         return self._factory
 
     def list_next(self, *, today: date | None = None) -> list[ContinueWatchingItem]:
-        """Ignore specials, undated and future episodes, and completed shows."""
+        """Require library membership and choose one released, unwatched episode."""
         current_day = today or date.today()
         with self._sessions()() as session:
-            rows = EpisodeRepository(session).list_continue_candidates()
+            rows = EpisodeRepository(session).list_continue_candidates(
+                tracked_only=True
+            )
             grouped = defaultdict(list)
             for media, user, season, episode, progress in rows:
                 grouped[media.id].append((media, user, season, episode, progress))

@@ -80,6 +80,10 @@ class CustomListsService:
             "tmdb_id": media.tmdb_id,
             "kind": media.media_type.value.lower(),
             "title": media.original_title,
+            "display_title": media.original_title + " · " + (
+                "Film" if media.media_type == MediaType.MOVIE else "Dizi"
+            ),
+            "poster_path": media.poster_path,
             "year": str(date.year) if date else "",
         }
 

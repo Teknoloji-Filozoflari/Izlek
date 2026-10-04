@@ -3,8 +3,10 @@
 from concurrent.futures import Future
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
+import pytest
+from PySide6.QtCore import QPointF, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlExpression
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
@@ -111,6 +113,24 @@ def test_discover_controller_filters_scores_and_paginates(monkeypatch):
         controller.close()
 
 
+def test_discover_limits_available_pages_and_discards_old_token_response(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QGuiApplication.instance() or QGuiApplication([])
+    controller = DiscoverController(
+        store=_Store(), client=_DiscoverClient(), images=_Images()
+    )
+    try:
+        controller._apply_loaded(0, [], 1, 2000, "")
+        assert controller.totalPages == 500
+        generation = controller._generation
+        controller.refresh_token()
+        controller._apply_loaded(generation, [{"title": "Old result"}], 1, 1, "")
+        assert controller.items == []
+        assert not controller.busy
+    finally:
+        controller.close()
+
+
 def test_discover_page_filters_and_dense_results(tmp_path, monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     monkeypatch.setenv("QT_QUICK_BACKEND", "software")
@@ -130,7 +150,13 @@ def test_discover_page_filters_and_dense_results(tmp_path, monkeypatch):
         discover_controller=discover,
     )
     try:
-        window.navigate(4)
+        assert window.property("currentIndex") == 0
+        assert (
+            window.findChild(QQuickItem, "contentStack")
+            .property("currentItem")
+            .property("pageTitle")
+            == "Ana Sayfa"
+        )
         _wait_for(application, lambda: not discover.busy and bool(discover.items))
         filters = window.findChild(QQuickItem, "discoverFilters")
         grid = window.findChild(QQuickItem, "discoverResults")
@@ -141,6 +167,66 @@ def test_discover_page_filters_and_dense_results(tmp_path, monkeypatch):
             window.resize(width, height)
             application.processEvents()
             assert filters.width() > 200 and grid.width() > 0
+
+        def labels(item):
+            found = [item] if item.objectName() == "filterOptionLabel" else []
+            for child in item.childItems():
+                found.extend(labels(child))
+            return found
+
+        for name in ("discoverMedia", "discoverGenre", "discoverCountry"):
+            combo = window.findChild(QQuickItem, name)
+            combo.forceActiveFocus()
+            QTest.keyClick(window, Qt.Key.Key_Space)
+            _wait_for(
+                application,
+                lambda combo=combo: QQmlExpression(
+                    engine.rootContext(), combo, "popup.opened"
+                ).evaluate()[0],
+            )
+            content = QQmlExpression(
+                engine.rootContext(), combo, "popup.contentItem"
+            ).evaluate()[0]
+            options = labels(content)
+            assert options and all(label.property("text") for label in options)
+            assert (
+                options[0].property("text")
+                == {
+                    "discoverMedia": "Film",
+                    "discoverGenre": "Tüm türler",
+                    "discoverCountry": "Tüm ülkeler",
+                }[name]
+            )
+            assert all(
+                label.property("text") == label.property("text").strip()
+                for label in options
+            )
+            assert content.property("contentY") == 0
+            assert options[0].parentItem().y() == 0
+            assert options[0].parentItem().height() == 42
+            for label in options:
+                if (
+                    label.parentItem().y() + label.parentItem().height()
+                    > content.height()
+                ):
+                    continue
+                center = label.mapToScene(
+                    QPointF(label.width() / 2, label.height() / 2)
+                )
+                QTest.mouseMove(window, center.toPoint())
+                QTest.qWait(50)
+                assert all(option.isVisible() for option in options)
+                assert label.property("color").lightness() > 150
+                assert label.property("text") != "undefined"
+            QTest.keyClick(window, Qt.Key.Key_Escape)
+            _wait_for(
+                application,
+                lambda combo=combo: (
+                    not QQmlExpression(
+                        engine.rootContext(), combo, "popup.visible"
+                    ).evaluate()[0]
+                ),
+            )
         next_button.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
         _wait_for(application, lambda: not discover.busy and discover.page == 2)
@@ -150,3 +236,70 @@ def test_discover_page_filters_and_dense_results(tmp_path, monkeypatch):
         discover.close()
         application.processEvents()
         qInstallMessageHandler(previous)
+
+
+@pytest.mark.parametrize("locale", ["en_US", "tr_TR"])
+def test_score_apply_preserves_decimal_value_and_clear_resets(locale):
+    client = _DiscoverClient()
+    discover = DiscoverController(client=client, images=_Images())
+    application, engine, window = create_application(
+        token_controller=TokenController(store=_Store()), discover_controller=discover
+    )
+    try:
+        window.resize(1366, 768)
+        _wait_for(application, lambda: not discover.busy)
+        minimum = window.findChild(QQuickItem, "discoverMinScore")
+        maximum = window.findChild(QQuickItem, "discoverMaxScore")
+        for score in (minimum, maximum):
+            QQmlExpression(
+                engine.rootContext(), score, f"locale = Qt.locale('{locale}')"
+            ).evaluate()
+        for _ in range(15):
+            point = minimum.mapToScene(
+                QPointF(minimum.width() - 21, minimum.height() / 2)
+            )
+            QTest.mouseClick(
+                window,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                point.toPoint(),
+            )
+        for _ in range(3):
+            point = maximum.mapToScene(QPointF(21, maximum.height() / 2))
+            QTest.mouseClick(
+                window,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                point.toPoint(),
+            )
+        assert minimum.property("value") == 75
+        assert maximum.property("value") == 85
+        minimum.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Up)
+        assert minimum.property("value") == 80
+        QTest.keyClick(window, Qt.Key.Key_Down)
+        assert minimum.property("value") == 75
+        for _ in range(2):
+            apply = window.findChild(QQuickItem, "applyDiscoverFilters")
+            point = apply.mapToScene(QPointF(apply.width() / 2, apply.height() / 2))
+            QTest.mouseClick(
+                window,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                point.toPoint(),
+            )
+            _wait_for(application, lambda: not discover.busy)
+            assert minimum.property("value") == 75
+            assert maximum.property("value") == 85
+            assert client.calls[-1][1]["min_score"] == 7.5
+            assert client.calls[-1][1]["max_score"] == 8.5
+        clear = window.findChild(QQuickItem, "clearDiscoverFilters")
+        clear.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        _wait_for(application, lambda: not discover.busy)
+        assert minimum.property("value") == 0
+        assert maximum.property("value") == 100
+    finally:
+        window.close()
+        discover.close()
+        application.processEvents()

@@ -37,6 +37,7 @@ class DiscoverController(QObject):
         self._store = store or TokenStore()
         self._client = client
         self._images = images
+        self._retired_images: list[ImageService] = []
         self._own_images = images is None
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._future: Future | None = None
@@ -85,12 +86,14 @@ class DiscoverController(QObject):
     @Slot()
     def refresh_token(self) -> None:
         """Use a recently stored TMDb token for later Discover requests."""
+        self.cancelPending()
         try:
             stored = self._store.load()
         except (OSError, UnicodeError):
             stored = None
         if self._own_images and self._images is not None:
             old_images = self._images
+            self._retired_images.append(old_images)
             self._executor.submit(old_images.close)
             self._images = None
         self._client = TmdbClient(token=stored.value) if stored else None
@@ -232,6 +235,7 @@ class DiscoverController(QObject):
             "mediaType": kind,
             "title": title,
             "year": date[:4] if date else "",
+            "releaseDate": date or "",
             "posterPath": item.poster_path or "",
             "poster": _local_url(images.poster(None).result()),
             "progressText": f"TMDb {item.vote_average:.1f}",
@@ -251,7 +255,7 @@ class DiscoverController(QObject):
         self._busy = False
         self._error = error
         self._page = page
-        self._total_pages = max(1, total_pages)
+        self._total_pages = max(1, min(total_pages, 500))
         self._items = items
         self.changed.emit()
         if error:
@@ -287,6 +291,9 @@ class DiscoverController(QObject):
 
     def close(self) -> None:
         self.cancelPending()
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._executor.shutdown(wait=True, cancel_futures=True)
         if self._own_images and self._images is not None:
             self._images.close()
+        for images in self._retired_images:
+            images.close()
+        self._retired_images.clear()

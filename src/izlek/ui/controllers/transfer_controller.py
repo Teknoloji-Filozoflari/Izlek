@@ -81,6 +81,8 @@ class TransferController(QObject):
 
     @Slot(str)
     def previewImport(self, location: str) -> None:
+        if self._busy:
+            return
         try:
             path = _local_path(location)
         except TransferError as exc:
@@ -111,7 +113,7 @@ class TransferController(QObject):
                 result = self._service.import_file(path)
         except TransferError as exc:
             self._finished.emit(generation, action, {}, str(exc))
-        except (OSError, SQLAlchemyError):
+        except (OSError, SQLAlchemyError, ValueError, KeyError, OverflowError):
             self._finished.emit(generation, action, {}, FILE_OPERATION_FAILED)
         else:
             self._finished.emit(generation, action, result, "")
@@ -157,5 +159,6 @@ class TransferController(QObject):
         self.changed.emit()
 
     def close(self) -> None:
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._generation += 1
+        self._executor.shutdown(wait=True, cancel_futures=True)
         self._service.close()

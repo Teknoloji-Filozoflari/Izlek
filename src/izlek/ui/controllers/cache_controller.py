@@ -2,9 +2,12 @@
 
 from concurrent.futures import ThreadPoolExecutor
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.cache.images import ImageDiskCache
+from izlek.services.library_images import LibraryImagesService
+from izlek.services.metadata_retention import MetadataRetentionService
 from izlek.ui.controllers.messages import FILE_OPERATION_FAILED
 
 
@@ -25,18 +28,31 @@ class CacheController(QObject):
     """Measure and clear image cache without blocking the Qt thread."""
 
     changed = Signal()
+    metadataExpired = Signal()
     _finished = Signal(int, str, int, str)
 
-    def __init__(self, cache: ImageDiskCache | None = None, parent=None) -> None:
+    def __init__(
+        self,
+        cache: ImageDiskCache | None = None,
+        parent=None,
+        retention: MetadataRetentionService | None = None,
+    ) -> None:
         super().__init__(parent)
         self._cache = cache or ImageDiskCache()
+        self._retention = retention or MetadataRetentionService()
+        self._library_images = LibraryImagesService()
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._generation = 0
         self._busy = False
+        self._refresh_pending = False
         self._size = 0
         self._feedback = ""
         self._feedback_kind = "neutral"
         self._finished.connect(self._apply_finished)
+        self._timer = QTimer(self)
+        self._timer.setInterval(60 * 60 * 1000)
+        self._timer.timeout.connect(self.refresh)
+        self._timer.start()
         self.refresh()
 
     @Property(bool, notify=changed)
@@ -61,6 +77,9 @@ class CacheController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        if self._busy:
+            self._refresh_pending = True
+            return
         self._submit("size")
 
     @Slot()
@@ -79,13 +98,17 @@ class CacheController(QObject):
 
     def _work(self, generation: int, action: str) -> None:
         try:
+            self._library_images.sync()
+            self._cache.prune_expired()
+            if self._retention.prune():
+                self.metadataExpired.emit()
             if action == "clear":
                 removed = self._cache.clear()
                 size = self._cache.size_bytes()
             else:
                 removed = 0
                 size = self._cache.size_bytes()
-        except OSError:
+        except (OSError, SQLAlchemyError):
             self._finished.emit(generation, action, 0, "ERROR:" + FILE_OPERATION_FAILED)
         else:
             self._finished.emit(generation, action, size, str(removed))
@@ -108,5 +131,13 @@ class CacheController(QObject):
             self._feedback = ""
         self.changed.emit()
 
+        if self._refresh_pending:
+            self._refresh_pending = False
+            self.refresh()
+
     def close(self) -> None:
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._timer.stop()
+        self._generation += 1
+        self._executor.shutdown(wait=True, cancel_futures=True)
+        self._retention.close()
+        self._library_images.close()

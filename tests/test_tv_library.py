@@ -4,7 +4,7 @@ from concurrent.futures import Future
 from datetime import date, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtCore import QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
@@ -150,7 +150,9 @@ def _wait_for(application, predicate):
     raise AssertionError("TV library did not load")
 
 
-def test_shows_page_tabs_progress_and_compact_sections(tmp_path, monkeypatch):
+def test_shows_page_combines_statuses_progress_and_compact_sections(
+    tmp_path, monkeypatch
+):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     monkeypatch.setenv("QT_QUICK_BACKEND", "software")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
@@ -178,29 +180,32 @@ def test_shows_page_tabs_progress_and_compact_sections(tmp_path, monkeypatch):
     try:
         window.navigate(2)
         _wait_for(application, lambda: not library.busy and bool(library.stats))
-        assert [item["tmdb_id"] for item in library.items] == [103]
+        assert {item["tmdb_id"] for item in library.items} == {101, 102, 103}
         grid = window.findChild(QQuickItem, "tvLibraryGrid")
         tabs = window.findChild(QQuickItem, "tvStatusTabs")
         favorites = window.findChild(QQuickItem, "favoriteShowsStrip")
         stats = window.findChild(QQuickItem, "tvStats")
-        assert all(item is not None for item in (grid, tabs, favorites, stats))
+        assert all(item is not None for item in (grid, tabs, favorites))
+        assert stats is None
+        assert window.findChild(QQuickItem, "showsContinueSection").isVisible()
+        assert not tabs.isVisible()
         assert favorites.property("count") == 3
         for width, height in ((800, 600), (1366, 768), (1920, 1080)):
             window.resize(width, height)
             application.processEvents()
             assert grid.height() < 330 and favorites.height() < 120
-            assert stats.mapToScene(QPointF(0, stats.height())).y() <= height
-        second_tab = tabs.childItems()[0].childItems()[1]
-        second_tab.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Space)
-        _wait_for(
-            application, lambda: library.status == "WATCHING" and not library.busy
+        watching_index = next(
+            index
+            for index, item in enumerate(library.items)
+            if item["status"] == "WATCHING"
         )
-        assert library.items[0]["progress_text"] == "S02E01"
+        assert library.items[watching_index]["progress_text"] == "S02E01"
         QTest.qWait(300)
+        grid.setProperty("currentIndex", watching_index)
         application.processEvents()
         card = grid.property("currentItem")
-        assert card is not None and card.property("progressText") == "S02E01"
+        assert card is not None and card.property("progressText") == "2 / 5 bölüm"
+        assert card.property("progress") == 2 / 5
         assert not warnings
     finally:
         window.close()

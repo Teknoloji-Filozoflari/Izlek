@@ -19,18 +19,18 @@ ApplicationWindow {
     property int currentIndex: 0
     readonly property bool compactSidebar: width < 1060
     readonly property var pageComponents: [
-        homePage, moviesPage, showsPage, listsPage, discoverPage, settingsPage
+        discoverPage, moviesPage, showsPage, listsPage, homePage, settingsPage
     ]
 
     function cancelSectionTasks(index) {
         if (index === 0)
-            continueController.cancelPending()
+            discoverController.cancelPending()
         else if (index === 1)
             movieLibraryController.cancelPending()
-        else if (index === 2)
+        else if (index === 2) {
             tvLibraryController.cancelPending()
-        else if (index === 4)
-            discoverController.cancelPending()
+            continueController.cancelPending()
+        }
     }
 
     function navigate(index) {
@@ -44,25 +44,31 @@ ApplicationWindow {
         else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
             tvController.cancelPending()
         currentIndex = index
-        contentStack.replace(pageComponents[index])
+        contentStack.replace(null, pageComponents[index], StackView.Immediate)
     }
 
     function openMediaDetail(kind, itemId) {
+        if (kind !== "movie" && kind !== "tv")
+            return
         globalSearch.close()
+        if (contentStack.currentItem.pageTitle === "Film Detayı")
+            movieController.cancelPending()
+        else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
+            tvController.cancelPending()
         if (contentStack.currentItem.pageTitle !== "Film Detayı"
                 && contentStack.currentItem.pageTitle !== "Dizi Detayı")
             cancelSectionTasks(currentIndex)
         if (kind === "movie") {
             if (contentStack.currentItem.pageTitle === "Film Detayı")
-                contentStack.replace(movieDetailPage)
+                contentStack.replace(movieDetailPage, StackView.Immediate)
             else
-                contentStack.push(movieDetailPage)
+                contentStack.push(movieDetailPage, StackView.Immediate)
             movieController.loadMovie(itemId)
         } else if (kind === "tv") {
             if (contentStack.currentItem.pageTitle === "Dizi Detayı")
-                contentStack.replace(tvDetailPage)
+                contentStack.replace(tvDetailPage, StackView.Immediate)
             else
-                contentStack.push(tvDetailPage)
+                contentStack.push(tvDetailPage, StackView.Immediate)
             tvController.loadTv(itemId)
         }
     }
@@ -75,7 +81,7 @@ ApplicationWindow {
                 movieController.cancelPending()
             else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
                 tvController.cancelPending()
-            contentStack.pop()
+            contentStack.pop(null, StackView.Immediate)
         }
     }
 
@@ -83,7 +89,11 @@ ApplicationWindow {
         sequence: "Ctrl+K"
         context: Qt.ApplicationShortcut
         enabled: tokenController.hasToken
-        onActivated: globalSearch.open()
+        onActivated: {
+            if (currentIndex === 0 && contentStack.depth === 1)
+                contentStack.currentItem.focusSearch()
+            else globalSearch.open()
+        }
     }
 
     Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; enabled: tokenController.hasToken; onActivated: window.navigate(0) }
@@ -92,7 +102,13 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+4"; context: Qt.ApplicationShortcut; enabled: tokenController.hasToken; onActivated: window.navigate(3) }
     Shortcut { sequence: "Ctrl+5"; context: Qt.ApplicationShortcut; enabled: tokenController.hasToken; onActivated: window.navigate(4) }
     Shortcut { sequence: "Ctrl+,"; context: Qt.ApplicationShortcut; enabled: tokenController.hasToken; onActivated: window.navigate(5) }
-    Shortcut { sequence: "Escape"; context: Qt.ApplicationShortcut; enabled: tokenController.hasToken; onActivated: window.goBack() }
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.ApplicationShortcut
+        enabled: tokenController.hasToken && (!contentStack.currentItem
+                 || contentStack.currentItem.filterPopupOpen !== true)
+        onActivated: window.goBack()
+    }
 
     OnboardingPage {
         objectName: "onboardingPage"
@@ -186,10 +202,10 @@ ApplicationWindow {
                     onActivated: window.navigate(3)
                 }
                 NavItem {
-                    objectName: "navDiscover"
+                    objectName: "navStatistics"
                     Layout.fillWidth: true
-                    label: "Keşfet"
-                    iconSource: Qt.resolvedUrl("../../resources/icons/discover.svg")
+                    label: "İstatistikler"
+                    iconSource: Qt.resolvedUrl("../../resources/icons/statistics.svg")
                     selected: window.currentIndex === 4
                     compact: window.compactSidebar
                     onActivated: window.navigate(4)
@@ -215,25 +231,14 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            initialItem: homePage
+            initialItem: discoverPage
         }
     }
 
     Component {
         id: homePage
         HomePage {
-            controller: continueController
-            favoritesModelController: favoritesController
-            movieLibraryModelController: movieLibraryController
-            tvLibraryModelController: tvLibraryController
             statisticsModelController: statisticsController
-            onTvSelected: function(itemId) { window.openMediaDetail("tv", itemId) }
-            onFavoriteSelected: function(kind, itemId) {
-                window.openMediaDetail(kind, itemId)
-            }
-            onSearchRequested: globalSearch.open()
-            onMoviesRequested: window.navigate(1)
-            onShowsRequested: window.navigate(2)
         }
     }
     Component {
@@ -249,6 +254,7 @@ ApplicationWindow {
         id: showsPage
         ShowsPage {
             controller: tvLibraryController
+            continueModelController: continueController
             onTvSelected: function(itemId) {
                 window.openMediaDetail("tv", itemId)
             }
@@ -267,6 +273,8 @@ ApplicationWindow {
         id: discoverPage
         DiscoverPage {
             controller: discoverController
+            searchModelController: searchController
+            onSearchRequested: globalSearch.open()
             onMediaSelected: function(kind, itemId) {
                 window.openMediaDetail(kind, itemId)
             }
@@ -283,14 +291,14 @@ ApplicationWindow {
         id: detailPage
         MediaDetailPage {
             controller: searchController
-            onBackRequested: contentStack.pop()
+            onBackRequested: window.goBack()
         }
     }
     Component {
         id: movieDetailPage
         MovieDetailPage {
             controller: movieController
-            onBackRequested: contentStack.pop()
+            onBackRequested: window.goBack()
             onMovieSelected: function(itemId) {
                 movieController.loadMovie(itemId)
             }
@@ -300,7 +308,7 @@ ApplicationWindow {
         id: tvDetailPage
         TvDetailPage {
             controller: tvController
-            onBackRequested: contentStack.pop()
+            onBackRequested: window.goBack()
             onTvSelected: function(itemId) { tvController.loadTv(itemId) }
         }
     }
@@ -320,6 +328,13 @@ ApplicationWindow {
     }
     Connections {
         target: tokenController
+        function onTokenSaved() {
+            Qt.callLater(function() {
+                if (window.currentIndex === 0
+                        && contentStack.currentItem.pageTitle === "Ana Sayfa")
+                    contentStack.currentItem.applyFilters()
+            })
+        }
         function onHasTokenChanged() {
             if (tokenController.hasToken)
                 tokenToast.show(tokenController.feedback, tokenController.feedbackKind)

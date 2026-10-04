@@ -14,6 +14,7 @@ def test_metadata_is_fresh_for_at_most_24_hours():
         now - timedelta(hours=24, microseconds=1), now=now
     )
     assert not metadata_is_fresh(None, now=now)
+    assert not metadata_is_fresh(now + timedelta(days=365), now=now)
 
 
 def test_metadata_freshness_normalizes_aware_utc_values():

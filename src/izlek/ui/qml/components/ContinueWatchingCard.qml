@@ -7,6 +7,21 @@ Rectangle {
     id: card
     objectName: "continueCard"
     property var itemData: ({})
+    property var controller: null
+    property url posterSource: itemData.poster || ""
+    property url backdropSource: itemData.backdrop || ""
+    onItemDataChanged: {
+        posterSource = itemData.poster || ""
+        backdropSource = itemData.backdrop || ""
+    }
+    Connections {
+        target: card.controller
+        function onImageAvailable(tmdbId, role, url) {
+            if (tmdbId !== card.itemData.tmdb_id) return
+            if (role === "poster") card.posterSource = url
+            else if (role === "backdrop") card.backdropSource = url
+        }
+    }
     property bool busy: false
     signal opened(int tmdbId)
     signal watched(int tmdbId, int seasonNumber, int episodeNumber)
@@ -19,7 +34,7 @@ Rectangle {
 
     Image {
         anchors.fill: parent
-        source: card.itemData.backdrop || ""
+        source: card.backdropSource
         fillMode: Image.PreserveAspectCrop
         opacity: 0.2
         sourceSize.width: Math.round(card.width * Screen.devicePixelRatio)
@@ -33,7 +48,7 @@ Rectangle {
         Image {
             Layout.preferredWidth: 122
             Layout.fillHeight: true
-            source: card.itemData.poster || ""
+            source: card.posterSource
             fillMode: Image.PreserveAspectCrop
             sourceSize.width: Math.round(122 * Screen.devicePixelRatio)
             sourceSize.height: Math.round(height * Screen.devicePixelRatio)

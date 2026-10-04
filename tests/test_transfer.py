@@ -11,9 +11,11 @@ from izlek.db.engine import create_session_factory, initialize_database
 from izlek.db.models import (
     CustomList,
     CustomListItem,
+    Episode,
     EpisodeProgress,
     MediaItem,
     MediaType,
+    Season,
     TrackingStatus,
     UserMedia,
 )
@@ -24,6 +26,7 @@ from izlek.repositories import (
     SeasonRepository,
     UserMediaRepository,
 )
+from izlek.repositories.local import TransferRepository
 from izlek.services.transfer import TransferError, TransferService
 
 
@@ -207,9 +210,7 @@ def test_repeated_import_merges_identity_lists_and_keeps_watched_progress(tmp_pa
             assert session.scalar(select(func.count()).select_from(MediaItem)) == 2
             assert session.scalar(select(func.count()).select_from(UserMedia)) == 2
             assert session.scalar(select(func.count()).select_from(CustomList)) == 2
-            assert (
-                session.scalar(select(func.count()).select_from(CustomListItem)) == 3
-            )
+            assert session.scalar(select(func.count()).select_from(CustomListItem)) == 3
             progress = session.scalar(select(EpisodeProgress))
             assert progress.watched is True
             assert progress.watched_at == datetime(2026, 6, 1)
@@ -296,4 +297,99 @@ def test_import_file_errors_are_safe_and_specific(tmp_path, content, message):
             service.read_file(tmp_path / "missing.json")
     finally:
         service.close()
+        engine.dispose()
+
+
+def test_old_import_keeps_newer_episode_metadata_and_restores_missing_rows(tmp_path):
+    engine = initialize_database(tmp_path / "state.sqlite3")
+    factory = create_session_factory(engine)
+    _seed_full_state(factory)
+    service = TransferService(factory)
+    path = tmp_path / "old.json"
+    service.export_file(path)
+    try:
+        with factory.begin() as session:
+            season = session.scalar(select(Season))
+            season.last_synced_at = datetime(2026, 10, 4)
+            first = session.scalar(select(Episode).where(Episode.episode_number == 1))
+            first.name = "New episode title"
+            first.runtime = 60
+            second = session.scalar(select(Episode).where(Episode.episode_number == 2))
+            session.delete(second)
+        service.import_file(path)
+        with factory() as session:
+            episodes = list(
+                session.scalars(select(Episode).order_by(Episode.episode_number))
+            )
+            assert [(item.name, item.runtime) for item in episodes] == [
+                ("New episode title", 60),
+                ("Second", 51),
+            ]
+            assert session.scalar(select(EpisodeProgress)).watched is True
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize(
+    "problem", ["credits", "identity", "season", "episode", "name"]
+)
+def test_preview_rejects_unusable_metadata_before_database_write(tmp_path, problem):
+    engine = initialize_database(tmp_path / "source.sqlite3")
+    target_engine = initialize_database(tmp_path / "target.sqlite3")
+    factory = create_session_factory(engine)
+    _seed_full_state(factory)
+    document = TransferService(factory).build_export().model_dump(mode="json")
+    if problem == "credits":
+        document["media"][0]["metadata"] = {"credits": {"id": 101, "cast": [{}]}}
+    elif problem == "identity":
+        document["media"][0]["metadata"] = {
+            "detail": {"id": 999, "title": "Other", "original_title": "Other"}
+        }
+    elif problem == "season":
+        document["media"][1]["seasons"] *= 2
+    elif problem == "episode":
+        document["media"][1]["seasons"][0]["episodes"] *= 2
+    else:
+        document["lists"][0]["name"] = "   "
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    target = TransferService(create_session_factory(target_engine))
+    try:
+        with pytest.raises(TransferError, match="Şema doğrulanamadı"):
+            target.preview_file(path)
+        with create_session_factory(target_engine)() as session:
+            assert session.scalar(select(func.count()).select_from(MediaItem)) == 0
+    finally:
+        engine.dispose()
+        target_engine.dispose()
+
+
+def test_export_reads_one_snapshot_during_concurrent_status_change(
+    tmp_path, monkeypatch
+):
+    engine = initialize_database(tmp_path / "state.sqlite3")
+    with engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA journal_mode=WAL")
+    factory = create_session_factory(engine)
+    with factory.begin() as session:
+        movie = MediaRepository(session).upsert(42, MediaType.MOVIE, "Film")
+        UserMediaRepository(session).set_status(movie.id, TrackingStatus.PLANNED)
+    original_read = TransferRepository.media
+
+    def read_and_change(repository):
+        rows = original_read(repository)
+        with factory.begin() as writer:
+            UserMediaRepository(writer).set_status(movie.id, TrackingStatus.WATCHED)
+        return rows
+
+    monkeypatch.setattr(TransferRepository, "media", read_and_change)
+    try:
+        document = TransferService(factory).build_export()
+        assert document.tracking[0].status == "PLANNED"
+        with factory() as session:
+            assert (
+                UserMediaRepository(session).get(movie.id).status
+                == TrackingStatus.WATCHED
+            )
+    finally:
         engine.dispose()

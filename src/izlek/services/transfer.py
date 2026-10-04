@@ -104,9 +104,7 @@ def _migrate_schema(payload: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
-def _prefer_imported(
-    imported_at: datetime | None, local_at: datetime | None
-) -> bool:
+def _prefer_imported(imported_at: datetime | None, local_at: datetime | None) -> bool:
     imported = _naive(imported_at)
     local = _naive(local_at)
     if local is None:
@@ -130,6 +128,9 @@ class TransferService:
     def build_export(self, *, exported_at: datetime | None = None) -> IzlekExport:
         """Build one portable document without tokens or image-cache paths."""
         with self._sessions()() as session:
+            # SQLite's legacy transaction mode does not begin on SELECT.
+            # All seven tables must come from one consistent backup snapshot.
+            session.connection().exec_driver_sql("BEGIN")
             records = TransferRepository(session)
             media_rows = records.media()
             tracking_rows = records.tracking()
@@ -270,9 +271,10 @@ class TransferService:
         document = self.build_export()
         target = path.with_suffix(".json") if not path.suffix else path
         target.parent.mkdir(parents=True, exist_ok=True)
-        content = json.dumps(
-            document.model_dump(mode="json"), ensure_ascii=False, indent=2
-        ) + "\n"
+        content = (
+            json.dumps(document.model_dump(mode="json"), ensure_ascii=False, indent=2)
+            + "\n"
+        )
         temporary: Path | None = None
         try:
             descriptor, name = tempfile.mkstemp(
@@ -294,12 +296,16 @@ class TransferService:
         try:
             if path.stat().st_size > _MAX_IMPORT_BYTES:
                 raise TransferError("Import dosyası 64 MiB sınırını aşıyor")
-            raw = json.loads(path.read_text(encoding="utf-8"))
+            with path.open("rb") as stream:
+                content = stream.read(_MAX_IMPORT_BYTES + 1)
+            if len(content) > _MAX_IMPORT_BYTES:
+                raise TransferError("Import dosyası 64 MiB sınırını aşıyor")
+            raw = json.loads(content)
         except FileNotFoundError:
             raise TransferError("Import dosyası bulunamadı") from None
         except (OSError, UnicodeError):
             raise TransferError("Import dosyası okunamadı") from None
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, RecursionError):
             raise TransferError("Dosya geçerli JSON değil") from None
         if not isinstance(raw, dict):
             raise TransferError("İzlek export kökü JSON object olmalı")
@@ -347,6 +353,7 @@ class TransferService:
             "list_items_existing": 0,
         }
         with self._sessions().begin() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
             self._import_document(session, document, report)
         return report
 
@@ -397,18 +404,16 @@ class TransferService:
                     item.updated_at = max(item.updated_at, imported_updated)
             media_by_key[(record.media_type, record.tmdb_id)] = item
 
+            local_seasons = {
+                season.season_number: season
+                for season in season_repo.list_for_media(item.id)
+            }
             for season_data in record.seasons:
-                local_season = next(
-                    (
-                        season
-                        for season in season_repo.list_for_media(item.id)
-                        if season.season_number == season_data.season_number
-                    ),
-                    None,
-                )
-                if local_season is None or _prefer_imported(
+                local_season = local_seasons.get(season_data.season_number)
+                prefer_season = local_season is None or _prefer_imported(
                     season_data.last_synced_at, local_season.last_synced_at
-                ):
+                )
+                if prefer_season:
                     season = season_repo.upsert(
                         item.id,
                         season_data.season_number,
@@ -421,38 +426,38 @@ class TransferService:
                     )
                 else:
                     season = local_season
+                local_seasons[season_data.season_number] = season
+                local_episodes = {
+                    episode.episode_number: episode
+                    for episode in episode_repo.list_for_season(season.id)
+                }
                 for episode_data in season_data.episodes:
-                    local_episode = next(
-                        (
-                            episode
-                            for episode in episode_repo.list_for_season(season.id)
-                            if episode.episode_number
-                            == episode_data.episode_number
-                        ),
-                        None,
-                    )
-                    episode = episode_repo.upsert(
-                        season.id,
-                        episode_data.episode_number,
-                        tmdb_episode_id=episode_data.tmdb_episode_id
-                        if episode_data.tmdb_episode_id is not None
-                        else getattr(local_episode, "tmdb_episode_id", None),
-                        name=episode_data.name
-                        if episode_data.name is not None
-                        else getattr(local_episode, "name", None),
-                        overview=episode_data.overview
-                        if episode_data.overview is not None
-                        else getattr(local_episode, "overview", None),
-                        air_date=episode_data.air_date
-                        if episode_data.air_date is not None
-                        else getattr(local_episode, "air_date", None),
-                        runtime=episode_data.runtime
-                        if episode_data.runtime is not None
-                        else getattr(local_episode, "runtime", None),
-                        still_path=episode_data.still_path
-                        if episode_data.still_path is not None
-                        else getattr(local_episode, "still_path", None),
-                    )
+                    local_episode = local_episodes.get(episode_data.episode_number)
+                    episode = local_episode
+                    if prefer_season or local_episode is None:
+                        episode = episode_repo.upsert(
+                            season.id,
+                            episode_data.episode_number,
+                            tmdb_episode_id=episode_data.tmdb_episode_id
+                            if episode_data.tmdb_episode_id is not None
+                            else getattr(local_episode, "tmdb_episode_id", None),
+                            name=episode_data.name
+                            if episode_data.name is not None
+                            else getattr(local_episode, "name", None),
+                            overview=episode_data.overview
+                            if episode_data.overview is not None
+                            else getattr(local_episode, "overview", None),
+                            air_date=episode_data.air_date
+                            if episode_data.air_date is not None
+                            else getattr(local_episode, "air_date", None),
+                            runtime=episode_data.runtime
+                            if episode_data.runtime is not None
+                            else getattr(local_episode, "runtime", None),
+                            still_path=episode_data.still_path
+                            if episode_data.still_path is not None
+                            else getattr(local_episode, "still_path", None),
+                        )
+                    local_episodes[episode_data.episode_number] = episode
                     episode_by_key[
                         (
                             record.tmdb_id,
@@ -489,7 +494,9 @@ class TransferService:
             media = media_by_key[key]
             state = user_repo.get(media.id)
             assert state is not None
-            state.added_at = _naive(record.added_at) or state.added_at
+            state.added_at = min(
+                state.added_at, _naive(record.added_at) or state.added_at
+            )
             state.updated_at = _naive(record.updated_at) or state.updated_at
 
         for record in document.episodes:
@@ -516,10 +523,10 @@ class TransferService:
             for custom_list in list_repo.list_all()
         }
         for record in document.lists:
-            key = record.name.casefold()
+            key = record.name.strip().casefold()
             custom_list = lists_by_name.get(key)
             if custom_list is None:
-                custom_list = list_repo.create(record.name, record.sort_order)
+                custom_list = list_repo.create(record.name.strip(), record.sort_order)
                 custom_list.created_at = (
                     _naive(record.created_at) or custom_list.created_at
                 )

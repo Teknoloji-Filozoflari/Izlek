@@ -55,7 +55,7 @@ def test_sidebar_routes_and_compact_resize(monkeypatch, tmp_path):
             (1, "navMovies", "Filmler"),
             (2, "navShows", "Diziler"),
             (3, "navLists", "Listeler"),
-            (4, "navDiscover", "Keşfet"),
+            (4, "navStatistics", "İstatistikler"),
             (5, "navSettings", "Ayarlar"),
             (0, "navHome", "Ana Sayfa"),
         ):
@@ -89,6 +89,73 @@ def test_sidebar_routes_and_compact_resize(monkeypatch, tmp_path):
         qInstallMessageHandler(previous_handler)
 
 
+def test_sidebar_resets_detail_history_and_back_cancels_work(monkeypatch):
+    token = TokenController(store=ExistingTokenStore())
+    application, engine, window = create_application(token_controller=token)
+    movie = engine.rootContext().contextProperty("movieController")
+    tv = engine.rootContext().contextProperty("tvController")
+    monkeypatch.setattr(movie, "loadMovie", lambda item_id: None)
+    monkeypatch.setattr(tv, "loadTv", lambda item_id: None)
+    stack = window.findChild(QQuickItem, "contentStack")
+    try:
+        window.openMediaDetail("movie", 42)
+        QTest.qWait(300)
+        assert stack.property("depth") == 2
+        movie_generation = movie._generation
+        window.openMediaDetail("tv", 77)
+        QTest.qWait(300)
+        assert movie._generation > movie_generation
+        tv_generation = tv._generation
+        current = stack.property("currentItem")
+        current.backRequested.emit()
+        QTest.qWait(300)
+        assert tv._generation > tv_generation
+        window.navigate(2)
+        QTest.qWait(300)
+        assert stack.property("depth") == 1
+        assert stack.property("currentItem").property("pageTitle") == "Diziler"
+        window.goBack()
+        assert stack.property("depth") == 1
+    finally:
+        window.close()
+        for name in (
+            "movieController",
+            "tvController",
+            "searchController",
+            "continueController",
+            "movieLibraryController",
+            "tvLibraryController",
+            "favoritesController",
+            "customListsController",
+            "discoverController",
+            "statisticsController",
+            "transferController",
+            "cacheController",
+        ):
+            engine.rootContext().contextProperty(name).close()
+        application.processEvents()
+
+
+def test_library_controls_restore_current_controller_filters():
+    application, engine, window = create_application(
+        token_controller=TokenController(store=ExistingTokenStore())
+    )
+    library = engine.rootContext().contextProperty("movieLibraryController")
+    try:
+        library.setStatus("WATCHED")
+        library.setSort("year")
+        window.navigate(1)
+        QTest.qWait(300)
+        tabs = window.findChild(QQuickItem, "movieStatusTabs")
+        sort = window.findChild(QQuickItem, "movieSort")
+        assert tabs.property("currentIndex") == 2
+        assert not tabs.isVisible()
+        assert sort.property("currentIndex") == 2
+    finally:
+        window.close()
+        application.processEvents()
+
+
 def test_application_shortcuts_and_escape_close_search(monkeypatch, tmp_path):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     monkeypatch.setenv("QT_QUICK_BACKEND", "software")
@@ -108,11 +175,13 @@ def test_application_shortcuts_and_escape_close_search(monkeypatch, tmp_path):
             QTest.qWait(30)
             assert window.property("currentIndex") == index
 
+        QTest.qWait(300)
         QTest.keyClick(window, Qt.Key.Key_K, Qt.KeyboardModifier.ControlModifier)
         QTest.qWait(30)
         search = window.findChild(QObject, "globalSearch")
-        assert search.property("opened")
-        assert window.findChild(QQuickItem, "globalSearchInput").hasActiveFocus()
+        assert not search.property("opened")
+        page = window.findChild(QQuickItem, "contentStack").property("currentItem")
+        assert page.findChild(QQuickItem, "dashboardSearch").hasActiveFocus()
 
         QTest.keyClick(window, Qt.Key.Key_Escape)
         QTest.qWait(30)

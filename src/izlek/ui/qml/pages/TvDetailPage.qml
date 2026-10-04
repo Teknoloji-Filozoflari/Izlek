@@ -8,6 +8,7 @@ Rectangle {
     id: page
     property var controller
     property string pageTitle: "Dizi Detayı"
+    readonly property bool filterPopupOpen: seasonSelector.popup.visible
     property string bulkScope: ""
     property bool bulkWatched: false
     readonly property var providerGroups: controller.detail.providers || ({})
@@ -26,6 +27,7 @@ Rectangle {
     }
 
     ScrollView {
+        objectName: "tvDetailScroll"
         anchors.fill: parent
         contentWidth: availableWidth
         clip: true
@@ -130,13 +132,7 @@ Rectangle {
                         visible: !page.controller.detail.status
                         enabled: !page.controller.saving
                         text: "Kütüphaneye Ekle"
-                        onClicked: page.controller.setStatus("PLANNED")
-                    }
-                    StatusSelector {
-                        objectName: "tvStatusSelector"
-                        status: page.controller.detail.status || ""
-                        enabled: !page.controller.saving
-                        onStatusSelected: function(status) { page.controller.setStatus(status) }
+                        onClicked: page.controller.setStatus("WATCHING")
                     }
                     FavoriteButton {
                         objectName: "tvFavorite"
@@ -154,12 +150,28 @@ Rectangle {
                         onClicked: listDialog.open()
                     }
                     Item { Layout.fillWidth: true }
+                    IzlekButton {
+                        objectName: "removeTvFromLibrary"
+                        visible: !!page.controller.detail.status
+                        enabled: !page.controller.saving && !page.controller.seasonBusy
+                        text: "Kütüphaneden Kaldır"
+                        variant: "danger"
+                        onClicked: page.controller.removeFromLibrary()
+                    }
                 }
                 Label {
                     visible: page.controller.feedback.length > 0
                     Layout.leftMargin: Tokens.Theme.spaceXl
                     text: page.controller.feedback
                     color: Tokens.Theme.accent
+                }
+                EpisodeProgressBar {
+                    objectName: "tvEpisodeProgress"
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Tokens.Theme.spaceXl
+                    Layout.rightMargin: Tokens.Theme.spaceXl
+                    watched: page.controller.detail.watchedRegularEpisodeCount || 0
+                    total: page.controller.detail.totalEpisodeCount || 0
                 }
                 Label {
                     objectName: "newEpisodesNotice"
@@ -195,7 +207,7 @@ Rectangle {
                         wrapMode: Text.WordWrap
                     }
                     SectionHeader { title: "Sezonlar ve Bölümler"; Layout.fillWidth: true }
-                    ComboBox {
+                    FilterComboBox {
                         id: seasonSelector
                         objectName: "tvSeasonSelector"
                         Layout.preferredWidth: 280
@@ -212,41 +224,74 @@ Rectangle {
                             page.controller.selectSeason(model[index].number)
                         }
                     }
-                    RowLayout {
+                    Label {
+                        text: {
+                            var seasons = page.controller.detail.seasons || []
+                            var season = seasons.find(function(entry) { return entry.number === page.controller.selectedSeason })
+                            return season ? season.watchedCount + " / " + season.episodeCount + " bölüm" : ""
+                        }
+                        color: Tokens.Theme.textMuted
+                    }
+                    Rectangle {
                         Layout.fillWidth: true
+                        Layout.preferredHeight: 62
+                        color: Tokens.Theme.surface
+                        radius: Tokens.Theme.radiusMd
+                        border.color: Tokens.Theme.border
+                        RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: Tokens.Theme.spaceSm
                         spacing: Tokens.Theme.spaceSm
+                        Label {
+                            text: "Sezon"
+                            color: Tokens.Theme.textMuted
+                        }
                         IzlekButton {
                             objectName: "seasonWatched"
-                            text: "Sezonu İzlendi Yap"
+                            Layout.fillWidth: true
+                            text: "✓ İzlendi"
+                            Accessible.name: "Sezonu izlendi yap"
+                            variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
-                            onClicked: page.confirmBulk("season", true)
+                            onClicked: page.controller.setSeasonWatched(true)
                         }
                         IzlekButton {
                             objectName: "seasonUnwatched"
-                            text: "Sezonu İzlenmedi Yap"
+                            Layout.fillWidth: true
+                            text: "↺ İzlenmedi"
+                            Accessible.name: "Sezonu izlenmedi yap"
                             variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
-                            onClicked: page.confirmBulk("season", false)
+                            onClicked: page.controller.setSeasonWatched(false)
                         }
-                        Item { Layout.fillWidth: true }
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Tokens.Theme.spaceSm
+                        Rectangle {
+                            Layout.preferredWidth: 1
+                            Layout.preferredHeight: 26
+                            color: Tokens.Theme.border
+                        }
+                        Label {
+                            text: "Dizi"
+                            color: Tokens.Theme.textMuted
+                        }
                         IzlekButton {
                             objectName: "seriesWatched"
-                            text: "Diziyi İzlendi Yap"
+                            Layout.fillWidth: true
+                            text: "✓ İzlendi"
+                            Accessible.name: "Diziyi izlendi yap"
+                            variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
                             onClicked: page.confirmBulk("series", true)
                         }
                         IzlekButton {
                             objectName: "seriesUnwatched"
-                            text: "Diziyi İzlenmedi Yap"
+                            Layout.fillWidth: true
+                            text: "↺ İzlenmedi"
+                            Accessible.name: "Diziyi izlenmedi yap"
                             variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
                             onClicked: page.confirmBulk("series", false)
                         }
-                        Item { Layout.fillWidth: true }
+                        }
                     }
                     BusyIndicator {
                         visible: page.controller.seasonBusy
@@ -271,49 +316,38 @@ Rectangle {
                         delegate: Rectangle {
                             required property var modelData
                             width: episodesList.width
-                            height: Math.max(130, episodeText.implicitHeight + 32)
-                            radius: Tokens.Theme.radiusMd
+                            height: 64
+                            radius: Tokens.Theme.radiusSm
                             color: Tokens.Theme.surface
                             border.color: Tokens.Theme.border
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: Tokens.Theme.spaceMd
                                 spacing: Tokens.Theme.spaceMd
-                                Image {
-                                    Layout.preferredWidth: 160
-                                    Layout.preferredHeight: 90
-                                    source: modelData.still || ""
-                                    asynchronous: true
-                                    fillMode: Image.PreserveAspectCrop
-                                    sourceSize.width: Math.round(160 * Screen.devicePixelRatio)
-                                    sourceSize.height: Math.round(90 * Screen.devicePixelRatio)
+                                Label {
+                                    Layout.preferredWidth: 36
+                                    text: "E" + String(modelData.number).padStart(2, "0")
+                                    color: Tokens.Theme.textMuted
+                                    font.pixelSize: Tokens.Theme.textSmall
                                 }
                                 ColumnLayout {
                                     id: episodeText
                                     Layout.fillWidth: true
                                     Label {
                                         Layout.fillWidth: true
-                                        text: modelData.number + ". " + modelData.name
+                                        text: modelData.name
                                         color: Tokens.Theme.textPrimary
                                         font.weight: Tokens.Theme.weightDemiBold
-                                        wrapMode: Text.WordWrap
+                                        elide: Text.ElideRight
                                     }
                                     Label {
                                         text: modelData.date || "Tarih bilinmiyor"
                                         color: Tokens.Theme.textMuted
                                     }
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: modelData.overview || "Açıklama bulunmuyor."
-                                        color: Tokens.Theme.textSecondary
-                                        wrapMode: Text.WordWrap
-                                        maximumLineCount: 3
-                                        elide: Text.ElideRight
-                                    }
                                 }
-                                CheckBox {
+                                EpisodeCheck {
                                     objectName: "episodeWatched"
-                                    text: "İzlendi"
+                                    episodeName: modelData.name
                                     checked: !!modelData.watched
                                     enabled: !page.controller.saving
                                     onClicked: page.controller.setEpisodeWatched(
@@ -334,62 +368,88 @@ Rectangle {
                         color: Tokens.Theme.textMuted
                     }
                     SectionHeader { title: "Oyuncular"; Layout.fillWidth: true }
-                    Repeater {
-                        model: page.controller.detail.cast || []
-                        Label {
-                            text: modelData.name + (modelData.character
-                                  ? " — " + modelData.character : "")
-                            color: Tokens.Theme.textSecondary
-                        }
-                    }
-                    SectionHeader { title: "Yaratıcılar"; Layout.fillWidth: true }
-                    Label {
-                        text: (page.controller.detail.creators || []).join(", ")
-                              || "Bilgi bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                    }
-                    SectionHeader { title: "Yapım Şirketleri"; Layout.fillWidth: true }
-                    Label {
-                        text: (page.controller.detail.companies || []).join(", ")
-                              || "Bilgi bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                        wrapMode: Text.WordWrap
-                    }
-                    SectionHeader { title: "Yapım Ülkeleri"; Layout.fillWidth: true }
-                    Label {
-                        text: (page.controller.detail.countries || []).join(", ")
-                              || "Bilgi bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                    }
-                    ProviderSection {
-                        objectName: "tvProviders"
+                    CastGrid {
+                        objectName: "tvCastGrid"
                         Layout.fillWidth: true
-                        groups: page.providerGroups
-                        providerLink: page.controller.detail.providerLink || ""
-                        onProviderLinkRequested: page.controller.openProviderLink()
+                        cast: page.controller.detail.cast || []
+                        photoObjectName: "tvActorPhoto"
                     }
-                    SectionHeader { title: "Fragman"; Layout.fillWidth: true }
-                    IzlekButton {
-                        text: "Fragmanı İzle"
-                        enabled: !!page.controller.detail.trailerUrl
-                        onClicked: page.controller.openTrailer()
+                    Label {
+                        visible: (page.controller.detail.cast || []).length === 0
+                        text: "Oyuncu bilgisi bulunmuyor."
+                        color: Tokens.Theme.textMuted
                     }
-                    SectionHeader { title: "Benzer"; Layout.fillWidth: true }
-                    Repeater {
-                        model: page.controller.detail.similar || []
-                        SearchResultCard {
-                            Layout.fillWidth: true
-                            media: modelData
-                            onActivated: function(kind, itemId) { page.tvSelected(itemId) }
+                    GridLayout {
+                        objectName: "tvProductionInfo"
+                        Layout.fillWidth: true
+                        columns: width >= 850 ? 3 : 1
+                        columnSpacing: Tokens.Theme.spaceLg
+                        rowSpacing: Tokens.Theme.spaceMd
+                        Repeater {
+                            model: [
+                                {title: "Yaratıcılar", values: page.controller.detail.creators || []},
+                                {title: "Yapım Şirketleri", values: page.controller.detail.companies || []},
+                                {title: "Yapım Ülkeleri", values: page.controller.detail.countries || []}
+                            ]
+                            ColumnLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 1
+                                Layout.minimumWidth: 0
+                                Layout.alignment: Qt.AlignTop
+                                SectionHeader { title: modelData.title; Layout.fillWidth: true }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.values.join(", ") || "Bilgi bulunmuyor."
+                                    color: Tokens.Theme.textSecondary
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
                         }
                     }
-                    SectionHeader { title: "Öneriler"; Layout.fillWidth: true }
-                    Repeater {
-                        model: page.controller.detail.recommendations || []
-                        SearchResultCard {
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: width >= 850 ? 2 : 1
+                        columnSpacing: Tokens.Theme.spaceLg
+                        rowSpacing: Tokens.Theme.spaceMd
+                        ProviderSection {
+                            objectName: "tvProviders"
                             Layout.fillWidth: true
-                            media: modelData
-                            onActivated: function(kind, itemId) { page.tvSelected(itemId) }
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.alignment: Qt.AlignTop
+                            groups: page.providerGroups
+                            providerLink: page.controller.detail.providerLink || ""
+                            onProviderLinkRequested: page.controller.openProviderLink()
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.alignment: Qt.AlignTop
+                            SectionHeader { title: "Fragman"; Layout.fillWidth: true }
+                            IzlekButton {
+                                text: "Fragmanı İzle"
+                                enabled: !!page.controller.detail.trailerUrl
+                                onClicked: page.controller.openTrailer()
+                            }
+                        }
+                    }
+                    ColumnLayout {
+                        objectName: "tvRelatedGrid"
+                        Layout.fillWidth: true
+                        SectionHeader { title: "Önerilen Diziler"; Layout.fillWidth: true }
+                        HorizontalMediaStrip {
+                            objectName: "tvRelatedStrip"
+                            Layout.fillWidth: true
+                            visible: items.length > 0
+                            items: page.controller.detail.recommendations || []
+                            onMediaActivated: function(media) { page.tvSelected(media.id) }
+                        }
+                        Label {
+                            visible: (page.controller.detail.recommendations || []).length === 0
+                            text: "Önerilen dizi bulunmuyor."
+                            color: Tokens.Theme.textMuted
                         }
                     }
                 }

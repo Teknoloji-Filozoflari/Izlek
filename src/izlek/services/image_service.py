@@ -4,6 +4,7 @@ import re
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from threading import RLock
+from time import sleep
 from typing import Literal
 
 import httpx
@@ -67,6 +68,7 @@ class ImageService:
         self._executor = executor or ThreadPoolExecutor(max_workers=4)
         self._own_executor = executor is None
         self._lock = RLock()
+        self._configuration_lock = RLock()
         self._pending: dict[tuple[str, str], Future[Path]] = {}
         self._configuration = None
 
@@ -80,6 +82,10 @@ class ImageService:
         """Resolve a backdrop without blocking the caller."""
         return self._submit("backdrop", path)
 
+    def profile(self, path: str | None) -> Future[Path]:
+        """Resolve an actor portrait through the same offline image cache."""
+        return self._submit("profile", path)
+
     def still(self, path: str | None) -> Future[Path]:
         """Resolve an episode still at a practical card size."""
         return self._submit("still", path)
@@ -91,7 +97,7 @@ class ImageService:
     def close(self) -> None:
         """Release resources owned by this service."""
         if self._own_executor:
-            self._executor.shutdown(wait=True)
+            self._executor.shutdown(wait=True, cancel_futures=True)
         if self._own_http:
             self._http.close()
 
@@ -100,11 +106,6 @@ class ImageService:
         if not path or not _SAFE_PATH.fullmatch(path) or ".." in path.split("/"):
             completed: Future[Path] = Future()
             completed.set_result(placeholder)
-            return completed
-        cached = self.cache.get(kind, path)
-        if cached is not None:
-            completed = Future()
-            completed.set_result(cached)
             return completed
         key = (kind, path)
         with self._lock:
@@ -120,6 +121,13 @@ class ImageService:
             if self._pending.get(key) is future:
                 del self._pending[key]
 
+    def _cached_image(self, kind: str, path: str) -> Path | None:
+        cached = self.cache.get(kind, path)
+        if cached is None and kind == "poster-grid":
+            # A detail poster already has enough resolution for a list/card.
+            cached = self.cache.get("poster-detail", path)
+        return cached
+
     def _placeholder(self, kind: str) -> Path:
         name = (
             "backdrop-placeholder.svg"
@@ -129,12 +137,25 @@ class ImageService:
         return _PLACEHOLDER_DIR / name
 
     def _download(self, kind: str, path: str) -> Path:
+        """Retry a transient network/CDN failure once before showing fallback."""
+        for attempt in range(2):
+            try:
+                return self._download_once(kind, path)
+            except (TMDbError, httpx.RequestError):
+                if attempt == 1:
+                    return self._placeholder(kind)
+                sleep(0.25)
+            except (OSError, ValueError):
+                return self._placeholder(kind)
+        return self._placeholder(kind)
+
+    def _download_once(self, kind: str, path: str) -> Path:
         placeholder = self._placeholder(kind)
         try:
-            cached = self.cache.get(kind, path)
+            cached = self._cached_image(kind, path)
             if cached is not None:
                 return cached
-            with self._lock:
+            with self._configuration_lock:
                 if self._configuration is None:
                     self._configuration = self._tmdb.configuration().images
                 images = self._configuration
@@ -142,10 +163,14 @@ class ImageService:
                 size = _select_size(images.backdrop_sizes, _BACKDROP_TARGET)
             elif kind == "still":
                 size = _select_size(images.still_sizes or images.backdrop_sizes, 300)
+            elif kind == "profile":
+                size = _select_size(images.profile_sizes or images.poster_sizes, 185)
             else:
                 size = _select_size(images.poster_sizes, _POSTER_TARGETS[kind[7:]])
             url = images.secure_base_url.rstrip("/") + "/" + size + path
             with self._http.stream("GET", url, timeout=_IMAGE_TIMEOUT) as response:
+                if response.status_code in (408, 429) or response.status_code >= 500:
+                    raise httpx.ConnectError("Temporary image download failure")
                 if response.status_code != 200:
                     return placeholder
                 if int(response.headers.get("Content-Length", "0")) > _MAX_IMAGE_BYTES:
@@ -159,5 +184,5 @@ class ImageService:
                 if not _valid_image(data, response.headers.get("Content-Type", "")):
                     return placeholder
             return self.cache.put(kind, path, data)
-        except (TMDbError, httpx.RequestError, OSError, ValueError):
+        except (OSError, ValueError):
             return placeholder

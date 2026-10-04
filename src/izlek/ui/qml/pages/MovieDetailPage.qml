@@ -14,6 +14,7 @@ Rectangle {
     color: Tokens.Theme.background
 
     ScrollView {
+        objectName: "movieDetailScroll"
         anchors.fill: parent
         contentWidth: availableWidth
         clip: true
@@ -125,13 +126,20 @@ Rectangle {
                         text: "Kütüphaneye Ekle"
                         onClicked: page.controller.setStatus("PLANNED")
                     }
-                    StatusSelector {
-                        objectName: "movieStatusSelector"
-                        status: page.controller.detail.status || ""
+                    IzlekButton {
+                        objectName: "movieWatched"
+                        text: "✓ İzlendi"
+                        variant: page.controller.detail.status === "WATCHED" ? "primary" : "secondary"
                         enabled: !page.controller.saving
-                        onStatusSelected: function(status) {
-                            page.controller.setStatus(status)
-                        }
+                        onClicked: page.controller.setStatus("WATCHED")
+                    }
+                    IzlekButton {
+                        objectName: "movieUnwatched"
+                        visible: !!page.controller.detail.status
+                        text: "↺ İzlenmedi"
+                        variant: "secondary"
+                        enabled: !page.controller.saving
+                        onClicked: page.controller.setStatus("PLANNED")
                     }
                     FavoriteButton {
                         objectName: "movieFavorite"
@@ -149,6 +157,14 @@ Rectangle {
                         onClicked: listDialog.open()
                     }
                     Item { Layout.fillWidth: true }
+                    IzlekButton {
+                        objectName: "removeMovieFromLibrary"
+                        visible: !!page.controller.detail.status
+                        enabled: !page.controller.saving
+                        text: "Kütüphaneden Kaldır"
+                        variant: "danger"
+                        onClicked: page.controller.removeFromLibrary()
+                    }
                 }
                 Label {
                     visible: page.controller.feedback.length > 0
@@ -171,90 +187,89 @@ Rectangle {
                         wrapMode: Text.WordWrap
                     }
                     SectionHeader { title: "Oyuncular"; Layout.fillWidth: true }
-                    Repeater {
-                        model: page.controller.detail.cast || []
-                        Label {
-                            Layout.fillWidth: true
-                            text: modelData.name + (modelData.character
-                                  ? " — " + modelData.character : "")
-                            color: Tokens.Theme.textSecondary
-                        }
+                    CastGrid {
+                        objectName: "movieCastGrid"
+                        Layout.fillWidth: true
+                        cast: page.controller.detail.cast || []
+                        photoObjectName: "movieActorPhoto"
                     }
                     Label {
-                        visible: !page.controller.detail.cast
-                                 || page.controller.detail.cast.length === 0
+                        visible: (page.controller.detail.cast || []).length === 0
                         text: "Oyuncu bilgisi bulunmuyor."
                         color: Tokens.Theme.textMuted
                     }
-                    SectionHeader { title: "Yönetmen"; Layout.fillWidth: true }
-                    Label {
-                        text: (page.controller.detail.directors || []).join(", ")
-                              || "Bilgi bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                    }
-                    SectionHeader { title: "Yapım Şirketleri"; Layout.fillWidth: true }
-                    Label {
+                    GridLayout {
+                        objectName: "movieProductionInfo"
                         Layout.fillWidth: true
-                        text: (page.controller.detail.companies || []).join(", ")
-                              || "Bilgi bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                        wrapMode: Text.WordWrap
-                    }
-                    SectionHeader { title: "Yapım Ülkeleri"; Layout.fillWidth: true }
-                    Label {
-                        text: (page.controller.detail.countries || []).join(", ")
-                              || "Bilgi bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                    }
-                    ProviderSection {
-                        objectName: "movieProviders"
-                        Layout.fillWidth: true
-                        groups: page.providerGroups
-                        providerLink: page.controller.detail.providerLink || ""
-                        onProviderLinkRequested: page.controller.openProviderLink()
-                    }
-                    SectionHeader { title: "Fragman"; Layout.fillWidth: true }
-                    IzlekButton {
-                        text: "Fragmanı İzle"
-                        enabled: !!page.controller.detail.trailerUrl
-                        onClicked: page.controller.openTrailer()
-                    }
-                    Label {
-                        visible: !page.controller.detail.trailerUrl
-                        text: "Fragman bulunmuyor."
-                        color: Tokens.Theme.textMuted
-                    }
-                    SectionHeader { title: "Benzer"; Layout.fillWidth: true }
-                    Repeater {
-                        model: page.controller.detail.similar || []
-                        SearchResultCard {
-                            Layout.fillWidth: true
-                            media: modelData
-                            onActivated: function(kind, itemId) {
-                                page.movieSelected(itemId)
+                        columns: width >= 850 ? 3 : 1
+                        columnSpacing: Tokens.Theme.spaceLg
+                        rowSpacing: Tokens.Theme.spaceMd
+                        Repeater {
+                            model: [
+                                {title: "Yönetmen", values: page.controller.detail.directors || []},
+                                {title: "Yapım Şirketleri", values: page.controller.detail.companies || []},
+                                {title: "Yapım Ülkeleri", values: page.controller.detail.countries || []}
+                            ]
+                            ColumnLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 1
+                                Layout.minimumWidth: 0
+                                Layout.alignment: Qt.AlignTop
+                                SectionHeader { title: modelData.title; Layout.fillWidth: true }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.values.join(", ") || "Bilgi bulunmuyor."
+                                    color: Tokens.Theme.textSecondary
+                                    wrapMode: Text.WordWrap
+                                }
                             }
                         }
                     }
-                    Label {
-                        visible: (page.controller.detail.similar || []).length === 0
-                        text: "Benzer film bulunmuyor."
-                        color: Tokens.Theme.textMuted
-                    }
-                    SectionHeader { title: "Öneriler"; Layout.fillWidth: true }
-                    Repeater {
-                        model: page.controller.detail.recommendations || []
-                        SearchResultCard {
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: width >= 850 ? 2 : 1
+                        columnSpacing: Tokens.Theme.spaceLg
+                        rowSpacing: Tokens.Theme.spaceMd
+                        ProviderSection {
+                            objectName: "movieProviders"
                             Layout.fillWidth: true
-                            media: modelData
-                            onActivated: function(kind, itemId) {
-                                page.movieSelected(itemId)
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.alignment: Qt.AlignTop
+                            groups: page.providerGroups
+                            providerLink: page.controller.detail.providerLink || ""
+                            onProviderLinkRequested: page.controller.openProviderLink()
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.alignment: Qt.AlignTop
+                            SectionHeader { title: "Fragman"; Layout.fillWidth: true }
+                            IzlekButton {
+                                text: "Fragmanı İzle"
+                                enabled: !!page.controller.detail.trailerUrl
+                                onClicked: page.controller.openTrailer()
                             }
                         }
                     }
-                    Label {
-                        visible: (page.controller.detail.recommendations || []).length === 0
-                        text: "Öneri bulunmuyor."
-                        color: Tokens.Theme.textMuted
+                    ColumnLayout {
+                        objectName: "movieRelatedGrid"
+                        Layout.fillWidth: true
+                        SectionHeader { title: "Önerilen Filmler"; Layout.fillWidth: true }
+                        HorizontalMediaStrip {
+                            objectName: "movieRelatedStrip"
+                            Layout.fillWidth: true
+                            visible: items.length > 0
+                            items: page.controller.detail.recommendations || []
+                            onMediaActivated: function(media) { page.movieSelected(media.id) }
+                        }
+                        Label {
+                            visible: (page.controller.detail.recommendations || []).length === 0
+                            text: "Önerilen film bulunmuyor."
+                            color: Tokens.Theme.textMuted
+                        }
                     }
                 }
             }

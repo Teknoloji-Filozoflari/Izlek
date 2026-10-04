@@ -6,8 +6,17 @@ import "../theme" as Tokens
 
 Rectangle {
     id: page
-    property string pageTitle: "Keşfet"
+    property string pageTitle: "Ana Sayfa"
     property var controller
+    property var searchModelController
+    readonly property var libraryActions: quickLibraryController
+    readonly property bool searching: searchInput.text.trim().length > 0
+    readonly property var displayedItems: searching
+        ? searchModelController.movies.concat(searchModelController.shows) : controller.items
+    readonly property bool resultsBusy: searching ? searchModelController.busy : controller.busy
+    readonly property string resultsError: searching ? searchModelController.error : controller.error
+    readonly property bool filterPopupOpen: mediaSelector.popup.visible
+        || genreSelector.popup.visible || countrySelector.popup.visible
     readonly property var movieGenres: [
         { text: "Tüm türler", value: 0 }, { text: "Aksiyon", value: 28 },
         { text: "Animasyon", value: 16 }, { text: "Bilim Kurgu", value: 878 },
@@ -30,6 +39,7 @@ Rectangle {
         { text: "Güney Kore", value: "KR" }, { text: "Japonya", value: "JP" }
     ]
     signal mediaSelected(string kind, int tmdbId)
+    signal searchRequested()
     color: Tokens.Theme.background
 
     function applyFilters() {
@@ -38,8 +48,32 @@ Rectangle {
             countrySelector.currentValue, minScore.value, maxScore.value)
     }
 
-    Component.onCompleted: applyFilters()
+    function updateSearchMedia() {
+        searchDebounce.stop()
+        searchModelController.setMediaType(mediaSelector.currentValue)
+        if (searchInput.text.trim().length >= 3) searchDebounce.start()
+    }
+
+    function focusSearch() { searchInput.forceActiveFocus() }
+
+    function runSearch() {
+        searchModelController.setMediaType(mediaSelector.currentValue)
+        searchModelController.search(searchInput.text)
+    }
+
+    Timer {
+        id: searchDebounce
+        interval: 300
+        onTriggered: page.runSearch()
+    }
+
+    Component.onCompleted: {
+        quickLibraryController.refresh()
+        updateSearchMedia()
+        applyFilters()
+    }
     onVisibleChanged: {
+        if (visible) quickLibraryController.refresh()
         if (visible && controller.items.length === 0 && !controller.busy)
             applyFilters()
     }
@@ -77,6 +111,7 @@ Rectangle {
                     valueRole: "value"
                     onActivated: {
                         genreSelector.currentIndex = 0
+                        page.updateSearchMedia()
                         page.applyFilters()
                     }
                 }
@@ -184,54 +219,86 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Label {
-                        text: controller.mediaKind === "movie" ? "Filmleri Keşfet" : "Dizileri Keşfet"
+                        text: "Ana Sayfa · Keşfet"
                         color: Tokens.Theme.textPrimary
                         font.pixelSize: Tokens.Theme.textHeading
                         font.weight: Tokens.Theme.weightDemiBold
                     }
                     Item { Layout.fillWidth: true }
                     Label {
-                        visible: !controller.busy && controller.items.length > 0
+                        visible: !page.searching && !controller.busy && controller.items.length > 0
                         text: "Sayfa " + controller.page + " / " + controller.totalPages
                         color: Tokens.Theme.textMuted
                     }
+                }
+                SearchField {
+                    id: searchInput
+                    objectName: "dashboardSearch"
+                    Layout.fillWidth: true
+                    placeholderText: (mediaSelector.currentValue === "tv" ? "Dizi" : "Film") + " ara · Ctrl+K"
+                    onTextChanged: {
+                        searchDebounce.stop()
+                        page.searchModelController.clear()
+                        if (text.trim().length >= 3) searchDebounce.start()
+                    }
+                    onAccepted: {
+                        searchDebounce.stop()
+                        page.runSearch()
+                    }
+                }
+                Label {
+                    visible: page.searching
+                    text: searchInput.text.trim().length < 3 ? "Aramak için en az 3 karakter yazın."
+                          : "Arama sonuçları · " + page.displayedItems.length
+                    color: Tokens.Theme.textMuted
+                }
+                Label {
+                    visible: !!page.libraryActions.error
+                    text: page.libraryActions.error
+                    color: Tokens.Theme.danger
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
                 }
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     LoadingState {
                         anchors.centerIn: parent
-                        visible: controller.busy
+                        visible: page.resultsBusy
                         count: 4
                         skeletonPosterHeight: 210
                     }
                     EmptyState {
                         anchors.centerIn: parent
-                        visible: !controller.busy && !!controller.error
-                        title: "Keşfet yüklenemedi"
-                        description: controller.error
+                        visible: !page.resultsBusy && !!page.resultsError
+                        title: page.searching ? "Arama tamamlanamadı" : "Keşfet yüklenemedi"
+                        description: page.resultsError
                         actionText: "Tekrar Dene"
-                        onActionRequested: page.applyFilters()
+                        onActionRequested: page.searching
+                            ? page.runSearch() : page.applyFilters()
                     }
                     EmptyState {
                         anchors.centerIn: parent
-                        visible: !controller.busy && !controller.error
-                                 && controller.items.length === 0
+                        visible: !page.resultsBusy && !page.resultsError
+                                 && page.displayedItems.length === 0
+                                 && (!page.searching || searchInput.text.trim().length >= 3)
                         title: "Sonuç bulunamadı"
-                        description: "Filtreleri genişletip tekrar deneyin."
+                        description: page.searching ? "Başka bir adla tekrar arayın." : "Filtreleri genişletip tekrar deneyin."
                     }
                     MediaGrid {
                         id: resultsGrid
                         objectName: "discoverResults"
                         anchors.fill: parent
-                        visible: !controller.busy && controller.items.length > 0
-                        items: controller.items
+                        visible: !page.resultsBusy && page.displayedItems.length > 0
+                        items: page.displayedItems
+                        quickLibraryController: page.libraryActions
                         onMediaActivated: function(media) {
                             page.mediaSelected(media.mediaType, media.id)
                         }
                     }
                 }
                 RowLayout {
+                    visible: !page.searching
                     Layout.alignment: Qt.AlignHCenter
                     spacing: Tokens.Theme.spaceSm
                     IzlekButton {

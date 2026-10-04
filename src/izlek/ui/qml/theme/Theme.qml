@@ -21,6 +21,9 @@ QtObject {
     readonly property color hoverSurface: "#29323D"
     readonly property color skeleton: "#303A46"
     readonly property color scrim: "#B8101318"
+    readonly property color statsAccent: "#FFCC45"
+    readonly property color statsAccentText: "#241D0C"
+    readonly property color chartBlue: "#5B83D7"
 
     readonly property int spaceXs: 6
     readonly property int spaceSm: 10

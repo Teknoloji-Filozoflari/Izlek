@@ -23,6 +23,7 @@ class SearchController(QObject):
     resultsChanged = Signal()
     stateChanged = Signal()
     detailChanged = Signal()
+    mediaTypeChanged = Signal()
     _searchFinished = Signal(int, str, object, str)
     _posterReady = Signal(int, str, int, str)
     _detailFinished = Signal(int, object, str)
@@ -40,6 +41,7 @@ class SearchController(QObject):
         self._store = store or TokenStore()
         self._client = client
         self._images = images
+        self._retired_images: list[ImageService] = []
         self._executor = executor or ThreadPoolExecutor(max_workers=3)
         self._own_executor = executor is None
         self._own_images = images is None
@@ -52,6 +54,7 @@ class SearchController(QObject):
         self._errors: dict[str, str] = {}
         self._error = ""
         self._busy = False
+        self._media_type = "all"
         self._detail: dict[str, Any] = {}
         self._detail_busy = False
         self._detail_error = ""
@@ -73,6 +76,19 @@ class SearchController(QObject):
     @Property(bool, notify=stateChanged)
     def busy(self) -> bool:
         return self._busy
+
+    @Property(str, notify=mediaTypeChanged)
+    def mediaType(self) -> str:
+        return self._media_type
+
+    @Slot(str)
+    def setMediaType(self, kind: str) -> None:
+        """Select search endpoints and invalidate previous category results."""
+        if kind not in ("all", "movie", "tv") or kind == self._media_type:
+            return
+        self._media_type = kind
+        self.clear()
+        self.mediaTypeChanged.emit()
 
     @Property(str, notify=stateChanged)
     def error(self) -> str:
@@ -99,6 +115,7 @@ class SearchController(QObject):
             stored = None
         if self._own_images and self._images is not None:
             old_images = self._images
+            self._retired_images.append(old_images)
             self._executor.submit(old_images.close)
             self._images = None
         self.clear()
@@ -130,10 +147,11 @@ class SearchController(QObject):
             self._images = ImageService(self._client)
         client = self._client
         images = self._images
-        self._pending = {"movie", "tv"}
+        kinds = ("movie", "tv") if self._media_type == "all" else (self._media_type,)
+        self._pending = set(kinds)
         self._busy = True
         self.stateChanged.emit()
-        for kind in ("movie", "tv"):
+        for kind in kinds:
             future = self._executor.submit(
                 self._search_one, self._generation, kind, query, client, images
             )
@@ -186,6 +204,7 @@ class SearchController(QObject):
             "mediaType": kind,
             "title": title,
             "year": date[:4] if date else "",
+            "releaseDate": date or "",
             "posterPath": item.poster_path or "",
             "poster": _local_url(images.poster(None).result()),
         }
@@ -339,6 +358,9 @@ class SearchController(QObject):
             future.cancel()
         self._futures.clear()
         if self._own_executor:
-            self._executor.shutdown(wait=False, cancel_futures=True)
+            self._executor.shutdown(wait=True, cancel_futures=True)
         if self._own_images and self._images is not None:
             self._images.close()
+        for images in self._retired_images:
+            images.close()
+        self._retired_images.clear()

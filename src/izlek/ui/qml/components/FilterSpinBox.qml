@@ -6,18 +6,16 @@ SpinBox {
     id: control
     implicitHeight: Tokens.Theme.controlHeight
     focusPolicy: Qt.StrongFocus
-    contentItem: TextInput {
+    editable: false
+    leftPadding: Tokens.Theme.controlHeight + Tokens.Theme.spaceXs
+    rightPadding: Tokens.Theme.controlHeight + Tokens.Theme.spaceXs
+    contentItem: Label {
         z: 2
         text: control.textFromValue(control.value, control.locale)
         color: Tokens.Theme.textPrimary
-        selectionColor: Tokens.Theme.accentSurface
-        selectedTextColor: Tokens.Theme.textPrimary
         font.pixelSize: Tokens.Theme.textBody
         horizontalAlignment: Qt.AlignHCenter
         verticalAlignment: Qt.AlignVCenter
-        readOnly: !control.editable
-        validator: control.validator
-        inputMethodHints: control.inputMethodHints
     }
     background: Rectangle {
         color: Tokens.Theme.surfaceElevated

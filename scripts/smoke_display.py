@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 
 def main() -> int:
@@ -14,6 +15,8 @@ def main() -> int:
     )
     parser.add_argument("--gallery", action="store_true")
     parser.add_argument("--onboarding", action="store_true")
+    parser.add_argument("--hover-filters", action="store_true")
+    parser.add_argument("--hover-list-picker", action="store_true")
     parser.add_argument("--screenshot", type=Path)
     args = parser.parse_args()
 
@@ -30,6 +33,7 @@ def main() -> int:
         qInstallMessageHandler,
     )
     from PySide6.QtGui import QGuiApplication
+    from PySide6.QtQml import QQmlExpression
     from PySide6.QtQuick import QQuickItem, QQuickWindow
     from PySide6.QtTest import QTest
     from shiboken6 import getCppPointer, wrapInstance
@@ -57,11 +61,43 @@ def main() -> int:
             print(f"Qt: {message}", file=sys.stderr, flush=True)
 
     previous_handler = qInstallMessageHandler(collect_warning)
-    with TemporaryDirectory(prefix="izlek-display-") as config_home:
-        os.environ["XDG_CONFIG_HOME"] = config_home
+    with (
+        TemporaryDirectory(prefix="izlek-display-") as user_root,
+        patch("izlek.security.token_store._system_keyring", return_value=None),
+    ):
+        for name, directory in (
+            ("XDG_CONFIG_HOME", "config"),
+            ("XDG_DATA_HOME", "data"),
+            ("XDG_CACHE_HOME", "cache"),
+            ("XDG_STATE_HOME", "state"),
+        ):
+            os.environ[name] = str(Path(user_root) / directory)
         controller = TokenController(store=SmokeStore())
+        lists_controller = None
+        if args.hover_list_picker:
+            from datetime import UTC, datetime
+
+            from izlek.db.engine import create_session_factory, initialize_database
+            from izlek.db.models import MediaType
+            from izlek.repositories.local import MediaRepository
+            from izlek.services.custom_lists import CustomListsService
+            from izlek.ui.controllers.custom_lists_controller import (
+                CustomListsController,
+            )
+
+            database = initialize_database()
+            factory = create_session_factory(database)
+            with factory.begin() as session:
+                repo = MediaRepository(session)
+                for kind, title in ((MediaType.MOVIE, "Deneme Film"),
+                                    (MediaType.TV, "Deneme Dizi")):
+                    repo.upsert(42, kind, title, last_synced_at=datetime.now(UTC))
+            service = CustomListsService(factory)
+            service.create("Deneme Listesi")
+            lists_controller = CustomListsController(service)
         application, engine, window = create_application(
-            gallery=args.gallery, token_controller=controller
+            gallery=args.gallery, token_controller=controller,
+            custom_lists_controller=lists_controller,
         )
         result = {"ok": False}
 
@@ -78,6 +114,86 @@ def main() -> int:
                     token_input = window.findChild(QQuickItem, "tokenInput")
                     assert onboarding is not None and onboarding.isVisible()
                     assert token_input is not None
+                elif args.hover_filters or args.hover_list_picker:
+                    window.resize(1366, 768)
+                    if args.hover_list_picker:
+                        window.navigate(3)
+                        for _ in range(100):
+                            application.processEvents()
+                            if (not lists_controller.busy
+                                    and lists_controller.candidates):
+                                break
+                            QTest.qWait(20)
+                    QTest.qWait(200)
+
+                    def option_labels(item):
+                        found = (
+                            [item] if item.objectName() == "filterOptionLabel" else []
+                        )
+                        for child in item.childItems():
+                            found.extend(option_labels(child))
+                        return found
+
+                    names = (("listMediaPicker",) if args.hover_list_picker else
+                             ("discoverMedia", "discoverGenre", "discoverCountry"))
+                    for name in names:
+                        combo = window.findChild(QQuickItem, name)
+                        combo.forceActiveFocus()
+                        QTest.keyClick(window, Qt.Key.Key_Space)
+                        QTest.qWait(200)
+                        view = QQmlExpression(
+                            engine.rootContext(), combo, "popup.contentItem"
+                        ).evaluate()[0]
+                        labels = option_labels(view)
+                        assert labels, (
+                            name, "No popup labels", combo.property("count")
+                        )
+                        assert labels[0].property("text") == combo.textAt(0), (
+                            name, labels[0].property("text"), combo.textAt(0)
+                        )
+                        for label in labels:
+                            if (
+                                label.parentItem().y() + label.parentItem().height()
+                                > view.height()
+                            ):
+                                continue
+                            point = label.mapToScene(
+                                QPointF(label.width() / 2, label.height() / 2)
+                            )
+                            QTest.mouseMove(window, point.toPoint())
+                            QTest.qWait(75)
+                            assert all(option.isVisible() for option in labels), (
+                                name, [(option.property("text"), option.isVisible(),
+                                        option.parentItem().isVisible())
+                                       for option in labels], point,
+                                combo.property("enabled"),
+                            )
+                            assert all(
+                                option.parentItem().isVisible() for option in labels
+                            ), name
+                        print(
+                            f"Hover verified: {name}, {len(labels)} visible delegates"
+                        )
+                        if name == "discoverMedia":
+                            label = labels[-1]
+                            point = label.mapToScene(
+                                QPointF(label.width() / 2, label.height() / 2)
+                            )
+                            QTest.mouseClick(
+                                window,
+                                Qt.MouseButton.LeftButton,
+                                Qt.KeyboardModifier.NoModifier,
+                                point.toPoint(),
+                            )
+                            QTest.qWait(100)
+                            assert combo.property("currentIndex") == 1
+                            search = engine.rootContext().contextProperty(
+                                "searchController"
+                            )
+                            assert search.mediaType == "tv"
+                        else:
+                            QTest.keyClick(window, Qt.Key.Key_Escape)
+                        QTest.qWait(100)
                 else:
                     stack = window.findChild(QQuickItem, "contentStack")
                     for index, name in enumerate(
@@ -86,7 +202,7 @@ def main() -> int:
                             "navMovies",
                             "navShows",
                             "navLists",
-                            "navDiscover",
+                            "navStatistics",
                             "navSettings",
                         )
                     ):
@@ -101,12 +217,14 @@ def main() -> int:
                             QPoint(int(center.x()), int(center.y())),
                         )
                         application.processEvents()
+                        QTest.qWait(300)
                         assert window.property("currentIndex") == index
                         assert stack.property("currentItem") is not None
 
                 for width, height in ((1366, 768), (1920, 1080)):
                     window.resize(width, height)
                     application.processEvents()
+                    QTest.qWait(100)
                     print(
                         f"resize request {width}x{height}: "
                         f"actual {window.width()}x{window.height()}"

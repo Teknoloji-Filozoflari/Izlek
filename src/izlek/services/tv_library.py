@@ -31,6 +31,8 @@ class TvLibraryItem:
     added_at: datetime
     progress: float
     progress_text: str
+    watched_count: int
+    episode_count: int
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,8 @@ def _item(
         added_at=user.added_at,
         progress=watched_count / total if total else -1,
         progress_text=progress_text,
+        watched_count=watched_count,
+        episode_count=total,
     )
 
 
@@ -117,7 +121,7 @@ class TvLibraryService:
 
     def snapshot(
         self,
-        status: TrackingStatus = TrackingStatus.PLANNED,
+        status: TrackingStatus | None = TrackingStatus.PLANNED,
         sort_by: str = SORT_RECENT,
         *,
         today: date | None = None,
@@ -125,7 +129,7 @@ class TvLibraryService:
         """Build a status grid and independent favorites from local data."""
         if sort_by not in SORT_OPTIONS:
             raise ValueError(f"Bilinmeyen sıralama: {sort_by}")
-        status = TrackingStatus(status)
+        status = TrackingStatus(status) if status is not None else None
         current_day = today or date.today()
         with self._sessions()() as session:
             media_rows = MediaRepository(session).list_local_media(MediaType.TV)
@@ -148,7 +152,12 @@ class TvLibraryService:
             ]
         return TvLibrarySnapshot(
             items=sort_items(
-                [item for item in entries if item.status == status], sort_by
+                [
+                    item
+                    for item in entries
+                    if item.status and (status is None or item.status == status)
+                ],
+                sort_by,
             ),
             favorites=sort_items(
                 [item for item in entries if item.favorite], SORT_RECENT

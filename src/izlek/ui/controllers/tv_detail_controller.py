@@ -6,6 +6,7 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
+from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
@@ -22,6 +23,7 @@ class TvDetailController(QObject):
     """Expose TV detail and local progress while keeping I/O off the UI thread."""
 
     changed = Signal()
+    libraryChanged = Signal()
     _loaded = Signal(int, object, str)
     _seasonLoaded = Signal(int, int, object, str)
     _saved = Signal(int, object, object, str)
@@ -38,6 +40,7 @@ class TvDetailController(QObject):
         self._store = store or TokenStore()
         self._service = service or TvDetailService(TmdbClient())
         self._images = images
+        self._retired_images: list[ImageService] = []
         self._own_images = images is None
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._futures: set[Future] = set()
@@ -103,6 +106,7 @@ class TvDetailController(QObject):
             stored = None
         if self._own_images and self._images is not None:
             old = self._images
+            self._retired_images.append(old)
             self._submit_future(old.close)
             self._images = None
         self._service.client = TmdbClient(token=stored.value if stored else None)
@@ -149,13 +153,13 @@ class TvDetailController(QObject):
     def _load(self, generation: int, tv_id: int) -> None:
         try:
             cached = self._service.cached(tv_id)
-        except (OSError, ValueError, LookupError, KeyError):
+        except (OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             cached = None
         if cached is not None:
             self._loaded.emit(generation, cached, "")
-            if not self._service.needs_refresh(tv_id):
-                return
         try:
+            if cached is not None and not self._service.needs_refresh(tv_id):
+                return
             detail = self._service.load(tv_id)
         except NetworkError:
             if cached is None:
@@ -164,7 +168,7 @@ class TvDetailController(QObject):
                     {},
                     NETWORK_UNAVAILABLE,
                 )
-        except (TMDbError, OSError, ValueError, LookupError, KeyError):
+        except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             if cached is None:
                 self._loaded.emit(generation, {}, "Dizi bilgisi yüklenemedi.")
         else:
@@ -189,6 +193,7 @@ class TvDetailController(QObject):
                 **detail,
                 "poster": poster,
                 "backdrop": backdrop,
+                "cast": [{**item, "poster": ""} for item in detail.get("cast", [])],
                 "similar": [{**item, "poster": poster} for item in detail["similar"]],
                 "recommendations": [
                     {**item, "poster": poster} for item in detail["recommendations"]
@@ -208,7 +213,12 @@ class TvDetailController(QObject):
                 -1,
                 self._images.backdrop(detail["backdropPath"]),
             )
-            for role in ("similar", "recommendations"):
+            for index, item in enumerate(detail.get("cast", [])):
+                self._schedule_image(
+                    generation, -1, "cast", index,
+                    self._images.profile(item.get("profilePath")),
+                )
+            for role in ("recommendations",):
                 for index, item in enumerate(detail[role]):
                     self._schedule_image(
                         generation,
@@ -219,6 +229,10 @@ class TvDetailController(QObject):
                     )
         self.changed.emit()
         if detail and detail["seasons"]:
+            if any(
+                item["number"] == self._selected_season for item in detail["seasons"]
+            ):
+                return
             regular = next(
                 (item for item in detail["seasons"] if item["number"] > 0),
                 detail["seasons"][0],
@@ -227,8 +241,12 @@ class TvDetailController(QObject):
 
     @Slot(int)
     def selectSeason(self, season_number: int) -> None:
-        if self._saving or not self._detail or not any(
-            item["number"] == season_number for item in self._detail["seasons"]
+        if (
+            self._saving
+            or not self._detail
+            or not any(
+                item["number"] == season_number for item in self._detail["seasons"]
+            )
         ):
             return
         self._season_generation += 1
@@ -252,38 +270,38 @@ class TvDetailController(QObject):
         try:
             cached = self._service.cached_season(tv_id, season_number)
             detail = self._service.cached(tv_id) or {}
-        except (OSError, ValueError, LookupError, KeyError):
+        except (OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             cached = None
             detail = {}
-        if cached is not None and self._service.has_cached_season(
-            tv_id, season_number
-        ):
-            self._seasonLoaded.emit(
-                generation,
-                serial,
-                {"episodes": cached, "detail": detail},
-                "",
-            )
-            if not self._service.season_needs_refresh(tv_id, season_number):
-                return
-        else:
-            cached = None
+        cached_published = False
         try:
+            if cached is not None and self._service.has_cached_season(
+                tv_id, season_number
+            ):
+                self._seasonLoaded.emit(
+                    generation,
+                    serial,
+                    {"episodes": cached, "detail": detail},
+                    "",
+                )
+                cached_published = True
+                if not self._service.season_needs_refresh(tv_id, season_number):
+                    return
+            else:
+                cached = None
             episodes = self._service.load_season(tv_id, season_number)
             detail = self._service.cached(tv_id) or {}
         except NetworkError:
-            if cached is None:
+            if not cached_published:
                 self._seasonLoaded.emit(
                     generation,
                     serial,
                     {},
                     NETWORK_UNAVAILABLE,
                 )
-        except (TMDbError, OSError, ValueError, LookupError):
-            if cached is None:
-                self._seasonLoaded.emit(
-                    generation, serial, {}, "Sezon yüklenemedi."
-                )
+        except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
+            if not cached_published:
+                self._seasonLoaded.emit(generation, serial, {}, "Sezon yüklenemedi.")
         else:
             if episodes != cached:
                 self._seasonLoaded.emit(
@@ -308,6 +326,7 @@ class TvDetailController(QObject):
                 "poster": self._detail.get("poster", ""),
                 "backdrop": self._detail.get("backdrop", ""),
                 "similar": self._detail.get("similar", []),
+                "cast": self._detail.get("cast", []),
                 "recommendations": self._detail.get("recommendations", []),
             }
         self._set_episodes(payload.get("episodes", []))
@@ -396,6 +415,10 @@ class TvDetailController(QObject):
     def setFavorite(self, favorite: bool) -> None:
         self._submit("favorite", favorite, None)
 
+    @Slot()
+    def removeFromLibrary(self) -> None:
+        self._submit("status", None, None)
+
     @Slot(str)
     def addToList(self, name: str) -> None:
         self._submit("list", name, None)
@@ -440,7 +463,7 @@ class TvDetailController(QObject):
                 self._service.set_favorite(tv_id, bool(value))
             detail = self._service.cached(tv_id) or {}
             episodes = self._service.cached_season(tv_id, selected) or []
-        except (TMDbError, OSError, ValueError, LookupError):
+        except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             self._saved.emit(generation, {}, [], "Değişiklik kaydedilemedi.")
         else:
             self._saved.emit(generation, detail, episodes, "Kaydedildi.")
@@ -464,9 +487,12 @@ class TvDetailController(QObject):
                 "backdrop": self._detail.get("backdrop", ""),
                 "similar": self._detail.get("similar", []),
                 "recommendations": self._detail.get("recommendations", []),
+                "cast": self._detail.get("cast", []),
             }
             self._set_episodes(episodes)
         self.changed.emit()
+        if detail:
+            self.libraryChanged.emit()
 
     @Slot()
     def openTrailer(self) -> None:
@@ -485,7 +511,10 @@ class TvDetailController(QObject):
         self._generation += 1
         self._season_generation += 1
         self._cancel_futures()
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._executor.shutdown(wait=True, cancel_futures=True)
         if self._own_images and self._images is not None:
             self._images.close()
+        for images in self._retired_images:
+            images.close()
+        self._retired_images.clear()
         self._service.close()

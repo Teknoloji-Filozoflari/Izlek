@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
+from threading import Lock
 from typing import Any
 
 from sqlalchemy import Engine
@@ -16,6 +17,7 @@ from izlek.repositories.local import (
 )
 from izlek.services.custom_lists import CustomListsService
 from izlek.services.metadata_freshness import metadata_is_fresh
+from izlek.services.metadata_retention import merge_remote_metadata
 from izlek.services.provider_presentation import present_providers
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
 from izlek.tmdb.models import MovieDetail, MovieSearchResults, MovieVideos
@@ -61,11 +63,13 @@ class MovieDetailService:
         self.client = client
         self._factory = session_factory
         self._owned_engine: Engine | None = None
+        self._session_lock = Lock()
 
     def _sessions(self) -> sessionmaker[Session]:
-        if self._factory is None:
-            self._owned_engine = initialize_database()
-            self._factory = create_session_factory(self._owned_engine)
+        with self._session_lock:
+            if self._factory is None:
+                self._owned_engine = initialize_database()
+                self._factory = create_session_factory(self._owned_engine)
         return self._factory
 
     def close(self) -> None:
@@ -99,8 +103,8 @@ class MovieDetailService:
         with sessions.begin() as session:
             repo = MediaRepository(session)
             existing = repo.get_by_tmdb(movie_id, MediaType.MOVIE)
-            if existing and existing.metadata_json:
-                blob = {**existing.metadata_json, **blob}
+            synced_at = utc_now()
+            blob = merge_remote_metadata(existing, blob, synced_at)
             repo.upsert(
                 movie_id,
                 MediaType.MOVIE,
@@ -112,7 +116,7 @@ class MovieDetailService:
                 release_date=_date(detail.release_date),
                 runtime=detail.runtime,
                 metadata_json=blob,
-                last_synced_at=utc_now(),
+                last_synced_at=synced_at,
             )
         return self.cached(movie_id) or {}
 
@@ -129,7 +133,7 @@ class MovieDetailService:
         sessions = self._sessions()
         with sessions() as session:
             item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
-            if item is None or not item.metadata_json:
+            if item is None or not (item.metadata_json or {}).get("detail"):
                 return None
             user = UserMediaRepository(session).get(item.id)
             lists = CustomListRepository(session).list_all()
@@ -192,7 +196,11 @@ class MovieDetailService:
             "poster": "",
             "backdrop": "",
             "cast": [
-                {"name": member["name"], "character": member.get("character", "")}
+                {
+                    "name": member["name"],
+                    "character": member.get("character", ""),
+                    "profilePath": member.get("profile_path") or "",
+                }
                 for member in cast[:12]
             ],
             "directors": directors,
@@ -206,9 +214,9 @@ class MovieDetailService:
             **state,
         }
 
-    def set_status(self, movie_id: int, status: str) -> dict[str, Any]:
-        """Persist one of the three supported tracking statuses."""
-        selected = TrackingStatus(status)
+    def set_status(self, movie_id: int, status: str | None) -> dict[str, Any]:
+        """Set tracking status; None removes library membership only."""
+        selected = TrackingStatus(status) if status is not None else None
         with self._sessions().begin() as session:
             media = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
             if media is None:
