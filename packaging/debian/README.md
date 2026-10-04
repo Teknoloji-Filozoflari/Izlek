@@ -29,3 +29,11 @@ ve `$XDG_CACHE_HOME/izlek` altındaki kullanıcı verileri silinmez.
 `REPOSITORY_URL` gerçek HTTPS upstream adresi, `DEBIAN_MAINTAINER` ise
 `Ad <eposta>` biçimindeki paket sorumlusudur. Build betiği bu metadata olmadan
 paket üretmez; tag workflow'u değerleri GitHub repository bağlamından geçirir.
+
+## Hazır paket
+
+[v1.0.1 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)
+`izlek_1.0.1_amd64.deb` indirip `sudo apt install ./izlek_1.0.1_amd64.deb`
+ile kurabilirsiniz. Ubuntu 22.04 ve 24.04 üzerinde
+[build, temiz kurulum ve açılış](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213773457)
+kontrolleri başarılıdır. Diğer Debian türevleri ayrıca doğrulanmalıdır.

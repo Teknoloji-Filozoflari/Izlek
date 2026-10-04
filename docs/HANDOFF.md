@@ -643,3 +643,29 @@ Global arama, Keşfet, film ve dizi detay sayfaları TMDb ve görsel servisine b
 Önce mevcut dosyaları ve bu notu inceleyin; çalışan önceki faz davranışlarını koruyun. Her faz sonunda pytest ve Ruff çalıştırın, istenen Türkçe faz raporunu verin. Kullanıcının bir sonraki faz promptunu bekleyin.
 
 Model/oturum değişiminde `AGENTS.md` içindeki **Faz Kapsamı ve Model Değişiminde Devamlılık** kurallarını uygulayın. Tamamlanmış fazları yeniden tasarlamayın; yalnızca istenen fazın zorunlu değişikliklerini yapın. [Faz 16–18 mimari denetimi](PHASE_16_18_ARCHITECTURE_AUDIT.md) genel yapının korunduğunu ve Faz 17'deki ayrı servis olmadan TMDb client çağırma sapmasını kaydeder. Bu sapma denetim sırasında uygulama kodu değiştirilerek giderilmemiştir.
+
+## AUR dışı Linux paketlerini doğrulama ve yayın — 2026-10-04
+
+- **Yapılanlar:** Sürüm 1.0.1 hazırlandı. PyInstaller SPECPATH kök hatası,
+  Qt 6.8 QJSValue test uyumu, DEB mutlak kurulum yolu, eksik Qt/XCB
+  bağımlılıkları ve RPM bundle'ın sistem Provides/Requires'a karışması
+  düzeltildi. AppImage Ubuntu 22.04 shared Python üzerinde üretilir.
+  Kurulu artifact'lerle gerçek Qt/X11 pencere kontrolü için ayrı workflow
+  eklendi. AppImage, DEB, RPM, Snap, kaynak arşivi ve wheel/sdist GitHub
+  v1.0.1 release'i için hazırlandı; Nix v1.0.1 flake üzerinden kullanılır.
+- **Değiştirilen önemli dosyalar:** packaging/izlek.spec, RPM spec,
+  Debian control, snapcraft.yaml, Linux workflow'ları, sürüm metadata'sı,
+  tests/test_packaging.py ve iki Qt uyumluluk testi, README/paket rehberleri,
+  release notları ve CHANGELOG.
+- **Test sonucu:** Yerelde Ruff ve 226 pytest başarılı. Nix 37212410490;
+  AppImage 37213771757; DEB 37213773457; RPM 37213377313;
+  Snap 37213775236 build/temiz kurulum kontrolleri başarılı.
+  X11: AppImage 37214055289, RPM 37213789351, Snap 37214317330 ve DEB 37214447390 başarılı.
+- **Manuel kontrol:** Workflow artifact'leri indirildi; paket dosyaları
+  release'e yüklenmeden doğrulanır. X11 testleri sanal Xvfb/software backend
+  üzerindedir; kullanıcı makinesinin grafik sürücüsü testi değildir.
+- **Bilinen sorunlar:** AUR ve Snap Store yayını yapılmaz. Snap devel/strict
+  ve yerel --dangerous kurulumuyla kullanılır. AppImage glibc 2.35+,
+  RPM Fedora 43/glibc 2.42+ hedefler. ARM64 ve gerçek NixOS masaüstü
+  doğrulanmadı; resmî Nixpkgs deposuna gönderilmedi.
+- **Sonraki faz:** Kullanıcının sonraki isteği.

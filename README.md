@@ -55,23 +55,41 @@ gerçek kullanıcı verisi içermez. Görsellere tıklayarak tam boyutta açabil
 
 ## Linux kurulumu
 
-**Paketleme tanımları mevcut; henüz yayımlanmış indirilebilir bir sürüm yok.**
-Şimdilik kaynak koddan çalıştırabilir veya aşağıdaki build akışlarını kullanabilirsin.
+**[İzlek v1.0.1 paketlerini indir](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1).**
+İndirdiğin biçimin kurulum komutunu aşağıdan seçebilirsin.
 
-| Biçim | Hedef | Build / durum |
+| Biçim | Hedef | Kurulum |
 | --- | --- | --- |
-| **AppImage** | x86_64 Linux | [Build betiği](scripts/build_appimage.py); tag release akışında üretilir. |
-| **DEB** | Debian / Ubuntu amd64 | [Paketleme rehberi](packaging/debian/README.md); tag release akışında üretilir. |
-| **Arch / AUR** | Arch Linux | [PKGBUILD rehberi](packaging/arch/README.md); gerçek checksum ve `.SRCINFO` sonrası ayrı AUR yayını gerekir. |
-| **RPM** | Fedora x86_64 | [Paketleme rehberi](packaging/rpm/README.md); elle başlatılan Fedora 43 workflow’u. Binary doğrulaması bekliyor. |
-| **Snap** | core24 amd64 | [Paketleme rehberi](snap/README.md); elle başlatılan strict Snap workflow’u. Store yayını yok. |
-| **Nix / NixOS** | x86_64 / aarch64 Linux | [Flake rehberi](packaging/nix/README.md); x86_64 Nix build ve açılış kontrolü geçti. Nixpkgs resmî yayını yok. |
-| **Wheel / kaynak** | Python 3.11+ Linux | Yerel build ile üretilebilir; Python ve Qt bağımlılıkları gerekir. |
+| **AppImage** | x86_64 Linux, glibc 2.35+ | `chmod +x Izlek-1.0.1-x86_64.AppImage`, ardından dosyayı çalıştır. |
+| **DEB** | Ubuntu 22.04 / 24.04 amd64 | `sudo apt install ./izlek_1.0.1_amd64.deb` |
+| **RPM** | Fedora 43 x86_64 | `sudo dnf install ./izlek-1.0.1-1.fc43.x86_64.rpm` |
+| **Snap** | snapd bulunan amd64 Linux | `sudo snap install --dangerous ./izlek_1.0.1_amd64.snap` |
+| **Nix / NixOS** | x86_64 Linux | `nix run github:Teknoloji-Filozoflari/Izlek/v1.0.1` |
+| **Wheel / kaynak** | Python 3.11+ Linux | Release dosyaları; Python ve Qt sistem bağımlılıkları gerekir. |
+| **Arch / AUR** | Arch Linux | [PKGBUILD rehberi](packaging/arch/README.md); AUR yayını yapılmadı. |
 
-AppImage ve DEB için Ubuntu 22.04/24.04 kontrolleri workflow’larda tanımlıdır.
-RPM için diğer dağıtımlar ayrıca test edilmelidir. Snap verileri sistem
-kurulumundan ayrı tutulur. Kaynakları `main` dalına göndermek, paket yayını yapmaz.
-Yayın adımları: [release rehberi](docs/releases.md).
+AppImage, DEB, RPM ve Snap kurulum/açılış kontrollerinden geçti; ayrıca
+sanal X11 masaüstünde pencere açmaları doğrulandı. Nix için build, 226 test
+ve kurulu paketin offscreen açılışı doğrulandı. ARM64 ve gerçek NixOS
+masaüstü doğrulaması henüz yok. Diğer Debian/RPM dağıtımları ayrıca
+test edilmelidir.
+
+Snap dosyası GitHub'dan kurulur; Snap Store yayını yoktur.
+Anahtarlık erişimi için `sudo snap connect izlek:password-manager-service`
+çalıştırılabilir. Snap kütüphanesi sistem kurulumundan ayrı tutulur.
+
+AppImage için FUSE yoksa `APPIMAGE_EXTRACT_AND_RUN=1 ./Izlek-1.0.1-x86_64.AppImage`
+kullan. Ubuntu'da Qt sistem gereksinimleri gerektiğinde:
+
+```bash
+sudo apt install libegl1 libgl1 libfontconfig1 libx11-6 libx11-xcb1 \
+  libxcb1 libxkbcommon0 libxkbcommon-x11-0
+```
+
+İndirilen dosyalar için release'teki `SHA256SUMS` dosyasını kullanabilirsin.
+Ayrıntılar: [AppImage / release](docs/releases.md),
+[DEB](packaging/debian/README.md), [RPM](packaging/rpm/README.md),
+[Snap](snap/README.md), [Nix](packaging/nix/README.md).
 
 ### Kaynak koddan çalıştır
 

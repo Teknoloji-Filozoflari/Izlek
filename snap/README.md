@@ -44,3 +44,12 @@ birlikte güncelleyin.
 
 Referanslar: [Snap build action](https://github.com/canonical/action-build),
 [anahtarlık interface'i](https://snapcraft.io/docs/reference/interfaces/password-manager-service-interface/).
+
+## Hazır paket
+
+[v1.0.1 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)
+`izlek_1.0.1_amd64.snap` indirilebilir. Store imzası bulunmadığından
+yukarıdaki `--dangerous` kurulum komutunu kullanın.
+[Build ve strict kurulum](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213775236)
+ve [sanal X11 pencere kontrolü](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37214317330)
+başarılıdır.

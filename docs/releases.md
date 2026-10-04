@@ -1,7 +1,7 @@
 # Release süreci
 
-İzlek'in GitHub release'i yalnızca `v*` biçimindeki bir tag push edildiğinde
-oluşturulur. Release workflow'u kişisel TMDb tokenı veya başka bir kullanıcı
+İzlek'in GitHub release'i `v*` tag push workflow'u veya doğrulanmış
+workflow artifact'leriyle GitHub CLI üzerinden oluşturulabilir. Release workflow'u kişisel TMDb tokenı veya başka bir kullanıcı
 secret'ı kullanmaz. Test paketi gerçek TCP bağlantılarını engeller ve TMDb
 yanıtlarını mock'lar.
 
@@ -52,3 +52,16 @@ hedeflenir. Başarılı build/kurulum kontrollerinden sonra RPM release asset
 olarak ayrıca yüklenebilir. Snap Store yayını için ad kaydı, gerçek masaüstü
 sandbox kontrolü ve uygun grade/channel gerekir; Store upload otomasyonu yok.
 Snap sürümü `snap/snapcraft.yaml` ve `pyproject.toml` içinde birlikte güncellenir.
+
+## v1.0.1 yayını
+
+v1.0.0 tag'i korunmuştur; düzeltilmiş paketler ayrı v1.0.1 sürümündedir.
+AppImage, DEB, RPM ve Snap elle başlatılan build workflow'larından alınır;
+`Installed package X11 check` workflow'u başarılı build koşusunun
+artifact'ini indirip temiz hedefte kurar ve sanal X11 penceresini açar.
+Doğrulanmış dosyalar, kaynak arşivi, wheel/sdist ve SHA256SUMS aynı
+GitHub release'ine yüklenir. Nix kullanıcıları v1.0.1 flake tag'ini kullanır.
+
+AppImage tabanı Ubuntu 22.04 / glibc 2.35, RPM tabanı Fedora 43 / glibc 2.42'dir.
+Snap GitHub'dan yerel dosyayla kurulabilir; Snap Store'a gönderilmemiştir.
+AUR yayını bu işlemlere dahil değildir.

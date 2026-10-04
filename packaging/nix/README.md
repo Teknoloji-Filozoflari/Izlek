@@ -17,8 +17,8 @@ Ardından normal NixOS yapılandırma yenilemesini uygulayın. Kaynak depoyu
 indirmeden çalıştırmak veya kullanıcı profiline kurmak için:
 
 ```bash
-nix run github:Teknoloji-Filozoflari/Izlek
-nix profile install github:Teknoloji-Filozoflari/Izlek
+nix run github:Teknoloji-Filozoflari/Izlek/v1.0.1
+nix profile install github:Teknoloji-Filozoflari/Izlek/v1.0.1
 ```
 
 Proje kökünde yerel build ve kontrol:
@@ -50,7 +50,7 @@ gelmelidir. Mevcut diğer ayarlarınızı koruyun.
 
 ```nix
 {
-  inputs.izlek.url = "github:Teknoloji-Filozoflari/Izlek";
+  inputs.izlek.url = "github:Teknoloji-Filozoflari/Izlek/v1.0.1";
 
   outputs = { nixpkgs, izlek, ... }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
@@ -87,8 +87,8 @@ uygulamanın kullanıcıya açık token dosyası fallback'i geçerlidir.
 
 ## Doğrulama durumu
 
-[2026-10-04 CI koşusu](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37208239124)
-x86_64 Linux üzerinde başarılı: Nix build, 225 pytest testi, Ruff ve kurulu
+[2026-10-04 CI koşusu](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37212410490)
+x86_64 Linux üzerinde başarılı: Nix build, 226 pytest testi, Ruff ve kurulu
 paketin Qt/QML offscreen açılış kontrolü geçti. Bu kontrol Ubuntu runner'daki
 Nix sandbox'ında yapıldı; gerçek NixOS masaüstü testi değildir.
 

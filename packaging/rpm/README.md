@@ -12,7 +12,8 @@ Fedora build ortamında:
 ```bash
 sudo dnf install python3 python3-pip gcc binutils rpm-build \
   mesa-libEGL mesa-libGL fontconfig libX11 libX11-xcb libxcb \
-  libxkbcommon libxkbcommon-x11
+  libxkbcommon libxkbcommon-x11 dbus-libs xcb-util-cursor xcb-util-image \
+  xcb-util-keysyms xcb-util-renderutil xcb-util-wm
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev,package]'
@@ -38,3 +39,12 @@ kabul edilmiş bir kaynak paket tarifi değildir. Kullanıcı XDG verileri paket
 kaldırıldığında silinmez.
 
 Tarif referansı: [RPM spec belgeleri](https://rpm.org/docs/4.20.x/manual/spec.html).
+
+## Hazır paket
+
+[v1.0.1 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)
+Fedora 43 x86_64 RPM dosyasını indirip `sudo dnf install ./izlek-1.0.1-1.fc43.x86_64.rpm`
+ile kurabilirsiniz. glibc 2.42 veya üzeri gerekir.
+[Build ve temiz kurulum](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213377313)
+ve [X11 pencere kontrolü](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213789351)
+başarılıdır.
