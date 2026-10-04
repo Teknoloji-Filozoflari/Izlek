@@ -35,8 +35,8 @@ paket içindeki mevcut `izlek/...` göreli konumlarını korur; bu nedenle çal�
 zamanındaki `__file__` tabanlı kaynak çözümü değişmez. Doğrulanan one-folder
 çıktısı AppDir içine salt okunur uygulama payload'ı olarak yerleştirilir ve
 `AppRun` yalnızca paketli executable'ı başlatır; XDG değişkenlerini uygulama
-yanına yönlendirmez. x86_64 CI build'i glibc 2.28 tabanlı manylinux ortamında,
-aynı tabana sahip PySide6 wheel constraint'iyle üretilir.
+yanına yönlendirmez. x86_64 AppImage CI build'i Ubuntu 22.04 üzerinde glibc 2.35 tabanıyla,
+test edilmiş PySide6 constraint'i ve paylaşılan Python kütüphanesiyle üretilir.
 
 Kütüphane posterleri görünür GridView/ListView delegeleri tarafından istenir; controller bütün kütüphaneyi önceden indirmez ve aynı generation içindeki isteği tekilleştirir. Bölüm listesi yeniden kullanılan ListView delegeleriyle sanallaştırılır. Sayfadan ayrılma ilgili controller generation'ını geçersiz kılar ve başlamamış Future'ları iptal eder; geç gelen sonuç UI durumuna uygulanmaz. Faz 24 sentetik veri bütçeleri ve ölçümleri [performans profilinde](PHASE_24_PERFORMANCE.md) tutulur.
 

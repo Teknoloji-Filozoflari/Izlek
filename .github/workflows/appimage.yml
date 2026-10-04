@@ -14,26 +14,28 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    container: quay.io/pypa/manylinux_2_28_x86_64:latest
     timeout-minutes: 30
     env:
-      PYTHON: /opt/python/cp311-cp311/bin/python
       QT_QPA_PLATFORM: offscreen
       QT_QUICK_BACKEND: software
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Install Linux runtime libraries
         run: >-
-          dnf install -y
-          curl dbus-libs desktop-file-utils fontconfig glib2 jq libSM libX11 libX11-xcb libXext
-          libXi libXrender libxcb libxkbcommon libxkbcommon-x11 mesa-libGL
+          sudo apt-get update && sudo apt-get install --yes
+          curl desktop-file-utils jq libegl1 libfontconfig1 libgl1 libglib2.0-0
+          libdbus-1-3 libx11-6 libx11-xcb1 libxcb1 libxcb-cursor0
+          libxkbcommon0 libxkbcommon-x11-0
       - name: Install project, quality, and packaging tools
         run: >-
-          $PYTHON -m pip install
+          python -m pip install
           --constraint packaging/constraints-appimage.txt
           -e '.[dev,package]'
       - name: Run quality gate before packaging
-        run: $PYTHON scripts/quality.py
+        run: python scripts/quality.py
       - name: Download and verify versioned AppImage tools
         shell: bash
         run: |
@@ -60,7 +62,7 @@ jobs:
           chmod +x /tmp/appimagetool.AppImage
       - name: Build and smoke-test AppImage
         run: >-
-          $PYTHON scripts/build_appimage.py
+          python scripts/build_appimage.py
           --appimagetool /tmp/appimagetool.AppImage
           --runtime-file /tmp/runtime-x86_64
       - name: Validate desktop metadata
@@ -68,8 +70,8 @@ jobs:
       - name: Record compatibility baseline
         run: |
           ldd --version | head -n 1 > dist/AppImage-build-info.txt
-          $PYTHON --version >> dist/AppImage-build-info.txt
-          $PYTHON -m PyInstaller --version >> dist/AppImage-build-info.txt
+          python --version >> dist/AppImage-build-info.txt
+          python -m PyInstaller --version >> dist/AppImage-build-info.txt
       - uses: actions/upload-artifact@v4
         with:
           name: izlek-appimage-x86_64
