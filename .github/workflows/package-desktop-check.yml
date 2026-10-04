@@ -61,7 +61,7 @@ jobs:
           trap 'kill "$display_pid"' EXIT
           sleep 2
           user_root=$(mktemp -d)
-          export DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software
+          export DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software QT_DEBUG_PLUGINS=1
           export XDG_CONFIG_HOME="$user_root/config" XDG_DATA_HOME="$user_root/data"
           export XDG_CACHE_HOME="$user_root/cache" XDG_STATE_HOME="$user_root/state"
           timeout 30s "${command[@]}" --package-smoke-test
@@ -88,7 +88,7 @@ jobs:
           trap 'kill "$display_pid"' EXIT
           sleep 2
           user_root=$(mktemp -d)
-          env DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software \
+          env DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software QT_DEBUG_PLUGINS=1 \
             XDG_CONFIG_HOME="$user_root/config" XDG_DATA_HOME="$user_root/data" \
             XDG_CACHE_HOME="$user_root/cache" XDG_STATE_HOME="$user_root/state" \
             timeout 30s izlek --package-smoke-test

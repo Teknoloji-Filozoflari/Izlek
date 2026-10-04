@@ -3,6 +3,9 @@
 %global debug_package %{nil}
 # Keep the already built Python/Qt bundle intact.
 %global __os_install_post %{nil}
+# Private bundle libraries must never satisfy system package dependencies.
+%global __provides_exclude_from ^/usr/lib/izlek/.*$
+%global __requires_exclude_from ^/usr/lib/izlek/.*$
 
 Name:           izlek
 Version:        %{izlek_version}
@@ -12,9 +15,13 @@ License:        GPL-3.0-or-later
 URL:            https://github.com/Teknoloji-Filozoflari/Izlek
 Source0:        %{name}-%{version}.tar.gz
 ExclusiveArch:  x86_64 aarch64
-# Scan ELF dependencies; bundled libraries satisfy their own provides.
+# Scan the launcher; dependencies for the private bundle are explicit below.
 AutoReqProv:    yes
-Requires:       fontconfig
+Requires:       glibc >= 2.42
+Requires:       fontconfig, dbus-libs, mesa-libEGL, mesa-libGL
+Requires:       libX11, libX11-xcb, libxcb, libxkbcommon, libxkbcommon-x11
+Requires:       xcb-util-cursor, xcb-util-image, xcb-util-keysyms
+Requires:       xcb-util-renderutil, xcb-util-wm
 
 %description
 Izlek tracks films, TV shows and episode progress locally using SQLite.

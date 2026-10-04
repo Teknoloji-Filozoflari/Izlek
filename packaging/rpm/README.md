@@ -2,7 +2,9 @@
 
 `scripts/build_rpm.py`, AppImage ile aynı PyInstaller one-folder çıktısını
 offscreen doğrular ve `packaging/rpm/izlek.spec` ile RPM üretir. Python/Qt
-paketin içinde bulunur; ELF sistem bağımlılıkları rpmbuild tarafından taranır.
+paketin içinde bulunur; sistem bağımlılıkları spec içinde açıkça tanımlıdır.
+Özel bundle kütüphaneleri sistem için Provides/Requires olarak dışa aktarılmaz;
+diğer RPM paketlerinin gerçek sistem kütüphanelerine ihtiyacı doğru çözülür.
 Uygulama `/usr/lib/izlek`, başlatıcı `/usr/bin/izlek` altına kurulur.
 
 Fedora build ortamında:
