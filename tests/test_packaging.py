@@ -2,10 +2,12 @@
 
 import configparser
 import os
+import runpy
 import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 from scripts import build_deb
 
@@ -13,6 +15,33 @@ from izlek.cache.images import ImageDiskCache
 from izlek.core.paths import app_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_pyinstaller_spec_resolves_entrypoint_and_resources(monkeypatch):
+    """SPECPATH is a directory, including when run outside the repository."""
+    hooks = ModuleType("PyInstaller.utils.hooks")
+    hooks.collect_submodules = lambda name: []
+    hooks.copy_metadata = lambda name: []
+    monkeypatch.setitem(sys.modules, "PyInstaller.utils.hooks", hooks)
+    captured = {}
+
+    def analysis(scripts, **kwargs):
+        captured.update(scripts=scripts, **kwargs)
+        return SimpleNamespace(pure=[], scripts=[], binaries=[], datas=[])
+
+    spec = PROJECT_ROOT / "packaging/izlek.spec"
+    runpy.run_path(str(spec), init_globals={
+        "SPECPATH": str(spec.parent), "Analysis": analysis,
+        "PYZ": lambda *args, **kwargs: None,
+        "EXE": lambda *args, **kwargs: None,
+        "COLLECT": lambda *args, **kwargs: None,
+    })
+    assert captured["scripts"] == [str(PROJECT_ROOT / "src/izlek/__main__.py")]
+    assert all(Path(source).exists() for source, _ in captured["datas"])
+    assert any(
+        destination == "izlek/db/migrations/versions"
+        for _, destination in captured["datas"]
+    )
 
 
 def test_release_version_and_artifact_names_are_consistent():

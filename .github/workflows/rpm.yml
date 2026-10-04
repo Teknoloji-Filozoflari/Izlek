@@ -3,6 +3,10 @@ name: RPM package
 on:
   workflow_dispatch:
 
+concurrency:
+  group: package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
