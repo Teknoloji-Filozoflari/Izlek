@@ -619,6 +619,25 @@ Global arama, Keşfet, film ve dizi detay sayfaları TMDb ve görsel servisine b
   yayın sınırlamaları README'de korunur. Uygulama kodu değiştirilmedi.
 - **Sonraki faz:** Kullanıcının sonraki isteği.
 
+## Nix / NixOS paketleme — 2026-10-04
+
+- **Yapılanlar:** buildPythonApplication ve wrapQtAppsHook ile kaynak
+  tabanlı Python/Qt paketi; flake/default.nix, Qt Quick/SVG/Wayland modülleri,
+  desktop/icon kurulumu ve x86_64/aarch64 flake çıktıları eklendi. Nixpkgs
+  25.11 revizyonu CI'da üretilmiş flake.lock ile sabitlendi.
+- **Değiştirilen önemli dosyalar:** flake.nix, flake.lock, default.nix,
+  packaging/nix/, .github/workflows/nix.yml, MANIFEST.in, .gitignore,
+  README/CHANGELOG ve mimari belgesi.
+- **Test sonucu:** Yerelde 225 pytest ve Ruff başarılı. GitHub Nix koşusu
+  37208239124: x86_64 Nix build, Nix ortamında 225 pytest, Ruff ve kurulu
+  Qt wrapper executable için izole XDG offscreen smoke başarılı.
+- **Manuel kontrol:** Bağımlılık lock artifact'i başarılı koşudan indirildi;
+  kurulum, nix run/build/profile ve NixOS yapılandırması belgelendi.
+- **Bilinen sorunlar:** Nix CI Ubuntu runner üzerinde; gerçek NixOS
+  Wayland/X11/keyring masaüstü testi yapılmadı. aarch64 build atlandı;
+  resmî Nixpkgs yayını yok. Yerel makinede Nix kurulu değil.
+- **Sonraki faz:** Gerçek NixOS masaüstü ve ARM64 doğrulaması.
+
 ## Devam ederken
 
 Önce mevcut dosyaları ve bu notu inceleyin; çalışan önceki faz davranışlarını koruyun. Her faz sonunda pytest ve Ruff çalıştırın, istenen Türkçe faz raporunu verin. Kullanıcının bir sonraki faz promptunu bekleyin.

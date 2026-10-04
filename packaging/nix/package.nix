@@ -23,9 +23,10 @@ python3.pkgs.buildPythonApplication {
       in lib.cleanSourceFilter path type
         && !(builtins.elem name [
           ".venv" ".pytest_cache" ".ruff_cache" "__pycache__"
-          "build" "dist" "parts" "stage" "prime" ".snapcraft"
+          "build" "dist" "parts" "stage" "prime" ".snapcraft" "result"
         ])
         && !(lib.hasSuffix ".egg-info" name)
+        && !(lib.hasPrefix "result-" name)
         && !(lib.hasSuffix ".pyc" name)
         && !(lib.hasSuffix ".sqlite3" name)
         && !(lib.hasSuffix ".sqlite" name)

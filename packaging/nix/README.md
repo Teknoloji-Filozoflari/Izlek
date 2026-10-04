@@ -87,6 +87,12 @@ uygulamanın kullanıcıya açık token dosyası fallback'i geçerlidir.
 
 ## Doğrulama durumu
 
+[2026-10-04 CI koşusu](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37208239124)
+x86_64 Linux üzerinde başarılı: Nix build, 225 pytest testi, Ruff ve kurulu
+paketin Qt/QML offscreen açılış kontrolü geçti. Bu kontrol Ubuntu runner'daki
+Nix sandbox'ında yapıldı; gerçek NixOS masaüstü testi değildir.
+
+
 Nix package workflow'u paket build'inde Ruff/pytest çalıştırır; ayrı bir
 kontrol kurulu ve Qt yolları sarılmış `izlek` başlatıcısını izole XDG ile
 offscreen açar, migration/veritabanı ve pencere ayarlarının oluştuğunu sınar.
