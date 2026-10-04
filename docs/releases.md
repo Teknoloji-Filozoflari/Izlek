@@ -27,15 +27,15 @@ yanıtlarını mock'lar.
 Workflow, tag ile `pyproject.toml` sürümünün birebir eşleşmesini zorunlu tutar.
 Başarılı adımların sonunda GitHub release, sürüme ait not dosyasıyla otomatik
 oluşturulur veya aynı tag tekrar çalıştırıldıysa notlar ve asset'ler
-güncellenir. `v1.0.0` release'i şu dosyaları içerir:
+güncellenir. `v1.0.1` release'i şu dosyaları içerir:
 
-- `Izlek-1.0.0-x86_64.AppImage` ve SHA-256 dosyası
-- `izlek_1.0.0_amd64.deb`
-- `Izlek-1.0.0-source.tar.gz` ve SHA-256 dosyası
+- `Izlek-1.0.1-x86_64.AppImage` ve SHA-256 dosyası
+- `izlek_1.0.1_amd64.deb`
+- `Izlek-1.0.1-source.tar.gz` ve SHA-256 dosyası
 
 GitHub ayrıca tag için kendi otomatik source code `.zip` ve `.tar.gz`
 bağlantılarını gösterir. Workflow'un ürettiği source archive sabit
-`izlek-1.0.0/` kök diziniyle ayrıca release asset olarak yüklenir.
+`izlek-1.0.1/` kök diziniyle ayrıca release asset olarak yüklenir.
 
 ## Tag sonrası
 

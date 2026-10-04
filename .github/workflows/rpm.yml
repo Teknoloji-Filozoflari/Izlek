@@ -20,7 +20,7 @@ jobs:
         run: >-
           dnf install -y python3 python3-pip gcc binutils rpm-build
           mesa-libEGL mesa-libGL fontconfig libX11 libX11-xcb libxcb
-          libxkbcommon libxkbcommon-x11 desktop-file-utils
+          libxkbcommon libxkbcommon-x11 desktop-file-utils dbus-libs
       - name: Install application and build tools
         run: |
           python3 -m venv /tmp/izlek-rpm-env

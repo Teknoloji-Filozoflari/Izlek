@@ -27,7 +27,7 @@ def _version() -> str:
     try:
         return version("izlek")
     except PackageNotFoundError:
-        return "1.0.0"
+        return "1.0.1"
 
 
 def _tree_files(root: Path) -> set[Path]:

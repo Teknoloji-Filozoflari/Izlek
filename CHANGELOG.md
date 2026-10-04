@@ -5,6 +5,8 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-04
+
 ### Fixed
 
 - Sekme geçişlerindeki sayfa çakışması, gereksiz model/afiş yenilemeleri

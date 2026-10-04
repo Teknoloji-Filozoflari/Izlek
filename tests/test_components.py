@@ -50,7 +50,10 @@ def test_gallery_layout_and_keyboard_controls(monkeypatch, tmp_path):
         assert card.hasActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Return)
         application.processEvents()
-        assert activated[0]["title"] == "Night Line"
+        media = activated[0]
+        if hasattr(media, "toVariant"):
+            media = media.toVariant()
+        assert media["title"] == "Night Line"
         toast = window.findChild(QObject, "galleryToast")
         assert toast.property("message") == "Night Line seçildi"
         QTest.keyClick(window, Qt.Key.Key_Space)

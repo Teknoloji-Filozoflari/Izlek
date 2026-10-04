@@ -9,7 +9,7 @@ Snapcraft ve LXD build ortamı hazırlanmış bir makinede proje kökünden:
 
 ```bash
 snapcraft
-sudo snap install --dangerous ./izlek_1.0.0_amd64.snap
+sudo snap install --dangerous ./izlek_1.0.1_amd64.snap
 izlek
 ```
 

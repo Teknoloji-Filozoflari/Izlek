@@ -18,7 +18,7 @@ python -m pip install --constraint packaging/constraints-appimage.txt -e '.[pack
 python scripts/build_deb.py \
   --homepage "$REPOSITORY_URL" \
   --maintainer "$DEBIAN_MAINTAINER"
-sudo apt install ./dist/izlek_1.0.0_amd64.deb
+sudo apt install ./dist/izlek_1.0.1_amd64.deb
 ```
 
 Build betiği `dpkg-deb` gerektirir ve `dist/` altında paketi üretir. Kurulumun

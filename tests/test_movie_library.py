@@ -335,7 +335,10 @@ def test_poster_arrival_preserves_card_focus_and_refresh_has_no_overlay(tmp_path
         grid = window.findChild(QQuickItem, "movieLibraryGrid")
         card = grid.property("currentItem")
         card.forceActiveFocus()
-        remote_path = card.property("modelData")["poster_path"]
+        data = card.property("modelData")
+        if hasattr(data, "toVariant"):
+            data = data.toVariant()
+        remote_path = data["poster_path"]
         pending[remote_path].set_result(path)
         _wait_for(application, lambda: isValid(card) and card.property("posterReady"))
         assert grid.property("currentItem") is card

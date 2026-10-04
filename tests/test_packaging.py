@@ -19,7 +19,11 @@ def test_release_version_and_artifact_names_are_consistent():
     project = tomllib.loads(
         (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
-    assert project["project"]["version"] == "1.0.0"
+    version = project["project"]["version"]
+    assert (PROJECT_ROOT / f"docs/release-notes/v{version}.md").is_file()
+    assert f"version: '{version}'" in (
+        PROJECT_ROOT / "snap/snapcraft.yaml"
+    ).read_text(encoding="utf-8")
 
     release = (PROJECT_ROOT / ".github/workflows/release.yml").read_text(
         encoding="utf-8"
