@@ -175,3 +175,10 @@ kullanır ve yalnız uygulama payload'ı/masaüstü kaynaklarını arşivler. Sn
 launcher XDG dizinlerini `SNAP_USER_COMMON` altında yönlendirir; host SQLite
 veritabanını otomatik paylaşmaz. RPM/Snap workflow'ları elle başlatılır ve
 mevcut tag tabanlı AppImage/.deb release akışından bağımsızdır.
+
+
+Nix paketi PyInstaller payload'ı kullanmaz; Nixpkgs buildPythonApplication
+ile kaynak wheel ve Python bağımlılıklarını kurar. wrapQtAppsHook Qt
+plugin/QML yollarını Python wrapper'ına aktarır. Masaüstü dosyaları Nix
+store'daki share altında; kişisel veriler mevcut XDG yollarındadır. Flake
+checks paket kalite kapısı ve kurulu executable için offscreen smoke içerir.

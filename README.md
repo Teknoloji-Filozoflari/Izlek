@@ -65,6 +65,7 @@ gerçek kullanıcı verisi içermez. Görsellere tıklayarak tam boyutta açabil
 | **Arch / AUR** | Arch Linux | [PKGBUILD rehberi](packaging/arch/README.md); gerçek checksum ve `.SRCINFO` sonrası ayrı AUR yayını gerekir. |
 | **RPM** | Fedora x86_64 | [Paketleme rehberi](packaging/rpm/README.md); elle başlatılan Fedora 43 workflow’u. Binary doğrulaması bekliyor. |
 | **Snap** | core24 amd64 | [Paketleme rehberi](snap/README.md); elle başlatılan strict Snap workflow’u. Store yayını yok. |
+| **Nix / NixOS** | x86_64 / aarch64 Linux | [Flake rehberi](packaging/nix/README.md); kaynak build ve Qt wrapper. Nixpkgs resmî yayını yok. |
 | **Wheel / kaynak** | Python 3.11+ Linux | Yerel build ile üretilebilir; Python ve Qt bağımlılıkları gerekir. |
 
 AppImage ve DEB için Ubuntu 22.04/24.04 kontrolleri workflow’larda tanımlıdır.

@@ -37,6 +37,9 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ### Added
 
+- Nix/NixOS için kaynak tabanlı Python/Qt paket tanımı, flake çıktıları,
+  sistem/kullanıcı kurulum rehberi ve Nix build/smoke workflow'u.
+
 - PyInstaller bundle üzerinden RPM üretimi, core24 strict Snap tanımı ve
   iki biçim için elle başlatılabilir GitHub Actions build/smoke workflow'ları.
 

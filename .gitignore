@@ -11,6 +11,9 @@ dist/
 /prime/
 /.snapcraft/
 *.snap
+# Nix build result symlinks
+/result
+/result-*
 
 # Tool caches
 .pytest_cache/
