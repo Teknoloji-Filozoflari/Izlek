@@ -602,6 +602,23 @@ Global arama, Keşfet, film ve dizi detay sayfaları TMDb ve görsel servisine b
   bağlantısı ayrıca doğrulanmalı. openSUSE/aarch64 CI kapsamı yok.
 - **Sonraki faz:** RPM/Snap binary ve masaüstü doğrulaması.
 
+## README ve uygulama ekran görüntüleri — 2026-10-04
+
+- **Yapılanlar:** README logo, durum rozetleri, kısa özellik tablosu, Linux
+  paket seçenekleri, hızlı başlangıç ve belge bağlantılarıyla düzenlendi.
+  Teknik ayrıntılar development.md; ayrıntılı kullanım user-guide.md içine
+  taşındı. Güncel QML'den beş gerçek ekran görüntüsü eklendi.
+- **Değiştirilen önemli dosyalar:** README.md, docs/development.md,
+  docs/user-guide.md, docs/screenshots/{discover,movies,shows,lists,statistics}.png.
+- **Test sonucu:** 225 pytest testi ve Ruff başarılı. README ve yeni
+  rehberlerdeki tüm yerel dosya/görsel bağlantıları doğrulandı.
+- **Manuel kontrol:** Beş görsel 1440x1000 offscreen/software backend ile
+  yakalandı ve incelendi. Geçici SQLite/XDG dizinleri, mock TMDB ve projedeki
+  örnek SVG afişleri kullanıldı; gerçek kütüphane/token kullanılmadı.
+- **Bilinen sorunlar:** Görseller demo içerik gösterir; mevcut Linux binary
+  yayın sınırlamaları README'de korunur. Uygulama kodu değiştirilmedi.
+- **Sonraki faz:** Kullanıcının sonraki isteği.
+
 ## Devam ederken
 
 Önce mevcut dosyaları ve bu notu inceleyin; çalışan önceki faz davranışlarını koruyun. Her faz sonunda pytest ve Ruff çalıştırın, istenen Türkçe faz raporunu verin. Kullanıcının bir sonraki faz promptunu bekleyin.

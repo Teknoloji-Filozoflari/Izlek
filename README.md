@@ -1,316 +1,157 @@
+<div align="center">
+
+<img src="src/izlek/resources/icons/izlek.svg" width="80" alt="İzlek simgesi">
+
 # İzlek
 
-## İzlek nedir?
+**Filmlerini, dizilerini ve kaldığın bölümü tek yerde takip et.**
 
-İzlek, Linux için geliştirilen, yerel öncelikli ve açık kaynak bir film ve dizi takip masaüstü uygulamasıdır. Görünen adı **İzlek**, Python paket adı `izlek` ve repository adı `Izlek`tir. Uygulama hesap oluşturmaz; takip durumları, bölüm ilerlemesi, favoriler ve listeler kullanıcının cihazındaki SQLite veritabanında tutulur. TMDb tokenı da yalnızca kullanıcının cihazında, tercihen sistem anahtarlığında saklanır.
+Linux için açık kaynak, Türkçe bir masaüstü uygulaması.<br>
+Kütüphanen, listelerin ve izleme geçmişin cihazında kalır.
 
-Kaynak kod: [Teknoloji-Filozoflari/Izlek](https://github.com/Teknoloji-Filozoflari/Izlek)
+[![CI](https://github.com/Teknoloji-Filozoflari/Izlek/actions/workflows/ci.yml/badge.svg)](https://github.com/Teknoloji-Filozoflari/Izlek/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![Linux](https://img.shields.io/badge/Platform-Linux-62C7B4?logo=linux&logoColor=white)](#linux-kurulumu)
+[![Lisans](https://img.shields.io/badge/Lisans-GPL--3.0--or--later-blue)](LICENSE)
 
-Tamamlanan fazlar ve doğrulamalar için [devir notuna](docs/HANDOFF.md) bakın.
+[Özellikler](#özellikler) · [Ekran görüntüleri](#ekran-görüntüleri) · [Kurulum](#linux-kurulumu) · [Belgeler](#belgeler) · [Katkı](#katkı)
+
+</div>
+
+![Dizi kütüphanesi, bölüm ilerlemesi ve Devam Et kartları](docs/screenshots/shows.png)
 
 ## Özellikler
 
-- Film ve diziler için yerel takip durumları, favoriler ve özel listeler
-- Dizi bölüm ilerlemesi ve kaldığı yerden devam etme
-- TMDb üzerinden arama ve metadata; çevrimdışı kullanılabilen yerel kütüphane
-- Türkçe, koyu temalı ve klavye ile kullanılabilir Qt Quick arayüzü
+| | İzlek ile |
+| --- | --- |
+| **Kütüphanen** | Film ve dizilerini İzlenecek, İzleniyor ve İzlendi durumlarıyla düzenle; favorilerini seç. |
+| **Kaldığın bölüm** | Bölümleri tek tek işaretle, sezon ilerlemesini gör ve Diziler sekmesindeki Devam Et kartlarından devam et. |
+| **Keşfet ve ara** | TMDB içeriklerini tür, yıl, ülke ve puanla filtrele; `Ctrl+K` ile film/dizi ara. |
+| **İçerik detayları** | Oyuncular, fragmanlar, öneriler ve Türkiye’deki izleme sağlayıcılarını incele. |
+| **Özel listeler** | Kendi seçkilerini oluştur; listeye eklerken yerel kütüphanende arama yap. |
+| **İstatistikler** | İzlenen film/bölüm sayısını, tür dağılımını ve ekran süresini gör. Bilinmeyen süreler toplamı şişirmez. |
+| **Çevrimdışı kullanım** | Kayıtlı kütüphane bilgilerine eriş; kütüphane afişleri ve arka planları yerelde korunsun. |
+| **Veri aktarımı** | Kütüphaneni ve ilerlemeni JSON olarak dışa aktar, başka kurulumda içe al. |
 
-## Screenshots / Ekran görüntüleri
+Hesap oluşturma, reklam veya analytics yok. İçerik araması ve yeni bilgiler için
+internet ve kendi **TMDB API Read Access Token**’ın gerekir.
 
-![İzlek boş kütüphane başlangıç görünümü](docs/screenshots/main-window.png)
+## Ekran görüntüleri
 
-[Yerel örnek içerikli bileşen galerisi: 1366×768](docs/screenshots/components-1366.png) · [1920×1080](docs/screenshots/components-1920.png)
+Görseller güncel uygulamadan, geçici bir demo kütüphaneyle **1440 × 1000**
+boyutunda alındı. Başlıklar ve afişler projedeki örnek içeriklerdir;
+gerçek kullanıcı verisi içermez. Görsellere tıklayarak tam boyutta açabilirsin.
 
-## Geliştirici kurulumu
+<table>
+  <tr>
+    <td width="50%"><strong>Ana Sayfa · Keşfet</strong><br>Filtreler, arama ve hızlı kütüphane ekleme.<br><a href="docs/screenshots/discover.png"><img src="docs/screenshots/discover.png" alt="Keşfet filtreleri ve afişli içerik kartları" width="100%"></a></td>
+    <td width="50%"><strong>Film kütüphanesi</strong><br>Takip durumları ve favoriler bir arada.<br><a href="docs/screenshots/movies.png"><img src="docs/screenshots/movies.png" alt="Film kütüphanesi ve favori film kartları" width="100%"></a></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Özel listeler</strong><br>Kendi izleme seçkilerini oluştur.<br><a href="docs/screenshots/lists.png"><img src="docs/screenshots/lists.png" alt="Özel listeler ve seçili listenin içerikleri" width="100%"></a></td>
+    <td width="50%"><strong>İstatistikler</strong><br>Ekran süresi, türler ve en çok izlenen diziler.<br><a href="docs/screenshots/statistics.png"><img src="docs/screenshots/statistics.png" alt="Toplam ekran süresi ve izleme istatistikleri" width="100%"></a></td>
+  </tr>
+</table>
 
-Python 3.11 veya daha yeni bir sürüm, `pip` ve PySide6'nın Linux sistem gereksinimleri gerekir:
+## Linux kurulumu
+
+**Paketleme tanımları mevcut; henüz yayımlanmış indirilebilir bir sürüm yok.**
+Şimdilik kaynak koddan çalıştırabilir veya aşağıdaki build akışlarını kullanabilirsin.
+
+| Biçim | Hedef | Build / durum |
+| --- | --- | --- |
+| **AppImage** | x86_64 Linux | [Build betiği](scripts/build_appimage.py); tag release akışında üretilir. |
+| **DEB** | Debian / Ubuntu amd64 | [Paketleme rehberi](packaging/debian/README.md); tag release akışında üretilir. |
+| **Arch / AUR** | Arch Linux | [PKGBUILD rehberi](packaging/arch/README.md); gerçek checksum ve `.SRCINFO` sonrası ayrı AUR yayını gerekir. |
+| **RPM** | Fedora x86_64 | [Paketleme rehberi](packaging/rpm/README.md); elle başlatılan Fedora 43 workflow’u. Binary doğrulaması bekliyor. |
+| **Snap** | core24 amd64 | [Paketleme rehberi](snap/README.md); elle başlatılan strict Snap workflow’u. Store yayını yok. |
+| **Wheel / kaynak** | Python 3.11+ Linux | Yerel build ile üretilebilir; Python ve Qt bağımlılıkları gerekir. |
+
+AppImage ve DEB için Ubuntu 22.04/24.04 kontrolleri workflow’larda tanımlıdır.
+RPM için diğer dağıtımlar ayrıca test edilmelidir. Snap verileri sistem
+kurulumundan ayrı tutulur. Kaynakları `main` dalına göndermek, paket yayını yapmaz.
+Yayın adımları: [release rehberi](docs/releases.md).
+
+### Kaynak koddan çalıştır
+
+Python **3.11 veya üzeri**, `pip`, sanal ortam desteği ve PySide6’nın Linux
+çalışma zamanı kütüphaneleri gerekir.
 
 ```bash
-python -m venv .venv
+git clone https://github.com/Teknoloji-Filozoflari/Izlek.git
+cd Izlek
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
 python -m izlek
-python -m izlek --gallery
-python scripts/quality.py
-python -m pip wheel . --no-deps --wheel-dir dist
 ```
 
-`python scripts/quality.py`, önce `ruff check .`, ardından tüm `pytest` testlerini
-offscreen Qt ayarlarıyla çalıştıran tek kalite kapısıdır. Test paketi gerçek ağ
-bağlantılarını engeller; TMDb yanıtları `httpx.MockTransport` ile sağlandığı için
-CI ortamında gerçek token gerekmez. Tek tek çalıştırmak için `python -m pytest`
-ve `ruff check .` komutları da kullanılabilir.
+Qt sistem gereksinimleri, sorun giderme ve geliştirici komutları için
+[geliştirme rehberine](docs/development.md) bak.
 
-`python -m izlek` masaüstü penceresini açar. İlk açılan **Ana Sayfa**, Keşfet filtreleri ve Film/Dizi seçilebilen global aramayı içerir. **İstatistikler** (Ctrl+5) altında toplam ekran süresi, izleme sayaçları, son 12 ay bölüm grafiği, tür halkası ve en çok zaman ayrılan diziler toplanır. Aylık grafik yalnız gerçek izleme tarihi ve süresi kayıtlı bölümleri kullanır; film izleme tarihi tutulmadığı için filmler grafiğe dahil edilmez. Toplam süre yalnız süresi bilinen film ve bölümlerden hesaplanır; süresi bilinmeyen içerikler süre toplamına katılmaz ve kaç içerik dışarıda kaldığı gösterilir. **Devam Et** Diziler sekmesindedir; İstatistikler sayfası yalnız istatistikleri gösterir.
+### İlk açılış
 
-Filmler ve Diziler yerel kütüphaneleri, Listeler özel listeleri gösterir. Dizi kartı ve detay ekranında bölüm sayacı ile ilerleme çubuğu bulunur; özel sezonlar ana ilerleme çubuğuna katılmaz. Bölüm satırlarındaki yazısız yuvarlak tik fare veya Space ile değiştirilir. `--gallery`, [bileşen kütüphanesini](docs/components.md) çevrimdışı örnek veriyle gösterir. Pencere boyutu ve büyütülmüş durumu XDG config dizininde saklanır; diğer XDG yolları [mimari belgesinde](docs/architecture.md) açıklanır. Ekransız CI için `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest` kullanın.
+1. TMDB hesabının API ayarlarından **API Read Access Token** al.
+2. İzlek’e tokenı gir, **Tokenı Test Et** ve **Kaydet** adımlarını tamamla.
+3. Ana Sayfa’dan içerik ara veya keşfet; kütüphanene ekleyip izleme durumunu seç.
 
-İlk açılışta Alembic migration'ları otomatik uygulanır. Kişisel veritabanı `$XDG_DATA_HOME/izlek/izlek.sqlite3` konumundadır; değişken tanımlı değilse `~/.local/share/izlek/izlek.sqlite3` kullanılır. Komut satırından migration çalıştırmak için kurulu sanal ortamda `python -m alembic -c alembic.ini upgrade head` kullanın. SQLite dosyasını yedeklemeden elle değiştirmeyin.
+Token cihazında saklanır. Sonradan **Ayarlar → TMDb → Tokenı Değiştir**
+üzerinden güncelleyebilirsin. İzlek için ayrıca bir hesap gerekmez.
 
-`No module named izlek` hatasında proje kökünde `.venv/bin/python -m izlek` çalıştırın; paket sanal ortama kurulmamışsa yukarıdaki `pip install -e '.[dev]'` adımını uygulayın. `No module named PySide6` hatasında da bağımlılık kurulumu eksiktir. İnternet erişimi yoksa ve PySide6 dağıtımınızda kuruluysa sanal ortamı `python -m venv --system-site-packages .venv` ile oluşturup `./.venv/bin/python -m pip install --no-deps --no-build-isolation -e .` çalıştırabilirsiniz.
+## Verilerin nerede?
 
-Wayland veya X11 oturumunda gerçek pencere açılışını ve sidebar gezinmesini sınamak için normal masaüstü terminalinde şu komutları çalıştırın:
+| Veri | Varsayılan konum |
+| --- | --- |
+| Kütüphane, listeler ve bölüm ilerlemesi | `~/.local/share/izlek/izlek.sqlite3` |
+| Pencere ayarları | `~/.config/izlek/window.ini` |
+| İndirilen görseller | `~/.cache/izlek/images` |
+| Loglar | `~/.local/state/izlek/logs` |
 
-```bash
-./.venv/bin/python scripts/smoke_display.py --platform wayland
-./.venv/bin/python scripts/smoke_display.py --platform xcb
-```
+`XDG_*` değişkenleri tanımlıysa ilgili dizinler kullanılır. Snap’in ayrı
+veri yolları [Snap rehberinde](snap/README.md) açıklanır.
 
-Test, kullanılan Qt platformunu ve QML uyarı sayısını yazar; isteğe bağlı `--gallery`, `--onboarding` ve `--screenshot /tmp/izlek.png` seçenekleri vardır. Normal gezinme denemesi örnek token durumu kullanır; `--onboarding` ilk açılış ekranını sınar. Ekransız doğrulama için `--platform offscreen` kullanılabilir.
+Token öncelikle sistem anahtarlığında saklanır. Anahtarlık kullanılamazsa
+`~/.config/izlek/tmdb-token` dosyasına yalnız kullanıcıya açık izinlerle
+**düz metin** yazılır ve uygulama bunu bildirir. Token veritabanına, loglara
+ve JSON dışa aktarıma girmez.
 
-Wayland ve X11 oturumlarında `App info not found for 'izlek'` portal uyarısı görünürse geliştirme başlatıcısını kullanıcı hesabınıza kurun:
+Kişisel takip verileri cihazında tutulur; bir İzlek sunucusuna gönderilmez.
+TMDB arama ve içerik istekleri TMDB’ye gider. Uzak metadata ve kütüphaneye
+ait olmayan görseller için 180 günlük temizlik uygulanır; takip durumları,
+favoriler, listeler ve bölüm ilerlemesi korunur.
 
-```bash
-./.venv/bin/python scripts/install_desktop_entry.py
-```
+## Belgeler
 
-Bu komut `$XDG_DATA_HOME` (varsayılan `~/.local/share`) altına `applications/izlek.desktop` ile `icons/hicolor/scalable/apps/izlek.svg` yazar. Masaüstü menüsünden **İzlek** başlatılabilir. Var olan, bu geliştirme betiğinin oluşturmadığı bir `izlek.desktop` dosyasını değiştirmez. Kurulumdan sonra Wayland ve X11 testlerini yeniden çalıştırın; test artık QML ve diğer Qt uyarılarını ayrı raporlar.
-
-## TMDb token
-
-İzlek hesap oluşturmaz; TMDb metadata'sına erişmek için kendi TMDb hesabınızın
-API ayarlarından **API Read Access Token** almanız gerekir. İlk açılışta bu
-tokenı girip **Tokenı Test Et** ile doğrulayın; **Kaydet** de doğrulama yapar
-ve yalnızca başarılı sonucu saklar. Token kullanıcının cihazında kalır ve
-sonraki açılışlarda yeniden sorulmaz; **Ayarlar → TMDb → Tokenı Değiştir** ile
-değiştirilebilir.
-
-Öncelikle sistem anahtarlığı (Secret Service/KWallet) kullanılır. Kullanılamazsa token, `$XDG_CONFIG_HOME/izlek/tmdb-token` dosyasında yalnızca kullanıcıya açık izinlerle **düz metin** olarak saklanır ve uygulama bu durumu bildirir. Token SQLite'a, pencere ayarlarına veya loglara yazılmaz. Geliştirme ortamında yeni bağımlılıkları almak için tekrar `python -m pip install -e '.[dev]'` çalıştırın. Token'ı repository'ye veya issue'lara koymayın.
-
-## TMDb API istemcisi
-
-`izlek.tmdb.client.TmdbClient(token=...)` arayüzden bağımsız olarak configuration, film/dizi araması, film/dizi detayı ve dizi sezonu uç noktalarını çağırır. Yanıtlar `izlek.tmdb.models` içindeki Pydantic modellerine çevrilir. İstemciyi ağ çağrıları için UI thread'i dışında kullanın. Timeout, HTTP ve bozuk yanıt hataları `izlek.tmdb.client` içindeki güvenli domain exceptionlarına dönüşür. Bir 429 yanıtında en fazla bir kez, en çok iki saniyelik beklemeyle tekrar denenir. Testler gerçek TMDb'ye bağlanmaz; `httpx.MockTransport` kullanır.
-
-## Görsel servisi ve cache
-
-`ImageService(TmdbClient(token=...))`, `poster(path, "grid")`, `poster(path, "detail")` ve `backdrop(path)` çağrıları için yerel dosya yoluyla sonuçlanan `Future[Path]` döndürür. Ağ çağrıları servis işçi havuzunda yapılır; UI bu sonucu hazır olduğunda kullanmalıdır. Görsel boyutları TMDb configuration yanıtından seçilir ve `original` indirilmez. Geçerli görseller `$XDG_CACHE_HOME/izlek/images` altında hash anahtarlı dosyalarda tutulur. Cache okunamaz veya ağ kullanılamazsa servis poster/backdrop placeholder SVG yollarını döndürür. `cache_size_async()` ileride Ayarlar'da kullanılabilecek byte cinsinden cache boyutunu verir. Bu dizin yalnızca yeniden indirilebilir görseller içindir; kişisel takip verisi SQLite veri dizininde kalır.
-
-## Global arama
-
-Ana penceredeki her sayfadan **Ctrl+K** ile arama açılır, **Esc** ile kapanır. En az üç karakter girildiğinde 300 ms bekledikten sonra TMDb film ve dizi aramaları arka planda paralel çalışır. Sonuçlar ayrı başlıklarda orijinal ad, yıl, tür ve cache'lenmiş posterle gösterilir. Sonuca tıklamak medya detay sayfasını açar. Çevrimdışıyken açıklayıcı hata gösterilir.
-
-## Keşfet
-
-**Keşfet**, TMDb'nin yalnızca Discover Movie ve Discover TV uçlarını kullanır. Film veya dizi, yıl, tür, ülke ve puan aralığı seçilebilir. Sonuçlar `vote_average.desc` ile sıralanır; az sayıdaki oyun sıralamayı bozmasını önlemek için varsayılan en az oy eşiği 100'dür. Sonuçlar yoğun gridde gösterilir ve açık önceki/sonraki düğmeleriyle sayfalanır.
-
-## Film detayı ve yerel takip
-
-Film arama sonucundan açılan ekran; TMDb detay, oyuncu/yönetmen, video, öneri ve Türkiye izleme sağlayıcısı verilerini arka planda yükler. Poster ve backdrop görsel servisini kullanır. **Kütüphaneye Ekle** filmi `PLANNED` durumuyla yerel kütüphaneye ekler; takip durumu, favori ve özel liste üyeliği SQLite'ta kalıcıdır. Film metadata'sı aynı veritabanında kişisel durumdan ayrı saklanır. Detay açıldığında kayıtlı metadata hemen gösterilir; son başarılı sync 24 saatten eskiyse arka planda yenilenir. Offline, timeout veya TMDb'de silinmiş kayıt durumunda yerel kopya korunur. **Fragmanı İzle**, uygun YouTube fragmanını sistem tarayıcısında açar. İzleme sağlayıcısı verisi [TMDb'nin JustWatch ortaklığı](https://developer.themoviedb.org/reference/movie-watch-providers) kaynaklıdır.
-
-Dizi detayında orijinal ad, yayın tarihleri, yaratıcılar, oyuncular, yapım bilgileri, Türkiye izleme sağlayıcıları, fragman ve öneriler gösterilir. Sezon seçimi bölüm listesini açar; her bölüm ayrı işaretlenebilir. Sezonun veya dizinin tüm bölümlerini izlendi/izlenmedi yapmak için onay gerekir. Dizi detayı ve her sezonun bölüm metadata'sı kendi son başarılı sync zamanına göre 24 saatlik freshness uygular. Bölüm ilerlemesi yalnızca yerel veritabanındadır ve metadata yenilemesiyle silinmez. Daha önce indirilen metadata çevrimdışı kullanılabilir. Diziler için durum ve favori de kalıcıdır.
-
-Film ve dizi detaylarındaki **Nerede İzlenir** bölümü varsayılan olarak TR bölgesinin TMDb watch-provider yanıtını gösterir. Abonelik, kiralama ve satın alma grupları boşsa Türkiye için açıklayıcı bir empty state görünür; geçerli TMDb bağlantısı varsa sağlayıcı seçenekleri sistem tarayıcısında açılır. Provider metadata'sı cache'lenir ve takip durumunun parçası değildir. Bölümde JustWatch attribution'ı görünür.
-
-İlk izlenen bölüm otomatik olarak `WATCHING`, bütün bilinen yayınlanmış bölümler izlendiğinde durum `WATCHED` olur. Manuel status seçimi korunur; sonradan gelen yeni bölüm `WATCHED` durumunu sessizce değiştirmez. Ayrıntılar [durum otomasyonu kurallarında](docs/status-automation.md).
-
-## Favoriler
-
-Film ve dizi favorileri SQLite içindeki `user_media.favorite` alanından okunur. Detay sayfalarında ve kütüphane kartlarında kalp düğmesi kullanılır. İstatistikler sayfasında Favorilerim bölümü bulunmaz. Favori ekleme ve çıkarma takip durumunu değiştirmez; durum olmadan da favori tutulabilir.
-
-## Özel listeler
-
-**Listeler** sayfasında liste oluşturabilir, yeniden adlandırabilir ve silebilirsin. Sol panelde listeleri, sağ panelde seçilen listenin film ve dizilerini görürsün. Yerel veritabanında bilinen medyayı ekleyebilir, çıkarabilir; ok düğmeleriyle liste ve medya sırasını değiştirebilirsin. Aynı medya birden fazla listede bulunabilir. Film ve dizi detayındaki **Listeye Ekle**, mevcut liste adıyla eşleşir veya yeni liste oluşturur. Bütün liste verileri SQLite'ta kalır; TMDb liste API'si kullanılmaz.
-
-## İçe ve dışa aktarma
-
-**Ayarlar → İçe / Dışa Aktarma** bölümünden tüm taşınabilir İzlek durumunu tek bir JSON dosyasına aktarabilirsin. Dosya film/dizi metadata'sını, takip durumlarını, bölüm ilerlemesini, favorileri ve özel listeleri içerir; TMDb tokenı ile indirilen görsel cache yollarını içermez. Import öncesinde şema doğrulanır ve medya/liste özeti gösterilir. Aynı TMDb kimliği ve medya türü birleştirilir; izlenmiş bölüm ilerlemesi ile mevcut liste üyelikleri kaybolmaz. Biçim ve sürüm stratejisi [İzlek JSON belgesinde](docs/izlek-json.md) açıklanır.
-
-## Linux paketlerinin durumu
-
-| Biçim | Hedef | Durum |
-| --- | --- | --- |
-| AppImage | x86_64 Linux | Build betiği ve GitHub Actions build/smoke akışı mevcut; yayımlanmış binary yok. |
-| `.deb` | Debian/Ubuntu amd64 | Build betiği ve Ubuntu 22.04/24.04 CI kontrolü mevcut; yayımlanmış binary yok. |
-| Arch / AUR | Arch Linux | PKGBUILD mevcut; checksum ve `.SRCINFO` tamamlandıktan sonra ayrıca AUR'a gönderilmeli. |
-| `.rpm` | Fedora x86_64 | Build betiği ve elle başlatılan Fedora 43 CI akışı eklendi; binary doğrulaması bekliyor. |
-| Snap | core24 amd64 | Strict Snapcraft tanımı ve elle başlatılan CI akışı eklendi; Store yayını yok. |
-| Wheel / kaynak arşivi | Python 3.11+ Linux | Yerel build ile üretilebilir; Python/Qt bağımlılıkları gerekir. |
-
-`main` dalına kaynak kod göndermek paketleri yayımlamaz. AppImage ve `.deb`
-üretimi Actions üzerinden elle başlatılabilir; GitHub Releases yayını sürüm
-etiketiyle çalışır. AUR gönderimi ayrı bir işlemdir.
-
-## AppImage
-
-İlk binary dağıtım biçimi x86_64 AppImage'dır. Yerel paketleme araçlarını
-kurmak ve doğrulanmış sırayla one-folder → AppDir → AppImage üretmek için:
-
-```bash
-python -m pip install \
-  --constraint packaging/constraints-appimage.txt \
-  -e '.[dev,package]'
-python scripts/quality.py
-python scripts/build_appimage.py --appdir-only
-python scripts/build_appimage.py \
-  --appimagetool /path/to/appimagetool-x86_64.AppImage \
-  --runtime-file /path/to/runtime-x86_64
-```
-
-İlk komut yalnızca AppImage build'inde PySide6'yı glibc 2.28 uyumlu sürüme
-sabitler. Build betiği önce `dist/izlek/` one-folder çıktısını offscreen açar,
-QML, kaynaklar ve migration'ları doğrular; ardından
-`build/appimage/Izlek.AppDir/` oluşturur. Son AppImage ve SHA-256 dosyası
-`dist/` altına yazılır.
-
-GitHub'daki [Release Linux artifacts workflow](.github/workflows/release.yml),
-`v*` tag'lerinde glibc 2.28 tabanlı manylinux container'ında AppImage üretir.
-Artifact ayrıca temiz Ubuntu 22.04 ve 24.04 runner'larında sınanır. FUSE
-bulunmayan ortamlarda `APPIMAGE_EXTRACT_AND_RUN=1 ./Izlek-*.AppImage`
-kullanılabilir. Ayrıntılı tag ve yayın adımları [release sürecinde](docs/releases.md)
-yer alır.
-
-1.0.0 release dosyasının adı `Izlek-1.0.0-x86_64.AppImage` olacaktır.
-
-AppImage salt okunur uygulama içeriği taşır. Veritabanı, ayarlar ve cache
-sırasıyla XDG data, config ve cache kullanıcı dizinlerinde kalır; AppImage'ın
-yanına yazılmaz. AUR yayını ve release `.deb` artefact'ı henüz yayımlanmamıştır;
-yerel build tanımları repository'de bulunur.
-
-## Arch Linux / Arch (PKGBUILD)
-
-Arch paketi adı `izlek`tir. Paket, Python kaynak wheel'ını sistem Python'una
-kurar; masaüstü kaydı ile ölçeklenebilir simgeyi de kurar. Çalışma zamanı
-bağımlılıkları (`pyside6`, SQLAlchemy, Alembic, httpx, Pydantic ve keyring)
-pakete bağımlılık olarak tanımlıdır; build/test araçları runtime'a eklenmez.
-
-`v1.0.0` tag'inden yerelde paket sınamak için:
-
-```bash
-git archive --format=tar.gz --prefix=Izlek-1.0.0/ v1.0.0 \
-  -o packaging/arch/izlek-1.0.0.tar.gz
-cd packaging/arch
-makepkg --syncdeps --install
-```
-
-PKGBUILD, [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD) altında yer alır.
-Upstream GitHub URL'si tanımlıdır. AUR'a gönderimden önce sürüm tag'i
-yayımlanmalı, `updpkgsums` ile gerçek SHA-256 yazılmalı ve
-`makepkg --printsrcinfo > .SRCINFO` çalıştırılmalıdır. Mevcut `SKIP` değeri
-AUR yayını için tamamlanmış bir doğrulama değildir. Paket kaldırıldığında pacman yalnızca sistem
-dosyalarını kaldırır; `$XDG_DATA_HOME/izlek`, `$XDG_CONFIG_HOME/izlek` ve
-`$XDG_CACHE_HOME/izlek` altındaki kullanıcı verileri silinmez.
-
-## Debian/Ubuntu (`.deb`)
-
-Debian/Ubuntu paketi PyInstaller one-folder uygulamasını `/usr/lib/izlek`,
-başlatıcıyı `/usr/bin/izlek`, desktop kaydını
-`/usr/share/applications/izlek.desktop` ve SVG simgesini hicolor tema yoluna
-kurar. Python uygulaması bundle içindedir; böylece Ubuntu'nun sistem
-depolarındaki PySide6/Pydantic sürüm farkları paketi bozmaz.
-
-Python 3.11, `dpkg-deb`, PyInstaller ve build bağımlılıkları olan bir
-Debian/Ubuntu build ortamında:
-
-```bash
-python -m pip install \
-  --constraint packaging/constraints-appimage.txt \
-  -e '.[dev,package]'
-python scripts/build_deb.py \
-  --homepage "$REPOSITORY_URL" \
-  --maintainer "$DEBIAN_MAINTAINER"
-sudo apt install ./dist/izlek_1.0.0_amd64.deb
-```
-
-Kurulumdan sonra uygulama menüsünde **İzlek** görünür. `apt remove izlek`,
-yalnızca paket dosyalarını kaldırır; kullanıcı veritabanı, token, ayar ve cache
-XDG dizinlerinde kalır. Ubuntu 22.04 ve 24.04 temiz konak kurulum/smoke
-kontrolü release workflow'u ile otomatik çalışır. `REPOSITORY_URL` gerçek HTTPS
-upstream adresi, `DEBIAN_MAINTAINER` ise `Ad <eposta>` biçimindeki paket
-sorumlusudur. Tag workflow'u bu değerleri GitHub repository bağlamından üretir;
-build betiği yer tutucu metadata ile paket oluşturmayı reddeder.
-
-## Fedora / RPM
-
-Mevcut PyInstaller uygulama çıktısından RPM üretmek için Fedora ortamında
-`rpm-build` ve Python paketleme bağımlılıklarını kurup:
-
-```bash
-python scripts/build_rpm.py
-sudo dnf install ./dist/izlek-*.rpm
-```
-
-Kurulum ön koşulları ve glibc/dağıtım sınırları
-[RPM belgesinde](packaging/rpm/README.md). **RPM package** Actions workflow'u
-elle başlatılır; Fedora 43 x86_64 build ve temiz container smoke akışı içerir.
-openSUSE ve diğer RPM dağıtımları ayrıca doğrulanmalıdır.
-
-## Snap
-
-Snapcraft/LXD bulunan ortamda proje kökünden:
-
-```bash
-snapcraft
-sudo snap install --dangerous ./izlek_1.0.0_amd64.snap
-izlek
-```
-
-core24, amd64 ve strict confinement kullanılır. **Snap package** Actions
-workflow'u elle başlatılır. Tanım `grade: devel` ile başlar; Snap Store yayını
-ve paket adı kaydı ayrıca yapılmalıdır. Snap verileri sistem paketinden ayrı,
-revizyonlar arasında kalıcı `~/snap/izlek/common` altında tutulur.
-Anahtarlık bağlantısı, JSON aktarımı ve kurulum ayrıntıları
-[Snap belgesinde](snap/README.md).
-
-## Mimari
-
-İzlek'in veri akışı QML → controller/view-model → service → repository veya
-TMDb client → SQLite/TMDb şeklindedir. QML içinde SQL, HTTP veya iş mantığı
-bulunmaz. Uygulama Python/PySide6/Qt Quick, SQLAlchemy + Alembic ve merkezi
-TMDb client kullanır; kişisel veriler XDG data/config/cache dizinlerinde
-yaşar. Katmanların ayrıntıları [mimari belgesinde](docs/architecture.md),
-tamamlanan fazlar ve doğrulamalar ise [devir notunda](docs/HANDOFF.md) bulunur.
+- [Kullanım rehberi](docs/user-guide.md) — arama, detaylar, listeler ve JSON aktarımı
+- [Geliştirme rehberi](docs/development.md) — kurulum, kalite kontrolleri ve masaüstü smoke testleri
+- [Mimari](docs/architecture.md) · [QML bileşenleri](docs/components.md)
+- [Release süreci](docs/releases.md) · [Değişiklik günlüğü](CHANGELOG.md)
+- [Kod denetimi](docs/AUDIT_2026_10_04.md) · [Geliştirme devir notları](docs/HANDOFF.md)
 
 ## Katkı
 
-Katkı akışı, test beklentileri ve kodlama kuralları için
-[CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun. Hata ve özellik önerileri
-için GitHub issue şablonlarını kullanın; güvenlik açıklarını public issue veya
-PR'a koymayın, [SECURITY.md](SECURITY.md) sürecini izleyin.
+Hata bildirmek veya özellik önermek için [issue açabilirsin](https://github.com/Teknoloji-Filozoflari/Izlek/issues).
+Kod katkıları için [CONTRIBUTING.md](CONTRIBUTING.md), güvenlik bildirimleri için
+[SECURITY.md](SECURITY.md) dosyasını incele.
 
-## Roadmap
+```bash
+python scripts/quality.py
+```
 
-- Sürüm tag'leri ve doğrulanmış Linux paket yayınları
-- AppImage, Arch ve Debian/Ubuntu artefact'larının gerçek release'lerle yayımlanması
-- Offline-first akışların ve desteklenen Linux dağıtımlarının genişletilmesi
-- Erişilebilirlik, yerelleştirme ve paketleme doğrulamalarının genişletilmesi
+Bu komut Ruff ve tüm pytest testlerini çalıştırır. Testler geçici kullanıcı
+verisi ve mock TMDB yanıtları kullanır; gerçek token gerekmez.
 
-## Privacy
+## TMDB ve JustWatch
 
-İzlek hesap, reklam, analytics veya cloud backend kullanmaz. Film/dizi takip
-verisi, bölüm ilerlemesi, favoriler, listeler ve metadata cache'i cihazdaki
-XDG dizinlerinde tutulur; uygulama bunları uzaktaki bir İzlek hesabına göndermez.
-TMDb sorguları yalnızca metadata gerektiğinde yapılır. TMDb tokenı sistem
-anahtarlığında saklanır; anahtarlık kullanılamazsa yalnızca kullanıcı izinli
-`$XDG_CONFIG_HOME/izlek/tmdb-token` dosyasına yazılır ve loglara, SQLite'a veya
-export dosyalarına konmaz. Taşınabilir export tokenı ve indirilebilir görsel
-cache yollarını içermez.
-
-Uzak film/dizi bilgileri, sezon/bölüm metadata'sı, sağlayıcı yanıtları ve
-kütüphaneye ait olmayan görseller 180 günlük saklama süresi sonunda temizlenir.
-Kütüphane afişleri ve arka planları yerelde korunur. Kontrol uygulama
-açılışında ve açık kaldığı sürece saatlik olarak arka planda yapılır. Takip
-durumları, bölüm ilerlemeleri, favoriler ve listeler silinmez. Süresi dolmuş
-başlıklar yeni metadata indirilene kadar `Film #42` / `Dizi #77` biçiminde
-gösterilir; temizlenen süre bilgileri istatistiklerde eksik veri sayılır.
-Geliştirme testleri ve ekran deneme betiği geçici XDG dizinleri kullanır;
-gerçek kütüphaneye ve sistem anahtarlığına erişmez.
-
-## TMDb / JustWatch attribution
-
-Film, dizi, kişi, puan ve görsel bilgileri TMDB tarafından sağlanır; takip
-durumları, favoriler ve listeler yalnızca cihazdaki İzlek verisidir. Hakkında
-ekranı TMDB'nin gerekli bildirimi olan aşağıdaki metni gösterir:
+Film, dizi, kişi, puan ve görsel verileri **TMDB** tarafından sağlanır.
+Türkiye izleme sağlayıcısı bilgileri TMDB’nin **JustWatch** ortaklığından gelir;
+uygulama ilgili ekranlarda kaynak bildirimlerini gösterir.
 
 > This product uses the TMDB API but is not endorsed or certified by TMDB.
 
-Türkiye izleme seçeneği uygunluk bilgisi JustWatch tarafından sağlanır ve
-uygulama her provider bölümünde bu attribution'ı gösterir. Provider bağlantısı
-TMDB yanıtındaki TMDB URL'sidir; İzlek bir provider veya JustWatch hizmeti
-değildir. Ayrıntılı release öncesi denetim, logo gereksinimi ve cache
-sınırları için [TMDB / JustWatch uyumluluk notuna](docs/TMDB_JUSTWATCH_COMPLIANCE.md)
-bakın.
+Ayrıntılar: [TMDB / JustWatch uyumluluk notu](docs/TMDB_JUSTWATCH_COMPLIANCE.md).
 
-## License
+## Lisans
 
-İzlek, [GNU General Public License v3 veya sonrası](LICENSE) altında
-lisanslanır. Katkılar aynı lisans koşullarıyla sunulmalıdır.
+İzlek, [GNU GPL v3 veya sonrası](LICENSE) altında yayımlanır.
+Python paket adı `izlek`, GitHub depo adı `Izlek`tir.
