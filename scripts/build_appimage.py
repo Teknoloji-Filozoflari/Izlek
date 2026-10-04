@@ -142,7 +142,7 @@ def build_appimage(appimagetool: Path, runtime_file: Path | None = None) -> Path
     architecture = platform.machine()
     if architecture != "x86_64":
         raise RuntimeError(
-            "Bu fazın glibc 2.28 constraint'i yalnız x86_64 için doğrulandı: "
+            "Bu fazın glibc 2.35 tabanı yalnız x86_64 için doğrulandı: "
             f"{architecture}"
         )
     output = PROJECT_ROOT / f"dist/Izlek-{_version()}-{architecture}.AppImage"
