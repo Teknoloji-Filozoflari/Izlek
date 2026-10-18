@@ -1,7 +1,7 @@
 """Local custom-list membership, ordering and QML navigation."""
 
 import pytest
-from PySide6.QtCore import QPointF, Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtCore import QObject, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlExpression
 from PySide6.QtQuick import QQuickItem
@@ -122,7 +122,9 @@ def test_lists_page_create_rename_add_remove_and_empty_state(tmp_path, monkeypat
     with factory.begin() as session:
         MediaRepository(session).upsert(17, MediaType.MOVIE, "Local Film")
         MediaRepository(session).upsert(17, MediaType.TV, "Local Dizi")
-    controller = CustomListsController(CustomListsService(factory))
+    from test_global_search import FakeImages
+
+    controller = CustomListsController(CustomListsService(factory), images=FakeImages())
     warnings = []
 
     def collect(kind, context, message):
@@ -153,69 +155,66 @@ def test_lists_page_create_rename_add_remove_and_empty_state(tmp_path, monkeypat
         )
         assert controller.lists[0]["name"] == "Deneme"
         assert controller.items == []
-        picker = window.findChild(QQuickItem, "listMediaPicker")
-        picker.forceActiveFocus()
+        add_button = window.findChild(QQuickItem, "addMediaToListButton")
+        add_button.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
-        QTest.qWait(100)
-        view = QQmlExpression(
-            qml_engine.rootContext(), picker, "popup.contentItem"
-        ).evaluate()[0]
+        picker = window.findChild(QObject, "mediaPickerDialog")
+        _wait_for(application, lambda: picker.property("opened"))
+        view = window.findChild(QQuickItem, "mediaPickerCandidates")
 
-        def labels(item, name="filterOptionLabel"):
+        def labels(item, name="mediaPickerOption"):
             result = [item] if item.objectName() == name else []
             for child in item.childItems():
                 result.extend(labels(child, name))
             return result
 
-        options = labels(view)
-        assert len(options) == 2
-        assert {option.property("text") for option in options} == {
+        _wait_for(application, lambda: len(labels(view)) == 2)
+        assert {option.property("text") for option in labels(view)} == {
             "Local Film · Film", "Local Dizi · Dizi"
         }
-        for option in options:
-            point = option.mapToScene(QPointF(option.width() / 2, option.height() / 2))
-            QTest.mouseMove(window, point.toPoint())
-            QTest.qWait(50)
-            assert all(label.isVisible() for label in options)
-            assert all(label.parentItem().isVisible() for label in options)
         QTest.keyClick(window, Qt.Key.Key_Escape)
+        _wait_for(application, lambda: not picker.property("visible"))
         assert window.property("currentIndex") == 3
-        search_input = window.findChild(QQuickItem, "listMediaSearchInput")
-        search_button = window.findChild(QQuickItem, "searchListMediaButton")
-        search_input.setProperty("text", "  LOCAL film  ")
-        search_button.forceActiveFocus()
+        add_button.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
+        search_input = window.findChild(QQuickItem, "listMediaSearchInput")
+        search_input.setProperty("text", "  LOCAL film  ")
         application.processEvents()
         assert [item["kind"] for item in controller.candidates] == ["movie"]
+        _wait_for(application, lambda: len(labels(view)) == 1)
+        labels(view)[0].forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        application.processEvents()
+        assert picker.property("selectionCount") == 1
         search_input.setProperty("text", "olmayan başlık")
-        search_input.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Return)
         application.processEvents()
         assert controller.candidates == []
-        add_button = window.findChild(QQuickItem, "addMediaToListButton")
-        assert not add_button.isEnabled()
-        search_input.setProperty("text", "film")
-        QTest.keyClick(window, Qt.Key.Key_Return)
-        application.processEvents()
-        add_button.forceActiveFocus()
+        assert picker.property("selectionCount") == 1
+        confirm = window.findChild(QQuickItem, "confirmAddMediaButton")
+        confirm.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
         _wait_for(
             application, lambda: len(controller.items) == 1 and not controller.busy
         )
+        _wait_for(application, lambda: not picker.property("visible"))
         _wait_for(application, lambda: bool(controller.items[0]["poster"]))
         assert controller.items[0]["kind"] == "movie"
-        assert controller.candidates == []
-        clear_button = window.findChild(QQuickItem, "clearListMediaSearchButton")
-        clear_button.forceActiveFocus()
-        QTest.keyClick(window, Qt.Key.Key_Space)
-        application.processEvents()
-        assert search_input.property("text") == ""
         assert [item["kind"] for item in controller.candidates] == ["tv"]
         media_view = window.findChild(QQuickItem, "customListMedia")
         _wait_for(application, lambda: bool(labels(media_view, "customListPoster")))
         poster = labels(media_view, "customListPoster")[0]
         ready = QQmlExpression(qml_engine.rootContext(), poster, "status === 1")
         _wait_for(application, lambda: ready.evaluate()[0])
+        status_badges = labels(media_view, "customListStatus")
+        assert status_badges[0].property("text") == "İzlenmedi"
+        with factory.begin() as session:
+            media = MediaRepository(session).get_by_tmdb(17, MediaType.MOVIE)
+            UserMediaRepository(session).set_status(media.id, TrackingStatus.WATCHED)
+        controller.refresh()
+        _wait_for(application, lambda: not controller.busy)
+        _wait_for(application, lambda: bool(labels(media_view, "customListStatus"))
+                  and labels(media_view, "customListStatus")[0].property("text")
+                  == "İzlendi")
         controller.renameList(controller.selectedId, "Yeni Ad")
         _wait_for(application, lambda: controller.lists[0]["name"] == "Yeni Ad")
         controller.removeMedia(controller.selectedId, "movie", 17)

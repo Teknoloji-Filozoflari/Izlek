@@ -32,5 +32,5 @@ ayrı kaynak veridir.
 2026-10-04: Resmî logo ve altı aylık saklama gereksinimleri yeniden kontrol
 edildi. Bu teknik uygulama hukuki onay veya kapsamlı marka sertifikasyonu
 anlamına gelmez. Kişisel kayıt koruması ve cache temizliği regresyon testleri
-[denetim raporunda](AUDIT_2026_10_04.md) yer alır. Haricî JSON yedekleri
+`tests/` altında tutulur. Haricî JSON yedekleri
 uygulamanın saatlik bakımında değiştirilmez.

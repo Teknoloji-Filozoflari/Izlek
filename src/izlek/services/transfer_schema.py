@@ -15,7 +15,7 @@ from izlek.tmdb.models import (
     TvSearchResults,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 _SQLITE_MAX_INT = 2**63 - 1
 
 
@@ -103,12 +103,19 @@ class MediaExport(MediaRef):
                 section = model.model_validate(self.metadata[key])
                 if hasattr(section, "id") and section.id != self.tmdb_id:
                     raise ValueError("Metadata kimliği medya referansıyla uyuşmuyor")
+                # Persist the validated types and defaults, not the raw JSON.
+                # For example, cast order "1" is accepted as int by Pydantic.
+                self.metadata[key] = section.model_dump(mode="json")
         return self
 
 
 class TrackingExport(MediaRef):
     status: Literal["PLANNED", "WATCHING", "WATCHED"] | None = None
     status_is_manual: bool = False
+    sort_order: int | None = Field(default=None, ge=0, le=_SQLITE_MAX_INT)
+    personal_rating: int | None = Field(default=None, ge=1, le=10)
+    personal_note: str | None = Field(default=None, max_length=2000)
+    dismissed: bool | None = None
     added_at: datetime
     updated_at: datetime
 

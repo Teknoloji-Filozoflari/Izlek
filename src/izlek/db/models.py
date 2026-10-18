@@ -6,6 +6,7 @@ from enum import StrEnum
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -81,6 +82,10 @@ class UserMedia(Base):
     """One user's status and favorite flag for a media item."""
 
     __tablename__ = "user_media"
+    __table_args__ = (CheckConstraint(
+        "personal_rating IS NULL OR personal_rating BETWEEN 1 AND 10",
+        name="ck_user_personal_rating",
+    ),)
 
     media_id: Mapped[int] = mapped_column(
         ForeignKey("media_item.id", ondelete="CASCADE"), primary_key=True
@@ -92,6 +97,14 @@ class UserMedia(Base):
         Boolean, default=False, server_default=text("0"), nullable=False
     )
     favorite: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("0"), nullable=False
+    )
+    sort_order: Mapped[int | None] = mapped_column(Integer)
+    personal_rating: Mapped[int | None] = mapped_column(Integer)
+    personal_note: Mapped[str] = mapped_column(
+        Text, default="", server_default=text("''"), nullable=False
+    )
+    dismissed: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("0"), nullable=False
     )
     added_at: Mapped[datetime] = mapped_column(

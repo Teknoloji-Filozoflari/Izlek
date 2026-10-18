@@ -8,12 +8,14 @@ Rectangle {
     id: page
     property var controller
     property string pageTitle: "Dizi Detayı"
-    readonly property bool filterPopupOpen: seasonSelector.popup.visible
+    property int mediaId: 0
+    readonly property bool filterPopupOpen: seasonSelector.popup.visible || personalReview.filterPopupOpen
     property string bulkScope: ""
     property bool bulkWatched: false
     readonly property var providerGroups: controller.detail.providers || ({})
     signal backRequested()
     signal tvSelected(int itemId)
+    signal actorSelected(int personId, string name)
     color: Tokens.Theme.background
 
     function confirmBulk(scope, watched) {
@@ -149,6 +151,13 @@ Rectangle {
                         enabled: !page.controller.saving
                         onClicked: listDialog.open()
                     }
+                    IzlekButton {
+                        objectName: "togglePersonalReviewButton"
+                        text: personalReview.expanded ? "Puan ve notu kapat" : "Puan ve not"
+                        variant: "secondary"
+                        enabled: page.mediaId > 0 && !!page.controller.detail.title
+                        onClicked: personalReview.expanded = !personalReview.expanded
+                    }
                     Item { Layout.fillWidth: true }
                     IzlekButton {
                         objectName: "removeTvFromLibrary"
@@ -164,6 +173,16 @@ Rectangle {
                     Layout.leftMargin: Tokens.Theme.spaceXl
                     text: page.controller.feedback
                     color: Tokens.Theme.accent
+                }
+                PersonalReview {
+                    id: personalReview
+                    objectName: "tvPersonalReview"
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Tokens.Theme.spaceXl
+                    Layout.rightMargin: Tokens.Theme.spaceXl
+                    kind: "tv"
+                    mediaId: page.mediaId
+                    mediaTitle: page.controller.detail.title || ""
                 }
                 EpisodeProgressBar {
                     objectName: "tvEpisodeProgress"
@@ -373,6 +392,7 @@ Rectangle {
                         Layout.fillWidth: true
                         cast: page.controller.detail.cast || []
                         photoObjectName: "tvActorPhoto"
+                        onActorActivated: function(personId, name) { page.actorSelected(personId, name) }
                     }
                     Label {
                         visible: (page.controller.detail.cast || []).length === 0

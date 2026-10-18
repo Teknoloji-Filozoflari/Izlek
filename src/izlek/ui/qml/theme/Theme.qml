@@ -47,8 +47,11 @@ QtObject {
     readonly property int sidebarExpanded: 228
     readonly property int sidebarCompact: 68
     readonly property int cardWidth: 164
+    readonly property int cardCompactWidth: 142
     readonly property int posterHeight: 246
-    readonly property int cardHeight: 324
+    readonly property int cardTitleHeight: 40
+    readonly property int cardInfoHeight: 90
+    readonly property int cardHeight: posterHeight + cardInfoHeight
     readonly property int gridGap: 14
     readonly property int controlHeight: 42
 }

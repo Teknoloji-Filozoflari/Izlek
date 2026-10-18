@@ -20,18 +20,26 @@ yanıtlarını mock'lar.
 
 ## Otomatik akış
 
-`Release Linux artifacts` workflow'u AppImage ve Debian workflow'larını
-çağırır. Her ikisi de kalite kapısını çalıştırır, AppImage/.deb artefact'ını
-üretir ve temiz Ubuntu 22.04 ile 24.04 hostlarında smoke test yapar.
+`Release desktop artifacts` workflow'u AppImage, Debian ve Windows EXE
+workflow'larını çağırır. Linux paketleri kendi kalite/açılış kontrollerinden
+geçer. Windows runner EXE'yi üretir; paketli QML, kurulum, açılış, kaldırma
+ve kişisel veriyi koruma kontrollerinden sonra artifact olarak sunar.
 
 Workflow, tag ile `pyproject.toml` sürümünün birebir eşleşmesini zorunlu tutar.
 Başarılı adımların sonunda GitHub release, sürüme ait not dosyasıyla otomatik
 oluşturulur veya aynı tag tekrar çalıştırıldıysa notlar ve asset'ler
-güncellenir. `v1.0.1` release'i şu dosyaları içerir:
+güncellenir. Linux v1.0.1 dosyaları:
 
 - `Izlek-1.0.1-x86_64.AppImage` ve SHA-256 dosyası
 - `izlek_1.0.1_amd64.deb`
 - `Izlek-1.0.1-source.tar.gz` ve SHA-256 dosyası
+
+Yeni tag yayınlarında ayrıca `Izlek-<sürüm>-windows-x64-setup.exe` ve SHA-256
+dosyası beklenir. Var olan v1.0.1 release'ine EXE'nin eklendiği doğrulanmadı.
+Tag oluşturmadan önce **Windows EXE** workflow'unun başarılı koşusunu kontrol
+edin; ilk Windows build'i bu geliştirme oturumunda çalıştırılmadı.
+Windows iş akışı kaynak/paketleme push'unda veya elle de başlatılabilir;
+[Windows rehberi](../packaging/windows/README.md) indirme adımlarını açıklar.
 
 GitHub ayrıca tag için kendi otomatik source code `.zip` ve `.tar.gz`
 bağlantılarını gösterir. Workflow'un ürettiği source archive sabit

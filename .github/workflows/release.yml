@@ -1,4 +1,4 @@
-name: Release Linux artifacts
+name: Release desktop artifacts
 
 on:
   push:
@@ -19,15 +19,18 @@ jobs:
   deb:
     uses: ./.github/workflows/deb.yml
 
+  windows:
+    uses: ./.github/workflows/windows.yml
+
   publish:
-    needs: [appimage, deb]
+    needs: [appimage, deb, windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Download verified Linux artifacts
+      - name: Download verified desktop artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: izlek-*
@@ -57,6 +60,8 @@ jobs:
             > "release-assets/Izlek-${version}-source.tar.gz.sha256"
           test -f "release-assets/Izlek-${version}-x86_64.AppImage"
           test -f "release-assets/izlek_${version}_amd64.deb"
+          test -f "release-assets/Izlek-${version}-windows-x64-setup.exe"
+          (cd release-assets && sha256sum --check "Izlek-${version}-windows-x64-setup.exe.sha256")
           find release-assets -maxdepth 1 -type f -print
       - name: Create GitHub release
         env:

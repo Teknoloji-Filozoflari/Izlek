@@ -20,7 +20,7 @@ from izlek.services.metadata_freshness import metadata_is_fresh
 from izlek.services.metadata_retention import merge_remote_metadata
 from izlek.services.provider_presentation import present_providers
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.tmdb.models import MovieDetail, MovieSearchResults, MovieVideos
+from izlek.tmdb.models import MovieCredits, MovieDetail, MovieSearchResults, MovieVideos
 
 _OPTIONAL = (
     ("credits", "movie_credits"),
@@ -145,13 +145,24 @@ class MovieDetailService:
                 "lists": selected,
                 "availableLists": [entry.name for entry in lists],
             }
-            return self._presentation(item.metadata_json, state)
+            excluded = (
+                MediaRepository(session).recommendation_excluded_ids(
+                    MediaType.MOVIE
+                )
+                if any(item.metadata_json.get(key)
+                       for key in ("similar", "recommendations")) else set()
+            )
+            return self._presentation(item.metadata_json, state, excluded)
 
     def _presentation(
-        self, blob: dict[str, Any], state: dict[str, Any]
+        self, blob: dict[str, Any], state: dict[str, Any],
+        excluded: set[int] | None = None,
     ) -> dict[str, Any]:
         detail = MovieDetail.model_validate(blob["detail"])
-        credits = blob.get("credits") or {}
+        credits = (
+            MovieCredits.model_validate(blob["credits"]).model_dump(mode="json")
+            if blob.get("credits") else {}
+        )
         videos = (
             MovieVideos.model_validate(blob["videos"])
             if blob.get("videos")
@@ -173,8 +184,9 @@ class MovieDetailService:
                     "posterPath": movie.poster_path or "",
                     "poster": "",
                 }
-                for movie in page.results[:8]
-            ]
+                for movie in page.results
+                if movie.id != detail.id and movie.id not in (excluded or set())
+            ][:8]
 
         cast = sorted(
             credits.get("cast", []), key=lambda member: member.get("order", 0)
@@ -197,6 +209,7 @@ class MovieDetailService:
             "backdrop": "",
             "cast": [
                 {
+                    "id": member.get("id", 0),
                     "name": member["name"],
                     "character": member.get("character", ""),
                     "profilePath": member.get("profile_path") or "",

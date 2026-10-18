@@ -6,12 +6,15 @@ from dataclasses import asdict
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
-from izlek.db.models import TrackingStatus
+from izlek.db.models import MediaType, TrackingStatus
 from izlek.security.token_store import TokenStore
 from izlek.services.favorites import FavoritesService
 from izlek.services.image_service import ImageService
-from izlek.services.library_common import SORT_OPTIONS, SORT_RECENT
+from izlek.services.library_common import SORT_CUSTOM, SORT_OPTIONS
+from izlek.services.library_filters import LibraryFilters
+from izlek.services.library_order import LibraryOrderService
 from izlek.services.movie_library import MovieLibraryService
+from izlek.services.personal_media import PersonalMediaService
 from izlek.services.tv_library import TvLibraryService
 from izlek.tmdb.client import TmdbClient
 from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE
@@ -23,9 +26,13 @@ class LibraryController(QObject):
     changed = Signal()
     itemsChanged = Signal()
     posterAvailable = Signal(int, str)
-    _loaded = Signal(int, object, object, object, str)
+    _loaded = Signal(int, object, object, object, object, str)
     _poster_ready = Signal(int, int, str)
     _favorite_saved = Signal(int, str)
+    _order_saved = Signal(str)
+    _batch_saved = Signal(int, str)
+    bulkCompleted = Signal(int)
+    libraryChanged = Signal()
 
     def __init__(
         self,
@@ -41,9 +48,12 @@ class LibraryController(QObject):
         self._own_images = images is None
         self._store = store or TokenStore()
         self._executor = ThreadPoolExecutor(max_workers=1)
+        self._write_executor = ThreadPoolExecutor(max_workers=1)
+        self._closed = False
+        self._reordering = False
         self._generation = 0
         self._status = TrackingStatus.PLANNED
-        self._sort_by = SORT_RECENT
+        self._sort_by = SORT_CUSTOM
         self._items: list[dict] = []
         self._favorites: list[dict] = []
         self._stats: dict[str, int] = {}
@@ -54,9 +64,137 @@ class LibraryController(QObject):
         self._load_future: Future | None = None
         self._busy = False
         self._error = ""
+        self._filters = LibraryFilters()
+        self._genres: list[str] = []
+        self._lists: list[dict] = []
+        self._batch_busy = False
         self._loaded.connect(self._apply_loaded)
         self._poster_ready.connect(self._apply_poster)
         self._favorite_saved.connect(self._apply_favorite_saved)
+        self._order_saved.connect(self._apply_order_saved)
+        self._batch_saved.connect(self._apply_batch_saved)
+
+    @Property(bool, notify=changed)
+    def filtersActive(self) -> bool:
+        return self._filters.active
+
+    @Property("QVariantMap", notify=changed)
+    def filterValues(self) -> dict:
+        return asdict(self._filters)
+
+    @Property("QStringList", notify=changed)
+    def genres(self) -> list[str]:
+        return self._genres
+
+    @Property("QVariantList", notify=changed)
+    def availableLists(self) -> list[dict]:
+        return self._lists
+
+    @Property(bool, notify=changed)
+    def batchBusy(self) -> bool:
+        return self._batch_busy
+
+    @Slot("QVariantMap")
+    def applyFilters(self, values: dict) -> None:
+        try:
+            self._filters = LibraryFilters.parse(values)
+        except (ValueError, TypeError):
+            self._error = "Filtre aralıklarını kontrol edin."
+            self.changed.emit()
+            return
+        self.refresh()
+
+    @Slot("QVariantList", str, int)
+    def batchApply(self, ids: list, action: str, list_id: int) -> None:
+        if self._closed or self._batch_busy or self._busy or not ids:
+            return
+        try:
+            selected = [int(item_id) for item_id in ids]
+        except (TypeError, ValueError):
+            return
+        self._batch_busy = True
+        self._error = ""
+        self.changed.emit()
+        self._write_executor.submit(self._save_batch, selected, action, list_id)
+
+    def _save_batch(self, ids: list[int], action: str, list_id: int) -> None:
+        try:
+            kind = "movie" if isinstance(self._service, MovieLibraryService) else "tv"
+            count = PersonalMediaService(self._service._sessions()).batch(
+                kind, ids, action, list_id
+            )
+        except (OSError, ValueError, LookupError, SQLAlchemyError) as exc:
+            message = (
+                str(exc)
+                if isinstance(exc, (ValueError, LookupError))
+                else LOCAL_DATA_UNAVAILABLE
+            )
+            self._batch_saved.emit(0, message)
+        else:
+            self._batch_saved.emit(count, "")
+
+    @Slot(int, str)
+    def _apply_batch_saved(self, count: int, error: str) -> None:
+        if self._closed:
+            return
+        self._batch_busy = False
+        if error:
+            self._error = error
+            self.changed.emit()
+        else:
+            self.bulkCompleted.emit(count)
+            self.libraryChanged.emit()
+            self.refresh()
+
+    @Property(bool, notify=changed)
+    def reordering(self) -> bool:
+        return self._reordering
+
+    @Slot(int, int)
+    def reorderMedia(self, source: int, target: int) -> None:
+        if (
+            self._closed
+            or self._busy
+            or self._reordering
+            or source == target
+            or self._filters.active
+            or self._batch_busy
+        ):
+            return
+        displayed = [item["tmdb_id"] for item in self._items]
+        if source not in displayed or target not in displayed:
+            return
+        self._reordering = True
+        self._error = ""
+        self.changed.emit()
+        self._write_executor.submit(self._save_order, source, target, displayed)
+
+    def _save_order(self, source: int, target: int, displayed: list[int]) -> None:
+        try:
+            kind = (
+                MediaType.MOVIE
+                if isinstance(self._service, MovieLibraryService)
+                else MediaType.TV
+            )
+            LibraryOrderService(self._service._sessions()).move(
+                kind, source, target, displayed
+            )
+        except (OSError, ValueError, LookupError, SQLAlchemyError):
+            self._order_saved.emit(LOCAL_DATA_UNAVAILABLE)
+        else:
+            self._order_saved.emit("")
+
+    @Slot(str)
+    def _apply_order_saved(self, error: str) -> None:
+        if self._closed:
+            return
+        self._reordering = False
+        if error:
+            self._error = error
+            self.changed.emit()
+        else:
+            self._sort_by = SORT_CUSTOM
+            self.refresh()
 
     @Property("QVariantList", notify=itemsChanged)
     def items(self) -> list[dict]:
@@ -102,6 +240,8 @@ class LibraryController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        if self._closed:
+            return
         self._generation += 1
         if self._load_future is not None:
             self._load_future.cancel()
@@ -114,7 +254,7 @@ class LibraryController(QObject):
         self._error = ""
         self.changed.emit()
         self._load_future = self._executor.submit(
-            self._load, generation, self._status, self._sort_by
+            self._load, generation, self._status, self._sort_by, self._filters
         )
 
     @Slot(int, bool)
@@ -141,29 +281,41 @@ class LibraryController(QObject):
         else:
             self.refresh()
 
-    def _load(self, generation: int, status: TrackingStatus, sort_by: str) -> None:
+    def _load(
+        self,
+        generation: int,
+        status: TrackingStatus,
+        sort_by: str,
+        filters: LibraryFilters,
+    ) -> None:
         try:
             if self._images is None:
                 self._reset_images()
-            snapshot = self._service.snapshot(None, sort_by)
+            snapshot = self._service.snapshot(None, sort_by, filters=filters)
+            options = {
+                "genres": snapshot.genres,
+                "lists": PersonalMediaService(self._service._sessions()).lists(),
+            }
         except (OSError, ValueError, SQLAlchemyError):
-            self._loaded.emit(generation, [], [], {}, LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, [], [], {}, {}, LOCAL_DATA_UNAVAILABLE)
         else:
             self._loaded.emit(
                 generation,
                 [asdict(item) for item in snapshot.items],
                 [asdict(item) for item in snapshot.favorites],
                 snapshot.stats,
+                options,
                 "",
             )
 
-    @Slot(int, object, object, object, str)
+    @Slot(int, object, object, object, object, str)
     def _apply_loaded(
         self,
         generation: int,
         items: list[dict],
         favorites: list[dict],
         stats: dict[str, int],
+        options: dict,
         error: str,
     ) -> None:
         if generation != self._generation:
@@ -173,6 +325,7 @@ class LibraryController(QObject):
         if error:
             self.changed.emit()
             return
+
         def with_poster(item: dict) -> dict:
             path, url = self._poster_urls.get(item["tmdb_id"], ("", ""))
             return {
@@ -186,6 +339,8 @@ class LibraryController(QObject):
         self._items = next_items
         self._favorites = next_favorites
         self._stats = stats
+        self._genres = options.get("genres", [])
+        self._lists = options.get("lists", [])
         self._poster_paths = {
             item["tmdb_id"]: item["poster_path"]
             for item in self._items + self._favorites
@@ -275,8 +430,10 @@ class LibraryController(QObject):
         self.posterAvailable.emit(tmdb_id, url)
 
     def close(self) -> None:
+        self._closed = True
         self.cancelPending()
         self._executor.shutdown(wait=True, cancel_futures=True)
+        self._write_executor.shutdown(wait=True)
         if self._own_images and self._images is not None:
             self._images.close()
         for images in self._retired_images:

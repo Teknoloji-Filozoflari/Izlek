@@ -6,13 +6,20 @@ GridView {
     id: grid
     property var items: []
     property var controller: null
-    readonly property int columns: Math.max(1, Math.floor(width / 154))
+    property bool compact: true
+    property bool selectionMode: false
+    property var selectedIds: []
+    readonly property int targetCardWidth: compact ? Tokens.Theme.cardCompactWidth : Tokens.Theme.cardWidth
+    readonly property real posterCardWidth: Math.min(targetCardWidth, cellWidth - Tokens.Theme.spaceSm)
+    readonly property int columns: Math.max(1, Math.floor(width / (targetCardWidth + Tokens.Theme.spaceSm)))
     signal mediaActivated(int tmdbId)
     signal favoriteToggled(int tmdbId, bool favorite)
     signal posterRequested(int tmdbId)
+    signal reorderRequested(int sourceId, int targetId)
+    signal selectionToggled(int tmdbId)
     model: items
     cellWidth: width / columns
-    cellHeight: 286
+    cellHeight: Math.round(posterCardWidth * 1.5) + Tokens.Theme.cardInfoHeight + Tokens.Theme.gridGap
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     keyNavigationEnabled: true
@@ -21,10 +28,11 @@ GridView {
         id: posterCard
         required property var modelData
         property string resolvedPoster: modelData.poster || ""
-        width: Math.min(142, grid.cellWidth - Tokens.Theme.spaceSm)
-        height: 274
+        width: grid.posterCardWidth
+        height: grid.cellHeight - Tokens.Theme.gridGap
         mediaTitle: modelData.title || ""
         year: modelData.year || ""
+        score: typeof modelData.score === "number" ? modelData.score : -1
         posterSource: resolvedPoster
         posterLoading: !resolvedPoster && !!modelData.poster_path
         Connections {
@@ -42,6 +50,21 @@ GridView {
             : modelData.progress_text || ""
         favorite: !!modelData.favorite
         favoriteEnabled: true
+        selectionEnabled: grid.selectionMode
+        selected: grid.selectedIds.indexOf(modelData.tmdb_id) >= 0
+        personalRating: modelData.personal_rating || 0
+        onSelectionToggled: grid.selectionToggled(modelData.tmdb_id)
+        reorderEnabled: !!grid.controller && !grid.controller.busy
+                        && !grid.controller.reordering && grid.items.length > 1
+                        && !grid.selectionMode && !grid.controller.filtersActive && !grid.controller.batchBusy
+        reorderView: grid
+        onReorderDropped: function(position) {
+            var point = grid.mapFromItem(null, position.x, position.y)
+            if (point.x < 0 || point.x >= grid.width || point.y < 0 || point.y >= grid.height) return
+            var index = grid.indexAt(point.x + grid.contentX, point.y + grid.contentY)
+            if (index >= 0 && index < grid.items.length)
+                grid.reorderRequested(modelData.tmdb_id, grid.items[index].tmdb_id)
+        }
         function requestPosterIfNeeded() {
             if (modelData && !modelData.poster)
                 Qt.callLater(function() {
@@ -55,7 +78,10 @@ GridView {
             requestPosterIfNeeded()
         }
         onVisibleChanged: { if (visible) requestPosterIfNeeded() }
-        onActivated: grid.mediaActivated(modelData.tmdb_id)
+        onActivated: {
+            if (grid.selectionMode) grid.selectionToggled(modelData.tmdb_id)
+            else grid.mediaActivated(modelData.tmdb_id)
+        }
         onFavoriteToggled: function(value) {
             grid.favoriteToggled(modelData.tmdb_id, value)
         }

@@ -50,6 +50,9 @@ ApplicationWindow {
     function openMediaDetail(kind, itemId) {
         if (kind !== "movie" && kind !== "tv")
             return
+        if (contentStack.currentItem.mediaId === itemId
+                && contentStack.currentItem.pageTitle === (kind === "movie" ? "Film Detayı" : "Dizi Detayı"))
+            return
         globalSearch.close()
         if (contentStack.currentItem.pageTitle === "Film Detayı")
             movieController.cancelPending()
@@ -59,18 +62,17 @@ ApplicationWindow {
                 && contentStack.currentItem.pageTitle !== "Dizi Detayı")
             cancelSectionTasks(currentIndex)
         if (kind === "movie") {
-            if (contentStack.currentItem.pageTitle === "Film Detayı")
-                contentStack.replace(movieDetailPage, StackView.Immediate)
-            else
-                contentStack.push(movieDetailPage, StackView.Immediate)
+            contentStack.push(movieDetailPage, { mediaId: itemId }, StackView.Immediate)
             movieController.loadMovie(itemId)
         } else if (kind === "tv") {
-            if (contentStack.currentItem.pageTitle === "Dizi Detayı")
-                contentStack.replace(tvDetailPage, StackView.Immediate)
-            else
-                contentStack.push(tvDetailPage, StackView.Immediate)
+            contentStack.push(tvDetailPage, { mediaId: itemId }, StackView.Immediate)
             tvController.loadTv(itemId)
         }
+    }
+
+    function openActor(personId, name, kind) {
+        window.navigate(0)
+        contentStack.currentItem.showActor(personId, name, kind)
     }
 
     function goBack() {
@@ -81,7 +83,11 @@ ApplicationWindow {
                 movieController.cancelPending()
             else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
                 tvController.cancelPending()
-            contentStack.pop(null, StackView.Immediate)
+            contentStack.pop(StackView.Immediate)
+            if (contentStack.currentItem.pageTitle === "Film Detayı")
+                movieController.loadMovie(contentStack.currentItem.mediaId)
+            else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
+                tvController.loadTv(contentStack.currentItem.mediaId)
         }
     }
 
@@ -298,9 +304,10 @@ ApplicationWindow {
         id: movieDetailPage
         MovieDetailPage {
             controller: movieController
+            onActorSelected: function(personId, name) { window.openActor(personId, name, "movie") }
             onBackRequested: window.goBack()
             onMovieSelected: function(itemId) {
-                movieController.loadMovie(itemId)
+                window.openMediaDetail("movie", itemId)
             }
         }
     }
@@ -308,8 +315,9 @@ ApplicationWindow {
         id: tvDetailPage
         TvDetailPage {
             controller: tvController
+            onActorSelected: function(personId, name) { window.openActor(personId, name, "tv") }
             onBackRequested: window.goBack()
-            onTvSelected: function(itemId) { tvController.loadTv(itemId) }
+            onTvSelected: function(itemId) { window.openMediaDetail("tv", itemId) }
         }
     }
 

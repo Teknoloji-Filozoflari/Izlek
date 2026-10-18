@@ -8,9 +8,12 @@ Rectangle {
     id: page
     property var controller
     property string pageTitle: "Film Detayı"
+    property int mediaId: 0
+    readonly property bool filterPopupOpen: personalReview.filterPopupOpen
     readonly property var providerGroups: controller.detail.providers || ({})
     signal backRequested()
     signal movieSelected(int itemId)
+    signal actorSelected(int personId, string name)
     color: Tokens.Theme.background
 
     ScrollView {
@@ -156,6 +159,13 @@ Rectangle {
                         enabled: !page.controller.saving
                         onClicked: listDialog.open()
                     }
+                    IzlekButton {
+                        objectName: "togglePersonalReviewButton"
+                        text: personalReview.expanded ? "Puan ve notu kapat" : "Puan ve not"
+                        variant: "secondary"
+                        enabled: page.mediaId > 0 && !!page.controller.detail.title
+                        onClicked: personalReview.expanded = !personalReview.expanded
+                    }
                     Item { Layout.fillWidth: true }
                     IzlekButton {
                         objectName: "removeMovieFromLibrary"
@@ -179,6 +189,14 @@ Rectangle {
                     Layout.rightMargin: Tokens.Theme.spaceXl
                     spacing: Tokens.Theme.spaceLg
 
+                    PersonalReview {
+                        id: personalReview
+                        objectName: "moviePersonalReview"
+                        Layout.fillWidth: true
+                        kind: "movie"
+                        mediaId: page.mediaId
+                        mediaTitle: page.controller.detail.title || ""
+                    }
                     SectionHeader { title: "Açıklama"; Layout.fillWidth: true }
                     Label {
                         Layout.fillWidth: true
@@ -192,6 +210,7 @@ Rectangle {
                         Layout.fillWidth: true
                         cast: page.controller.detail.cast || []
                         photoObjectName: "movieActorPhoto"
+                        onActorActivated: function(personId, name) { page.actorSelected(personId, name) }
                     }
                     Label {
                         visible: (page.controller.detail.cast || []).length === 0

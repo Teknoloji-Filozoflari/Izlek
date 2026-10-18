@@ -24,7 +24,7 @@ from izlek.services.movie_detail import _trailer_url
 from izlek.services.provider_presentation import present_providers
 from izlek.services.tv_status import TvProgress, automatic_status
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.tmdb.models import MovieVideos, TvDetail, TvSearchResults
+from izlek.tmdb.models import MovieCredits, MovieVideos, TvDetail, TvSearchResults
 
 _OPTIONAL = (
     ("credits", "tv_credits"),
@@ -221,9 +221,19 @@ class TvDetailService:
             available_lists = list_repo.list_all()
             selected_lists = list_repo.list_names_for_media(media.id)
             progress, counts = self._progress(session, media.id, detail)
-            credits = blob.get("credits") or {}
+            credits = (
+                MovieCredits.model_validate(blob["credits"]).model_dump(mode="json")
+                if blob.get("credits") else {}
+            )
             region = (blob.get("providers") or {}).get("results", {}).get("TR", {})
             groups, provider_link = present_providers(region)
+            excluded = (
+                MediaRepository(session).recommendation_excluded_ids(
+                    MediaType.TV
+                )
+                if any(blob.get(key) for key in ("similar", "recommendations"))
+                else set()
+            )
 
             def related(key: str) -> list[dict[str, Any]]:
                 if not blob.get(key):
@@ -237,8 +247,9 @@ class TvDetailService:
                         "posterPath": item.poster_path or "",
                         "poster": "",
                     }
-                    for item in TvSearchResults.model_validate(blob[key]).results[:8]
-                ]
+                    for item in TvSearchResults.model_validate(blob[key]).results
+                    if item.id != tv_id and item.id not in excluded
+                ][:8]
 
             videos = (
                 MovieVideos.model_validate(blob["videos"])
@@ -262,6 +273,7 @@ class TvDetailService:
                 "creators": [person.name for person in detail.created_by],
                 "cast": [
                     {
+                        "id": person.get("id", 0),
                         "name": person["name"],
                         "character": person.get("character", ""),
                         "profilePath": person.get("profile_path") or "",

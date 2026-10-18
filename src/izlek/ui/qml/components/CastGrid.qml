@@ -4,21 +4,32 @@ import QtQuick.Layouts
 import "../theme" as Tokens
 
 Flow {
+    id: grid
     property var cast: []
+    signal actorActivated(int personId, string name)
     property string photoObjectName: "actorPhoto"
     spacing: Tokens.Theme.spaceMd
     Repeater {
         model: cast
-        Rectangle {
+        Button {
+            id: actorCard
+            objectName: "castActorCard"
             required property var modelData
             width: 128
             height: 240
-            color: Tokens.Theme.surface
-            radius: Tokens.Theme.radiusMd
-            border.color: Tokens.Theme.border
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Tokens.Theme.spaceSm
+            padding: Tokens.Theme.spaceSm
+            enabled: modelData.id > 0
+            hoverEnabled: true
+            focusPolicy: Qt.StrongFocus
+            Accessible.name: modelData.name + " yapımlarını göster"
+            onClicked: grid.actorActivated(modelData.id, modelData.name)
+            background: Rectangle {
+                color: actorCard.hovered ? Tokens.Theme.surfaceElevated : Tokens.Theme.surface
+                radius: Tokens.Theme.radiusMd
+                border.color: actorCard.activeFocus ? Tokens.Theme.accent : Tokens.Theme.border
+                border.width: actorCard.activeFocus ? 2 : 1
+            }
+            contentItem: ColumnLayout {
                 spacing: Tokens.Theme.spaceXs
                 Rectangle {
                     Layout.fillWidth: true
@@ -64,6 +75,8 @@ Flow {
                 }
                 Item { Layout.fillHeight: true }
             }
+            ToolTip.visible: hovered
+            ToolTip.text: modelData.name + " · Oynadığı yapımları göster"
         }
     }
 }

@@ -150,7 +150,7 @@ def test_library_controls_restore_current_controller_filters():
         sort = window.findChild(QQuickItem, "movieSort")
         assert tabs.property("currentIndex") == 2
         assert not tabs.isVisible()
-        assert sort.property("currentIndex") == 2
+        assert sort.property("currentIndex") == 3
     finally:
         window.close()
         application.processEvents()

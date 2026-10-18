@@ -118,7 +118,7 @@ Popup {
                              && overlay.controller.shows.length === 0
                     Layout.fillWidth: true
                     title: "Sonuç bulunamadı"
-                    description: "Başka bir adla tekrar arayın."
+                    description: "Kaydettiğin ve izlediğin içerikler gizlenir. Başka bir adla tekrar arayın."
                 }
                 EmptyState {
                     visible: !!overlay.controller.error

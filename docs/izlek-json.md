@@ -9,7 +9,7 @@ dosya SQLite dosya yolundan ve kurulumdan bağımsız kalır.
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "exported_at": "2026-10-03T18:00:00Z",
   "app_version": "0.1.0",
   "media": [],
@@ -21,7 +21,8 @@ dosya SQLite dosya yolundan ve kurulumdan bağımsız kalır.
 ```
 
 - `media`: Film/dizi metadata'sı; dizilerde sezon ve bölüm metadata'sı iç içedir.
-- `tracking`: Durum, manuel seçim bilgisi ve yerel zaman damgaları.
+- `tracking`: Durum, manuel seçim bilgisi, `sort_order` kart sırası,
+  `personal_rating`, `personal_note`, `dismissed` ve yerel zaman damgaları.
 - `episodes`: İzlenen bölüm durumu ve izlenme zamanı.
 - `favorites`: Durumdan bağımsız favori medya referansları.
 - `lists`: Özel listeler, sıraları ve medya üyelikleri.
@@ -39,6 +40,13 @@ import tek SQLite transaction içinde uygulanır.
 - Aynı `media_type + tmdb_id` tek medya olarak birleştirilir.
 - Metadata için daha yeni `last_synced_at` korunur.
 - Takip durumunda daha yeni `updated_at` esas alınır.
+- Kişisel puan (1–10 veya `null`), not (en fazla 2000 karakter) ve öneri
+  gizleme tercihi, kabul edilen takip kaydıyla birlikte birleştirilir.
+  Yeni yedekte `null` puan, boş not ve `false` gizleme açık temizleme anlamına
+  gelir. Eski yedekte olmayan alanlar mevcut kişisel veriyi silmez.
+- Film/dizi kartlarının özel sırası `tracking.sort_order` ile taşınır. Alan
+  sıfırdan başlayan konum veya `null` olabilir. Eski yedekte alan yoksa yerel
+  özel sıra silinmez; dolu gelen sıra, kabul edilen takip kaydıyla birlikte alınır.
 - Favoriler birleşim olarak ele alınır; import mevcut favoriyi kaldırmaz.
 - İzlenmiş bölüm tekrar import ile izlenmemişe dönmez ve en yeni `watched_at`
   korunur.
@@ -52,3 +60,12 @@ import tek SQLite transaction içinde uygulanır.
 tablosundan güncel şemaya dönüştürüldükten sonra doğrulanır. Yeni sürüm eklerken
 önceki sürümden saf JSON sözlüğü dönüşümü eklenmeli; mevcut sürümün Pydantic
 modeli yalnızca güncel belgeyi temsil etmelidir.
+
+Sürüm 2, film/dizi kütüphanesinin özel kart sırasını ekler. Sürüm 1 yedekleri
+otomatik dönüştürülür; sıra bilgisi olmayan kayıtlar mevcut eklenme tarihi
+sırasını kullanır. Yalnız sürüm 1 destekleyen eski İzlek kurulumları sürüm 2
+yedeklerini okuyamaz.
+
+Sürüm 3 kişisel puan/not ve öneri gizleme tercihini ekler. Sürüm 1 ve 2
+okunur; eksik kişisel alanlar korunur. Eski İzlek sürümleri sürüm 3 yedeklerini
+okuyamaz. Kişisel notların da JSON içinde bulunduğunu dışa aktarırken dikkate al.

@@ -155,7 +155,7 @@ def test_export_import_round_trip_preserves_equivalent_user_state(tmp_path):
             "favorites",
             "lists",
         }
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 3
         assert "export-edilmemeli" not in raw
         assert "/tmp/private-cache" not in raw
         assert report["media"] == 2

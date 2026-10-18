@@ -19,6 +19,7 @@ from PySide6.QtTest import QTest
 
 from izlek.app import create_application
 from izlek.security.token_store import StoredToken
+from izlek.services.content_visibility import ContentVisibilityService
 from izlek.tmdb.client import NetworkError
 from izlek.tmdb.models import MovieDetail, MovieSearchResults, TvSearchResults
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
@@ -187,12 +188,17 @@ def qapp(monkeypatch):
     return QGuiApplication.instance() or QGuiApplication([])
 
 
-def test_controller_separates_media_and_ignores_stale_results(qapp):
+def test_controller_separates_media_and_ignores_stale_results(
+    qapp, initialized_factory
+):
     tmdb = FakeTmdb()
     tmdb.block_old = Event()
     with ThreadPoolExecutor(max_workers=4) as executor:
         controller = SearchController(
-            client=tmdb, images=FakeImages(), executor=executor
+            client=tmdb,
+            images=FakeImages(),
+            executor=executor,
+            visibility=ContentVisibilityService(initialized_factory),
         )
         try:
             controller.search("ab")
@@ -220,10 +226,14 @@ def test_controller_separates_media_and_ignores_stale_results(qapp):
             controller.close()
 
 
-def test_controller_explains_offline_failure(qapp):
+def test_controller_explains_offline_failure(qapp, initialized_factory):
     tmdb = FakeTmdb()
     tmdb.offline = True
-    controller = SearchController(client=tmdb, images=FakeImages())
+    controller = SearchController(
+        client=tmdb,
+        images=FakeImages(),
+        visibility=ContentVisibilityService(initialized_factory),
+    )
     try:
         controller.search("offline")
         wait_for(qapp, lambda: not controller.busy)
@@ -362,13 +372,17 @@ def test_home_quick_add_without_detail_or_losing_query(qapp, kind, tmp_path):
     from izlek.db.engine import create_session_factory, initialize_database
     from izlek.db.models import MediaType, TrackingStatus
     from izlek.repositories.local import MediaRepository, UserMediaRepository
+    from izlek.services.content_visibility import ContentVisibilityService
     from izlek.services.quick_library import QuickLibraryService
     from izlek.ui.controllers.quick_library_controller import QuickLibraryController
 
     database = initialize_database(tmp_path / "quick.sqlite3")
     factory = create_session_factory(database)
     quick = QuickLibraryController(QuickLibraryService(factory))
-    search = SearchController(client=FakeTmdb(), images=FakeImages())
+    search = SearchController(
+        client=FakeTmdb(), images=FakeImages(),
+        visibility=ContentVisibilityService(factory),
+    )
     application, engine, window = create_application(
         token_controller=TokenController(store=ExistingTokenStore()),
         search_controller=search, quick_library_controller=quick,
@@ -396,8 +410,7 @@ def test_home_quick_add_without_detail_or_losing_query(qapp, kind, tmp_path):
             button.forceActiveFocus()
             QTest.keyClick(window, Qt.Key.Key_Space)
         wait_for(application, lambda: quick.states.get(key) == "added")
-        assert button.property("text") == "✓ Kütüphanede"
-        assert not button.property("enabled")
+        wait_for(application, lambda: not (search.movies or search.shows))
         assert field.property("text") == "series"
         assert window.property("currentIndex") == 0
         assert window.findChild(QQuickItem, "contentStack").property("depth") == 1
@@ -410,13 +423,10 @@ def test_home_quick_add_without_detail_or_losing_query(qapp, kind, tmp_path):
                 TrackingStatus.PLANNED if kind == "movie" else TrackingStatus.WATCHING
             )
             assert (media.poster_path or "") == item["posterPath"]
-        # Searching again keeps the added marker without opening a detail page.
+        # Saved results stay hidden on the next search as well.
         search.search("series")
-        wait_for(application, lambda: not search.busy
-                 and bool(search.movies or search.shows))
-        QTest.qWait(100)
-        button = find_visual(grid.property("currentItem"), "quickLibraryAdd")
-        assert button.property("text") == "✓ Kütüphanede"
+        wait_for(application, lambda: not search.busy)
+        assert not (search.movies or search.shows)
     finally:
         window.close()
         quick.close()
@@ -532,10 +542,18 @@ def test_home_left_media_choice_repeats_existing_query(qapp):
         application.processEvents()
 
 
-def test_search_category_change_discards_inflight_results(qapp):
+def test_search_category_change_discards_inflight_results(qapp, tmp_path):
+    from izlek.db.engine import create_session_factory, initialize_database
+    from izlek.services.content_visibility import ContentVisibilityService
+
+    # Measure request invalidation independently of first-run Alembic setup.
+    database = initialize_database(tmp_path / "search-race.sqlite3")
     tmdb = FakeTmdb()
     tmdb.block_old = Event()
-    search = SearchController(client=tmdb, images=FakeImages())
+    search = SearchController(
+        client=tmdb, images=FakeImages(),
+        visibility=ContentVisibilityService(create_session_factory(database)),
+    )
     try:
         search.search("old")
         wait_for(qapp, lambda: len(tmdb.calls) == 2)
@@ -557,3 +575,4 @@ def test_search_category_change_discards_inflight_results(qapp):
     finally:
         tmdb.block_old.set()
         search.close()
+        database.dispose()

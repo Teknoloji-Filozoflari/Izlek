@@ -8,7 +8,7 @@ Rectangle {
     id: page
     property string pageTitle: "Listeler"
     property var controller
-    readonly property bool filterPopupOpen: mediaPicker.popup.visible
+    readonly property bool filterPopupOpen: mediaPicker.visible
     signal mediaSelected(string kind, int tmdbId)
     color: Tokens.Theme.background
 
@@ -75,6 +75,23 @@ Rectangle {
                             radius: Tokens.Theme.radiusSm
                         }
                         contentItem: RowLayout {
+                            ReorderHandle {
+                                id: listHandle
+                                objectName: "listReorderHandle"
+                                enabled: !controller.busy
+                                label: modelData.name
+                                onDropped: function(position) {
+                                    var point = listsView.mapFromItem(null, position.x, position.y)
+                                    if (point.y < 0 || point.y >= listsView.height) return
+                                    var target = listsView.indexAt(point.x + listsView.contentX, point.y + listsView.contentY)
+                                    if (target >= 0) controller.reorderList(modelData.id, controller.lists[target].id)
+                                }
+                                ReorderAutoScroll {
+                                    view: listsView
+                                    active: listHandle.dragging
+                                    scenePosition: listHandle.scenePosition
+                                }
+                            }
                             Label {
                                 Layout.fillWidth: true
                                 text: modelData.name + " (" + modelData.count + ")"
@@ -142,68 +159,21 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: controller.selectedId > 0
-                    TextField {
-                        id: mediaSearchInput
-                        objectName: "listMediaSearchInput"
-                        Layout.fillWidth: true
-                        placeholderText: "Kütüphanede başlığa göre ara"
-                        Accessible.name: "Kütüphanede medya ara"
-                        color: Tokens.Theme.textPrimary
-                        onAccepted: controller.searchCandidates(text)
-                        background: Rectangle {
-                            color: Tokens.Theme.surfaceElevated
-                            radius: Tokens.Theme.radiusSm
-                            border.color: mediaSearchInput.activeFocus
-                                          ? Tokens.Theme.accent : Tokens.Theme.border
-                        }
-                    }
-                    IzlekButton {
-                        objectName: "searchListMediaButton"
-                        text: "Ara"
-                        enabled: !controller.busy
-                        onClicked: controller.searchCandidates(mediaSearchInput.text)
-                    }
-                    IzlekButton {
-                        objectName: "clearListMediaSearchButton"
-                        text: "Temizle"
-                        variant: "secondary"
-                        onClicked: {
-                            mediaSearchInput.clear()
-                            controller.searchCandidates("")
-                        }
-                    }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: controller.selectedId > 0
-                    FilterComboBox {
-                        id: mediaPicker
-                        objectName: "listMediaPicker"
-                        Layout.fillWidth: true
-                        model: controller.candidates
-                        textRole: "display_title"
-                        enabled: count > 0 && !controller.busy
-                        Accessible.name: "Yerel medya seç"
-                    }
                     IzlekButton {
                         objectName: "addMediaToListButton"
-                        text: "Medya Ekle"
-                        enabled: mediaPicker.currentIndex >= 0
-                                 && mediaPicker.count > 0 && !controller.busy
+                        text: "+ İçerik Ekle"
+                        enabled: !controller.busy
                         onClicked: {
-                            var item = controller.candidates[mediaPicker.currentIndex]
-                            if (item) controller.addMedia(controller.selectedId,
-                                                          item.kind, item.tmdb_id)
+                            mediaPicker.listId = controller.selectedId
+                            mediaPicker.open()
                         }
                     }
-                }
-                Label {
-                    visible: controller.selectedId > 0
-                             && controller.candidates.length === 0
-                    text: "Eklenebilecek içerik bulunamadı. Aramayı temizle veya kütüphanene içerik ekle."
-                    color: Tokens.Theme.textMuted
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Tutamaçları sürükleyerek sırala"
+                        color: Tokens.Theme.textMuted
+                        elide: Text.ElideRight
+                    }
                 }
                 Label {
                     visible: !!controller.error
@@ -242,6 +212,27 @@ Rectangle {
                             anchors.fill: parent
                             anchors.margins: Tokens.Theme.spaceSm
                             spacing: Tokens.Theme.spaceSm
+                            ReorderHandle {
+                                id: mediaHandle
+                                objectName: "listMediaReorderHandle"
+                                enabled: !controller.busy
+                                label: modelData.title
+                                onDropped: function(position) {
+                                    var point = mediaView.mapFromItem(null, position.x, position.y)
+                                    if (point.y < 0 || point.y >= mediaView.height) return
+                                    var target = mediaView.indexAt(point.x + mediaView.contentX, point.y + mediaView.contentY)
+                                    if (target >= 0) {
+                                        var item = controller.items[target]
+                                        controller.reorderMedia(controller.selectedId, modelData.kind,
+                                            modelData.tmdb_id, item.kind, item.tmdb_id)
+                                    }
+                                }
+                                ReorderAutoScroll {
+                                    view: mediaView
+                                    active: mediaHandle.dragging
+                                    scenePosition: mediaHandle.scenePosition
+                                }
+                            }
                             Image {
                                 objectName: "customListPoster"
                                 Layout.preferredWidth: 36
@@ -266,6 +257,13 @@ Rectangle {
                                     verticalAlignment: Text.AlignVCenter
                                 }
                                 background: Item {}
+                            }
+                            Badge {
+                                objectName: "customListStatus"
+                                text: modelData.status_label || "İzlenmedi"
+                                tone: modelData.watched ? "success"
+                                      : modelData.status === "WATCHING" ? "accent" : "neutral"
+                                Accessible.name: modelData.title + ": " + text
                             }
                             IzlekButton {
                                 text: "↑"
@@ -304,6 +302,11 @@ Rectangle {
         }
     }
 
+    MediaPickerDialog {
+        id: mediaPicker
+        controller: page.controller
+    }
+
     function selectedName() {
         for (var i = 0; i < controller.lists.length; i++)
             if (controller.lists[i].id === controller.selectedId)
@@ -330,12 +333,11 @@ Rectangle {
         onOpened: nameInput.forceActiveFocus()
         contentItem: ColumnLayout {
             spacing: Tokens.Theme.spaceMd
-            TextField {
+            FilterTextField {
                 id: nameInput
                 objectName: "listNameInput"
                 Layout.fillWidth: true
                 placeholderText: "Liste adı"
-                color: Tokens.Theme.textPrimary
                 maximumLength: 200
                 onAccepted: nameDialog.save()
             }

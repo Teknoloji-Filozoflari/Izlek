@@ -5,12 +5,15 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.security.token_store import TokenStore
+from izlek.services.content_visibility import ContentVisibilityService
+from izlek.services.director_search import DirectorSearchService
 from izlek.services.image_service import ImageService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
 from izlek.tmdb.models import MovieSummary, TvSummary
-from izlek.ui.controllers.messages import NETWORK_UNAVAILABLE
+from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE, NETWORK_UNAVAILABLE
 
 
 def _local_url(path: Path) -> str:
@@ -28,6 +31,8 @@ class SearchController(QObject):
     _posterReady = Signal(int, str, int, str)
     _detailFinished = Signal(int, object, str)
     _detailPosterReady = Signal(int, str)
+    _visibilityReady = Signal(int, object, object, str)
+    _directorsReady = Signal(int, object, str)
 
     def __init__(
         self,
@@ -36,9 +41,13 @@ class SearchController(QObject):
         images: ImageService | None = None,
         executor: ThreadPoolExecutor | None = None,
         parent: QObject | None = None,
+        visibility: ContentVisibilityService | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store or TokenStore()
+        self._visibility = visibility or ContentVisibilityService()
+        self._excluded: dict[str, set[int]] = {}
+        self._closed = False
         self._client = client
         self._images = images
         self._retired_images: list[ImageService] = []
@@ -50,6 +59,13 @@ class SearchController(QObject):
         self._futures: list[Future[Any]] = []
         self._movies: list[dict[str, Any]] = []
         self._shows: list[dict[str, Any]] = []
+        self._directors: list[dict] = []
+        self._director: dict = {}
+        self._person_role = "director"
+        self._person_kind = ""
+        self._person_items: list[dict] = []
+        self._include_saved = False
+        self._local_statuses: dict[str, dict[int, str]] = {}
         self._pending: set[str] = set()
         self._errors: dict[str, str] = {}
         self._error = ""
@@ -62,6 +78,8 @@ class SearchController(QObject):
         self._posterReady.connect(self._apply_poster)
         self._detailFinished.connect(self._apply_detail)
         self._detailPosterReady.connect(self._apply_detail_poster)
+        self._visibilityReady.connect(self._apply_visibility)
+        self._directorsReady.connect(self._apply_directors)
         if client is None:
             self.refresh_token()
 
@@ -72,6 +90,41 @@ class SearchController(QObject):
     @Property("QVariantList", notify=resultsChanged)
     def shows(self) -> list[dict[str, Any]]:
         return self._shows
+
+    @Property("QVariantList", notify=resultsChanged)
+    def directors(self) -> list[dict]:
+        return self._directors
+
+    @Property("QVariantMap", notify=resultsChanged)
+    def selectedDirector(self) -> dict:
+        return self._director
+
+    @Property("QVariantList", notify=resultsChanged)
+    def people(self) -> list[dict]:
+        return self._directors
+
+    @Property("QVariantMap", notify=resultsChanged)
+    def selectedPerson(self) -> dict:
+        return self._director
+
+    @Property(bool, notify=resultsChanged)
+    def includeSaved(self) -> bool:
+        return self._include_saved
+
+    @Slot(bool)
+    def setIncludeSaved(self, include: bool) -> None:
+        """Change only person results; retain the complete fetched filmography."""
+        if self._closed or not self._director or include == self._include_saved:
+            return
+        self._include_saved = include
+        self._publish_person_items()
+
+    def _publish_person_items(self) -> None:
+        items = [item for item in self._person_items
+                 if self._include_saved or not item.get("saved")]
+        self._movies = items if self._person_kind == "movie" else []
+        self._shows = items if self._person_kind == "tv" else []
+        self.resultsChanged.emit()
 
     @Property(bool, notify=stateChanged)
     def busy(self) -> bool:
@@ -124,13 +177,22 @@ class SearchController(QObject):
     @Slot(str)
     def search(self, query: str) -> None:
         """Start movie and TV searches for a debounced query."""
+        if self._closed:
+            return
         self._generation += 1
         for future in self._futures:
             future.cancel()
         self._futures.clear()
         self._movies = []
         self._shows = []
+        self._directors = []
+        self._director = {}
+        self._person_items = []
+        self._person_kind = ""
+        self._include_saved = False
+        self._local_statuses = {}
         self._errors = {}
+        self._excluded = {}
         self._error = ""
         self._pending = set()
         self._busy = False
@@ -157,6 +219,131 @@ class SearchController(QObject):
             )
             self._futures.append(future)
 
+    @Slot(str)
+    def searchDirectors(self, query: str) -> None:
+        """Resolve names on a worker before requesting directing credits."""
+        self.searchPeople(query, "director")
+
+    @Slot(str, str)
+    def searchPeople(self, query: str, role: str) -> None:
+        """Search acting or directing names without changing title-search rules."""
+        if role not in ("actor", "director"):
+            return
+        if self._closed:
+            return
+        self.search("")
+        self._person_role = role
+        if len(query.strip()) < 3:
+            return
+        if self._client is None:
+            self._error = "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin."
+            self.stateChanged.emit()
+            return
+        self._pending = {"person"}
+        self._busy = True
+        self.stateChanged.emit()
+        self._futures.append(self._executor.submit(
+            self._find_directors, self._generation, query.strip(), self._client, role
+        ))
+
+    def _find_directors(
+        self, generation: int, query: str, client: TmdbClient, role: str = "director"
+    ) -> None:
+        try:
+            people = DirectorSearchService(client).search(query, role)
+        except NetworkError:
+            self._directorsReady.emit(generation, [], NETWORK_UNAVAILABLE)
+        except (TMDbError, OSError, ValueError):
+            self._directorsReady.emit(
+                generation, [], "Kişi araması tamamlanamadı. Tekrar deneyin."
+            )
+        else:
+            self._directorsReady.emit(generation, people, "")
+
+    @Slot(int, object, str)
+    def _apply_directors(self, generation: int, people: list[dict], error: str) -> None:
+        if self._closed or generation != self._generation:
+            return
+        self._directors = people
+        self._pending.clear()
+        self._busy = False
+        self._error = error
+        self.resultsChanged.emit()
+        self.stateChanged.emit()
+
+    @Slot(int, str)
+    def selectDirector(self, person_id: int, kind: str) -> None:
+        self.selectPerson(person_id, kind, "director")
+
+    @Slot(int, str, str)
+    def selectPerson(self, person_id: int, kind: str, role: str) -> None:
+        if role not in ("actor", "director"):
+            return
+        if self._closed or kind not in ("movie", "tv") or self._client is None:
+            return
+        person = next((row for row in self._directors if row["id"] == person_id), None)
+        if person is None:
+            return
+        people = self._directors
+        include_saved = (self._include_saved if self._director == person
+                         and self._person_role == role else False)
+        self.search("")
+        self._directors = people
+        self._director = person
+        self._person_role = role
+        self._person_kind = kind
+        self._include_saved = include_saved
+        if self._images is None:
+            self._images = ImageService(self._client)
+        self._pending = {kind}
+        self._busy = True
+        self.resultsChanged.emit()
+        self.stateChanged.emit()
+        self._futures.append(self._executor.submit(
+            self._directed_works, self._generation, person_id, kind,
+            self._client, self._images, role
+        ))
+
+    @Slot(int, str, str)
+    def openActor(self, person_id: int, name: str, kind: str) -> None:
+        """Open an exact cast identity without a name lookup or ambiguous match."""
+        if (self._closed or person_id <= 0 or not name.strip()
+                or kind not in ("movie", "tv")):
+            return
+        self.search("")
+        if self._client is None:
+            self._error = "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin."
+            self.stateChanged.emit()
+            return
+        self._directors = [{"id": person_id, "name": name.strip()}]
+        self.selectPerson(person_id, kind, "actor")
+
+    def _directed_works(
+        self, generation: int, person_id: int, kind: str,
+        client: TmdbClient, images: ImageService, role: str = "director",
+    ) -> None:
+        try:
+            works = DirectorSearchService(client).works(person_id, kind, role)
+            local = self._visibility.snapshot(kind)
+            items = [{
+                **self._summary(item, kind, images), "score": item.vote_average,
+                "saved": item.id in local["excluded"],
+                "status": local["statuses"].get(
+                    item.id, "SAVED" if item.id in local["excluded"] else ""
+                ),
+            } for item in works]
+        except NetworkError:
+            self._searchFinished.emit(generation, kind, [], NETWORK_UNAVAILABLE)
+        except TMDbError:
+            self._searchFinished.emit(
+                generation, kind, [],
+                "Kişinin yapımları yüklenemedi. Tekrar deneyin."
+            )
+        except (OSError, ValueError, SQLAlchemyError):
+            self._searchFinished.emit(generation, kind, [], LOCAL_DATA_UNAVAILABLE)
+        else:
+            self._searchFinished.emit(generation, kind, items, "")
+
     @Slot()
     def clear(self) -> None:
         """Invalidate requests when the overlay closes."""
@@ -179,7 +366,9 @@ class SearchController(QObject):
                 if kind == "movie"
                 else client.search_tv(query)
             )
-            items = [self._summary(item, kind, images) for item in page.results]
+            excluded = self._visibility.excluded_ids(kind)
+            items = [self._summary(item, kind, images) for item in page.results
+                     if item.id not in excluded]
         except NetworkError:
             self._searchFinished.emit(
                 generation,
@@ -191,6 +380,8 @@ class SearchController(QObject):
             self._searchFinished.emit(
                 generation, kind, [], "TMDb araması tamamlanamadı. Tekrar deneyin."
             )
+        except (OSError, ValueError, SQLAlchemyError):
+            self._searchFinished.emit(generation, kind, [], LOCAL_DATA_UNAVAILABLE)
         else:
             self._searchFinished.emit(generation, kind, items, "")
 
@@ -215,10 +406,20 @@ class SearchController(QObject):
     ) -> None:
         if generation != self._generation:
             return
-        if kind == "movie":
-            self._movies = items
+        person_results = bool(self._director) and kind == self._person_kind
+        if person_results:
+            if kind in self._excluded:
+                items = self._update_person_states(items, kind)
+            self._person_items = items
+            self._publish_person_items()
         else:
-            self._shows = items
+            items = [item for item in items
+                     if item["id"] not in self._excluded.get(kind, set())]
+        if not person_results:
+            if kind == "movie":
+                self._movies = items
+            else:
+                self._shows = items
         self._errors[kind] = error
         self._pending.discard(kind)
         self._busy = bool(self._pending)
@@ -237,6 +438,64 @@ class SearchController(QObject):
                 self._poster_finished(done, generation, kind, item["id"])
             )
 
+    @Slot()
+    def refresh_visibility(self) -> None:
+        """Hide newly saved results without repeating the remote search."""
+        if not self._closed:
+            self._executor.submit(
+                self._read_visibility, self._generation, bool(self._director)
+            )
+
+    def _read_visibility(self, generation: int, person_results: bool = False) -> None:
+        statuses = {}
+        try:
+            if person_results:
+                snapshots = {kind: self._visibility.snapshot(kind)
+                             for kind in ("movie", "tv")}
+                excluded = {kind: snapshot["excluded"]
+                            for kind, snapshot in snapshots.items()}
+                statuses = {kind: snapshot["statuses"]
+                            for kind, snapshot in snapshots.items()}
+            else:
+                excluded = {kind: self._visibility.excluded_ids(kind)
+                            for kind in ("movie", "tv")}
+        except (OSError, ValueError, SQLAlchemyError):
+            self._visibilityReady.emit(generation, {}, {}, LOCAL_DATA_UNAVAILABLE)
+        else:
+            self._visibilityReady.emit(generation, excluded, statuses, "")
+
+    @Slot(int, object, object, str)
+    def _apply_visibility(
+        self, generation: int, excluded: dict, statuses: dict, error: str
+    ) -> None:
+        if self._closed or generation != self._generation:
+            return
+        if error:
+            self._error = error
+            self.stateChanged.emit()
+            return
+        self._excluded = excluded
+        self._local_statuses = statuses
+        if self._director:
+            self._person_items = self._update_person_states(
+                self._person_items, self._person_kind
+            )
+            self._publish_person_items()
+            return
+        self._movies = [item for item in self._movies
+                        if item["id"] not in excluded["movie"]]
+        self._shows = [item for item in self._shows
+                       if item["id"] not in excluded["tv"]]
+        self.resultsChanged.emit()
+
+    def _update_person_states(self, items: list[dict], kind: str) -> list[dict]:
+        excluded = self._excluded.get(kind, set())
+        statuses = self._local_statuses.get(kind, {})
+        return [{**item, "saved": item["id"] in excluded,
+                 "status": statuses.get(
+                     item["id"], "SAVED" if item["id"] in excluded else ""
+                 )} for item in items]
+
     def _poster_finished(
         self, future: Future, generation: int, kind: str, item_id: int
     ) -> None:
@@ -251,6 +510,13 @@ class SearchController(QObject):
     @Slot(int, str, int, str)
     def _apply_poster(self, generation: int, kind: str, item_id: int, url: str) -> None:
         if generation != self._generation:
+            return
+        if self._director and kind == self._person_kind:
+            self._person_items = [
+                {**item, "poster": url} if item["id"] == item_id else item
+                for item in self._person_items
+            ]
+            self._publish_person_items()
             return
         source = self._movies if kind == "movie" else self._shows
         for index, item in enumerate(source):
@@ -352,6 +618,7 @@ class SearchController(QObject):
 
     def close(self) -> None:
         """Release background resources at application shutdown."""
+        self._closed = True
         self._generation += 1
         self._detail_generation += 1
         for future in self._futures:
@@ -364,3 +631,4 @@ class SearchController(QObject):
         for images in self._retired_images:
             images.close()
         self._retired_images.clear()
+        self._visibility.close()

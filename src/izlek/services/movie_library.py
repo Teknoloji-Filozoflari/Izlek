@@ -1,6 +1,6 @@
 """Offline movie library filtering, sorting, favorites and statistics."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from sqlalchemy import Engine
@@ -16,6 +16,7 @@ from izlek.services.library_common import (
     sort_items,
     status_counts,
 )
+from izlek.services.library_filters import LibraryFilters, cached_genres, cached_runtime
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,10 @@ class MovieLibraryItem:
     status: str
     favorite: bool
     added_at: datetime
+    sort_order: int | None = None
+    genres: tuple[str, ...] = ()
+    runtime: int | None = None
+    personal_rating: int | None = None
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,7 @@ class MovieLibrarySnapshot:
     items: list[MovieLibraryItem]
     favorites: list[MovieLibraryItem]
     stats: dict[str, int]
+    genres: list[str] = field(default_factory=list)
 
 
 def _item(media: MediaItem, user: UserMedia) -> MovieLibraryItem:
@@ -47,6 +53,10 @@ def _item(media: MediaItem, user: UserMedia) -> MovieLibraryItem:
         status=user.status.value if user.status else "",
         favorite=user.favorite,
         added_at=user.added_at,
+        sort_order=user.sort_order,
+        genres=cached_genres(media),
+        runtime=cached_runtime(media),
+        personal_rating=user.personal_rating,
     )
 
 
@@ -67,6 +77,8 @@ class MovieLibraryService:
         self,
         status: TrackingStatus | None = TrackingStatus.PLANNED,
         sort_by: str = SORT_RECENT,
+        *,
+        filters: LibraryFilters | None = None,
     ) -> MovieLibrarySnapshot:
         """Return one status grid plus favorites and all tracked movie counts."""
         if sort_by not in SORT_OPTIONS:
@@ -81,14 +93,21 @@ class MovieLibraryService:
             ]
         tracked = [item for item in entries if item.status]
         return MovieLibrarySnapshot(
-            items=sort_items(
-                [item for item in tracked if status is None or item.status == status],
-                sort_by,
+            items=(filters or LibraryFilters()).apply(
+                sort_items(
+                    [
+                        item
+                        for item in tracked
+                        if status is None or item.status == status
+                    ],
+                    sort_by,
+                )
             ),
             favorites=sort_items(
                 [item for item in entries if item.favorite], SORT_RECENT
             ),
             stats=status_counts(entries),
+            genres=sorted({genre for item in tracked for genre in item.genres}),
         )
 
     def close(self) -> None:

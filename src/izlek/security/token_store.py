@@ -1,6 +1,7 @@
 """TMDb token storage with a system keyring and restricted file fallback."""
 
 import os
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,7 +51,8 @@ class TokenStore:
 
     def load(self) -> StoredToken | None:
         if self.path.is_file():
-            if self.path.stat().st_mode & 0o077:
+            # Windows protects profile files through ACLs, not POSIX mode bits.
+            if sys.platform != "win32" and self.path.stat().st_mode & 0o077:
                 raise PermissionError("TMDb token dosyası izinleri güvenli değil")
             token = self.path.read_text(encoding="utf-8").strip()
             if not token:

@@ -1,9 +1,17 @@
-include AGENTS.md CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md alembic.ini
+include CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md alembic.ini
+exclude AGENTS.md
+exclude docs/*.md
+prune docs/screenshots
 include flake.nix flake.lock default.nix
 recursive-include scripts *.py
 recursive-include tests *.py
 recursive-include packaging *
 recursive-include snap *.yaml izlek-launcher *.md
-recursive-include docs *.md *.png
+include docs/architecture.md docs/components.md docs/development.md docs/izlek-json.md
+include docs/releases.md docs/status-automation.md docs/TMDB_JUSTWATCH_COMPLIANCE.md docs/user-guide.md
+recursive-include docs/release-notes *.md
+include docs/screenshots/actor-new-1366.png docs/screenshots/card-direct-1366.png
+include docs/screenshots/multi-picker-1366.png docs/screenshots/design-statistics-1366.png
+include docs/screenshots/review-actions-movie-open-1366.png docs/screenshots/personal-library-1366.png
 recursive-include .github *.yml *.md
 global-exclude __pycache__ *.py[cod]

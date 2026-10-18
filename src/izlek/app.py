@@ -17,6 +17,7 @@ from izlek.ui.controllers.discover_controller import DiscoverController
 from izlek.ui.controllers.favorites_controller import FavoritesController
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
+from izlek.ui.controllers.personal_media_controller import PersonalMediaController
 from izlek.ui.controllers.quick_library_controller import QuickLibraryController
 from izlek.ui.controllers.search_controller import SearchController
 from izlek.ui.controllers.statistics_controller import StatisticsController
@@ -47,6 +48,7 @@ def create_application(
     transfer_controller: TransferController | None = None,
     cache_controller: CacheController | None = None,
     quick_library_controller: QuickLibraryController | None = None,
+    personal_media_controller: PersonalMediaController | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
@@ -146,6 +148,7 @@ def create_application(
         transfer.dataImported.connect(statistics.refresh)
         transfer.dataImported.connect(library.refresh)
         transfer.dataImported.connect(shows.refresh)
+        transfer.dataImported.connect(search.refresh_visibility)
         application.aboutToQuit.connect(transfer.close)
         cache = cache_controller or CacheController(parent=engine)
         if cache.parent() is None:
@@ -172,17 +175,41 @@ def create_application(
             quick_library.setParent(engine)
         engine.rootContext().setContextProperty("quickLibraryController", quick_library)
         application.aboutToQuit.connect(quick_library.close)
+        personal = personal_media_controller or PersonalMediaController(parent=engine)
+        if personal.parent() is None:
+            personal.setParent(engine)
+        engine.rootContext().setContextProperty("personalController", personal)
+        application.aboutToQuit.connect(personal.close)
+        transfer.dataImported.connect(personal.refreshHidden)
+        transfer.dataImported.connect(discover.refresh_preferences)
+        personal.dataChanged.connect(search.refresh_visibility)
+        personal.dataChanged.connect(discover.refresh_preferences)
+        for target in (library, shows):
+            personal.dataChanged.connect(target.refresh)
+        for source in (library, shows):
+            source.libraryChanged.connect(search.refresh_visibility)
+            source.libraryChanged.connect(quick_library.refresh)
+            source.libraryChanged.connect(cache.refresh)
+            for target in (
+                library, shows, statistics, custom_lists, favorites, continuing,
+            ):
+                if target is not source:
+                    source.libraryChanged.connect(target.refresh)
         transfer.dataImported.connect(quick_library.refresh)
         continuing.progressSaved.connect(statistics.refresh)
         continuing.progressSaved.connect(favorites.refresh)
         continuing.progressSaved.connect(quick_library.refresh)
+        continuing.progressSaved.connect(search.refresh_visibility)
+        continuing.progressSaved.connect(custom_lists.refresh)
         for detail_controller in (movie, tv):
             detail_controller.libraryChanged.connect(quick_library.refresh)
+            detail_controller.libraryChanged.connect(search.refresh_visibility)
             for local_controller in (
                 library, shows, statistics, custom_lists, favorites, continuing,
             ):
                 detail_controller.libraryChanged.connect(local_controller.refresh)
         quick_library.libraryAdded.connect(cache.refresh)
+        quick_library.libraryAdded.connect(search.refresh_visibility)
         for local_controller in (library, shows, statistics, custom_lists, favorites):
             quick_library.libraryAdded.connect(local_controller.refresh)
         engine.rootContext().setContextProperty("appVersion", __version__)

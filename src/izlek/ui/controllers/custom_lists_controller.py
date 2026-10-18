@@ -18,8 +18,11 @@ class CustomListsController(QObject):
 
     changed = Signal()
     itemsChanged = Signal()
+    batchAdded = Signal(int)
+    candidatePosterAvailable = Signal(str, int, str)
     _loaded = Signal(int, object, str)
     _poster_ready = Signal(int, str, int, str)
+    _candidate_ready = Signal(int, str, int, str)
 
     def __init__(
         self,
@@ -35,16 +38,20 @@ class CustomListsController(QObject):
         self._own_images = images is None
         self._store = store or TokenStore()
         self._executor = ThreadPoolExecutor(max_workers=1)
+        self._closed = False
+        self._reads: set[Future] = set()
         self._generation = 0
         self._selected_id = 0
         self._lists: list[dict] = []
         self._items: list[dict] = []
         self._candidates: list[dict] = []
         self._candidate_query = ""
+        self._candidate_requested: set[tuple[str, int]] = set()
         self._busy = False
         self._error = ""
         self._loaded.connect(self._apply_loaded)
         self._poster_ready.connect(self._apply_poster)
+        self._candidate_ready.connect(self._apply_candidate_poster)
 
     @Property("QVariantList", notify=changed)
     def lists(self) -> list[dict]:
@@ -90,11 +97,19 @@ class CustomListsController(QObject):
         self._submit(None)
 
     def _submit(self, action: Callable[[], int | None] | None) -> None:
+        if self._closed:
+            return
         self._generation += 1
+        self._candidate_requested.clear()
         self._busy = True
         self._error = ""
         self.changed.emit()
-        self._executor.submit(self._work, self._generation, self._selected_id, action)
+        future = self._executor.submit(
+            self._work, self._generation, self._selected_id, action
+        )
+        if action is None:
+            self._reads.add(future)
+            future.add_done_callback(self._reads.discard)
 
     def _work(
         self, generation: int, selected_id: int, action: Callable[[], int | None] | None
@@ -105,7 +120,7 @@ class CustomListsController(QObject):
                 if new_selection is not None:
                     selected_id = new_selection
             snapshot = self._service.snapshot(selected_id)
-        except (OSError, ValueError, LookupError, SQLAlchemyError):
+        except (OSError, ValueError, LookupError, TypeError, SQLAlchemyError):
             self._loaded.emit(generation, {}, LOCAL_DATA_UNAVAILABLE)
         else:
             snapshot["items"] = [{**item, "poster": ""} for item in snapshot["items"]]
@@ -148,13 +163,92 @@ class CustomListsController(QObject):
 
     @Slot()
     def refresh_token(self) -> None:
-        self._executor.submit(self._reset_images)
-        self.refresh()
+        if not self._closed:
+            self._executor.submit(self._reset_images)
+            self.refresh()
 
     def _reset_images(self) -> None:
         if self._own_images and self._images is not None:
             self._images.close()
             self._images = None
+
+    @Slot(str, int)
+    def requestCandidatePoster(self, kind: str, tmdb_id: int) -> None:
+        if self._closed:
+            return
+        key = (kind, tmdb_id)
+        if key in self._candidate_requested:
+            return
+        item = next((item for item in self._candidates
+                     if (item["kind"], item["tmdb_id"]) == key), None)
+        if item is not None and item["poster_path"]:
+            self._candidate_requested.add(key)
+            future = self._executor.submit(
+                self._candidate_image, self._generation, dict(item)
+            )
+            self._reads.add(future)
+            future.add_done_callback(self._reads.discard)
+
+    def _candidate_image(self, generation: int, item: dict) -> None:
+        if self._images is None:
+            try:
+                stored = self._store.load()
+            except (OSError, UnicodeError):
+                stored = None
+            self._images = ImageService(
+                TmdbClient(token=stored.value if stored else None)
+            )
+        future = self._images.poster(item["poster_path"])
+
+        def finished(done: Future) -> None:
+            if done.cancelled():
+                return
+            try:
+                url = QUrl.fromLocalFile(str(done.result())).toString()
+            except (OSError, ValueError):
+                return
+            self._candidate_ready.emit(generation, item["kind"], item["tmdb_id"], url)
+
+        future.add_done_callback(finished)
+
+    @Slot(int, str, int, str)
+    def _apply_candidate_poster(
+        self, generation: int, kind: str, tmdb_id: int, url: str
+    ) -> None:
+        if generation == self._generation:
+            for item in self._candidates:
+                if (item["kind"], item["tmdb_id"]) == (kind, tmdb_id):
+                    item["poster"] = url
+                    self.candidatePosterAvailable.emit(kind, tmdb_id, url)
+                    break
+
+    @Slot(int, "QVariantList")
+    def addMany(self, list_id: int, selections: list[dict]) -> None:
+        if self._busy or not selections:
+            return
+        copied = [dict(item) for item in selections]
+
+        def action() -> None:
+            self._service.add_many(list_id, copied)
+            if not self._closed:
+                self.batchAdded.emit(list_id)
+
+        self._submit(action)
+
+    @Slot(int, int)
+    def reorderList(self, source: int, target: int) -> None:
+        if not self._busy and source != target:
+            self._submit(lambda: self._service.reorder_list(source, target))
+
+    @Slot(int, str, int, str, int)
+    def reorderMedia(
+        self, list_id: int, source_kind: str, source_id: int,
+        target_kind: str, target_id: int,
+    ) -> None:
+        if not self._busy and (source_kind, source_id) != (target_kind, target_id):
+            self._submit(lambda: self._service.reorder_item(
+                list_id, source_kind, source_id, target_kind, target_id
+            ))
 
     @Slot(int, object, str)
     def _apply_loaded(self, generation: int, snapshot: dict, error: str) -> None:
@@ -199,7 +293,10 @@ class CustomListsController(QObject):
         self._submit(lambda: self._service.move_item(list_id, kind, tmdb_id, direction))
 
     def close(self) -> None:
+        self._closed = True
         self._generation += 1
-        self._executor.shutdown(wait=True, cancel_futures=True)
+        for future in tuple(self._reads):
+            future.cancel()
+        self._executor.shutdown(wait=True)
         self._reset_images()
         self._service.close()

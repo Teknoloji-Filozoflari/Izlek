@@ -13,6 +13,7 @@ Rectangle {
     property var transferModelController
     property bool editingToken: false
     color: Tokens.Theme.background
+    Component.onCompleted: personalController.refreshHidden()
 
     component Card: Rectangle {
         property string title
@@ -66,6 +67,26 @@ Rectangle {
                 Label { visible: cacheController.feedback.length > 0; text: cacheController.feedback; color: cacheController.feedbackKind === "danger" ? Tokens.Theme.danger : Tokens.Theme.success; wrapMode: Text.WordWrap }
             }
 
+            Card { objectName: "hiddenMediaSettingsCard"; title: "Önerilerden gizlediklerim"
+                Label { Layout.fillWidth: true; text: "Gizlenen içerikler Keşfet ve içerik önerilerinde gösterilmez. İstediğini yeniden açabilirsin."; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
+                Label { visible: personalController.hiddenItems.length === 0; text: "Gizlenen içerik yok."; color: Tokens.Theme.textMuted }
+                ListView {
+                    objectName: "hiddenMediaList"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(280, count * 56)
+                    model: personalController.hiddenItems
+                    clip: true
+                    delegate: RowLayout {
+                        required property var modelData
+                        width: ListView.view.width
+                        height: 56
+                        Label { Layout.fillWidth: true; text: modelData.title + (modelData.mediaType === "movie" ? " · Film" : " · Dizi"); elide: Text.ElideRight; color: Tokens.Theme.textPrimary }
+                        IzlekButton { objectName: "restoreHiddenMediaButton"; text: "Yeniden göster"; variant: "secondary"; enabled: !personalController.busy; onClicked: personalController.setDismissed(modelData, false) }
+                    }
+                    ScrollBar.vertical: ScrollBar {}
+                }
+                Label { visible: !!personalController.feedback; text: personalController.feedback; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            }
             Card { objectName: "shortcutsSettingsCard"; title: "Kısayollar"
                 Repeater { model: ["Ctrl+K  Arama", "Ctrl+1  Ana Sayfa / Keşfet", "Ctrl+2  Filmler", "Ctrl+3  Diziler", "Ctrl+4  Listeler", "Ctrl+5  İstatistikler", "Ctrl+,  Ayarlar", "Esc  Kapat / Geri"]; delegate: Label { text: modelData; color: Tokens.Theme.textSecondary } }
             }

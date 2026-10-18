@@ -1,4 +1,4 @@
-"""PyInstaller one-folder specification for the Linux desktop application."""
+"""PyInstaller one-folder specification for Linux and Windows."""
 
 from pathlib import Path
 
@@ -20,6 +20,7 @@ for migration in (PACKAGE_ROOT / "db/migrations").rglob("*.py"):
 
 hiddenimports = collect_submodules("keyring.backends")
 hiddenimports += collect_submodules("sqlalchemy.dialects.sqlite")
+hiddenimports += ["PySide6.QtSvg"]
 
 analysis = Analysis(
     [str(PACKAGE_ROOT / "__main__.py")],

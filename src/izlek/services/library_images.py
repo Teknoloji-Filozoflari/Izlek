@@ -36,7 +36,10 @@ class LibraryImagesService:
         if not artwork:
             return {"saved": 0, "unavailable": 0}
         if self._own_images:
-            stored = TokenStore().load()
+            try:
+                stored = TokenStore().load()
+            except (OSError, UnicodeError):
+                stored = None
             token = stored.value if stored else None
             if self._images is None or self._token != token:
                 if self._images is not None:

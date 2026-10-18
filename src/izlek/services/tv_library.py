@@ -1,7 +1,7 @@
 """Offline TV library with regular-season episode progress."""
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from sqlalchemy import Engine
@@ -17,6 +17,7 @@ from izlek.services.library_common import (
     sort_items,
     status_counts,
 )
+from izlek.services.library_filters import LibraryFilters, cached_genres, cached_runtime
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,10 @@ class TvLibraryItem:
     progress_text: str
     watched_count: int
     episode_count: int
+    sort_order: int | None = None
+    genres: tuple[str, ...] = ()
+    runtime: int | None = None
+    personal_rating: int | None = None
 
 
 @dataclass(frozen=True)
@@ -40,6 +45,7 @@ class TvLibrarySnapshot:
     items: list[TvLibraryItem]
     favorites: list[TvLibraryItem]
     stats: dict[str, int]
+    genres: list[str] = field(default_factory=list)
 
 
 def _expected_episodes(media: MediaItem) -> int:
@@ -99,6 +105,10 @@ def _item(
         status=user.status.value if user.status else "",
         favorite=user.favorite,
         added_at=user.added_at,
+        sort_order=user.sort_order,
+        genres=cached_genres(media),
+        runtime=cached_runtime(media),
+        personal_rating=user.personal_rating,
         progress=watched_count / total if total else -1,
         progress_text=progress_text,
         watched_count=watched_count,
@@ -125,6 +135,7 @@ class TvLibraryService:
         sort_by: str = SORT_RECENT,
         *,
         today: date | None = None,
+        filters: LibraryFilters | None = None,
     ) -> TvLibrarySnapshot:
         """Build a status grid and independent favorites from local data."""
         if sort_by not in SORT_OPTIONS:
@@ -151,18 +162,23 @@ class TvLibraryService:
                 for media, user in media_rows
             ]
         return TvLibrarySnapshot(
-            items=sort_items(
-                [
-                    item
-                    for item in entries
-                    if item.status and (status is None or item.status == status)
-                ],
-                sort_by,
+            items=(filters or LibraryFilters()).apply(
+                sort_items(
+                    [
+                        item
+                        for item in entries
+                        if item.status and (status is None or item.status == status)
+                    ],
+                    sort_by,
+                )
             ),
             favorites=sort_items(
                 [item for item in entries if item.favorite], SORT_RECENT
             ),
             stats=status_counts(entries),
+            genres=sorted(
+                {genre for item in entries if item.status for genre in item.genres}
+            ),
         )
 
     def close(self) -> None:

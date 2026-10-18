@@ -210,7 +210,7 @@ def test_rate_limit_retries_then_succeeds():
     assert delays == [0.25]
 
 
-def test_discover_uses_score_order_and_vote_threshold():
+def test_discover_uses_popularity_order_and_vote_threshold():
     seen = []
 
     def respond(request):
@@ -243,7 +243,7 @@ def test_discover_uses_score_order_and_vote_threshold():
     assert dict(seen[0].url.params) == {
         "page": "2",
         "language": "tr-TR",
-        "sort_by": "vote_average.desc",
+        "sort_by": "popularity.desc",
         "vote_count.gte": "100",
         "vote_average.gte": "7.5",
         "vote_average.lte": "9.0",

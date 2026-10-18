@@ -12,6 +12,7 @@ from PySide6.QtTest import QTest
 
 from izlek.app import create_application
 from izlek.security.token_store import StoredToken
+from izlek.services.personal_media import PersonalMediaService
 from izlek.tmdb.models import MovieSearchResults, TvSearchResults
 from izlek.ui.controllers.discover_controller import DiscoverController
 from izlek.ui.controllers.token_controller import TokenController
@@ -84,11 +85,17 @@ def _wait_for(application, predicate):
     raise AssertionError("Keşfet sonuçları yüklenmedi")
 
 
-def test_discover_controller_filters_scores_and_paginates(monkeypatch):
+def test_discover_controller_filters_scores_and_paginates(
+    monkeypatch, initialized_factory
+):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     application = QGuiApplication.instance() or QGuiApplication([])
     client = _DiscoverClient()
-    controller = DiscoverController(client=client, images=_Images())
+    controller = DiscoverController(
+        client=client,
+        images=_Images(),
+        preferences=PersonalMediaService(initialized_factory),
+    )
     try:
         controller.applyFilters("tv", "2021", 18, "tr", 75, 90)
         _wait_for(application, lambda: not controller.busy)

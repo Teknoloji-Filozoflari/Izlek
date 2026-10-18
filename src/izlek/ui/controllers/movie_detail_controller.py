@@ -42,6 +42,8 @@ class MovieDetailController(QObject):
         self._retired_images: list[ImageService] = []
         self._own_images = images is None
         self._executor = ThreadPoolExecutor(max_workers=2)
+        self._write_executor = ThreadPoolExecutor(max_workers=1)
+        self._closed = False
         self._futures: set[Future] = set()
         self._generation = 0
         self._detail: dict[str, Any] = {}
@@ -244,14 +246,15 @@ class MovieDetailController(QObject):
         self._submit_action("list", name)
 
     def _submit_action(self, action: str, value: Any) -> None:
-        if not self._detail or self._saving:
+        if self._closed or not self._detail or self._saving:
             return
         self._saving = True
         self._feedback = ""
         self.changed.emit()
         generation = self._generation
         movie_id = self._detail["id"]
-        self._submit(self._save, generation, movie_id, action, value)
+        # Navigation cancels reads, but an accepted personal edit must persist.
+        self._write_executor.submit(self._save, generation, movie_id, action, value)
 
     def _save(self, generation: int, movie_id: int, action: str, value: Any) -> None:
         try:
@@ -270,7 +273,11 @@ class MovieDetailController(QObject):
     def _apply_saved(
         self, generation: int, detail: dict[str, Any], feedback: str
     ) -> None:
+        if self._closed:
+            return
         if generation != self._generation:
+            if detail:
+                self.libraryChanged.emit()
             return
         self._saving = False
         if detail:
@@ -303,9 +310,11 @@ class MovieDetailController(QObject):
 
     def close(self) -> None:
         """Release worker, image, and database resources."""
+        self._closed = True
         self._generation += 1
         self._cancel_futures()
         self._executor.shutdown(wait=True, cancel_futures=True)
+        self._write_executor.shutdown(wait=True)
         if self._own_images and self._images is not None:
             self._images.close()
         for images in self._retired_images:

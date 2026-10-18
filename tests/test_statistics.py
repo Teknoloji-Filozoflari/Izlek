@@ -245,13 +245,22 @@ def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch
         else:
             raise AssertionError("İstatistikler yüklenmedi")
         assert dashboard is not None and dashboard.isVisible()
-        for width, height in ((1366, 768), (1920, 1080)):
+        for width, height in ((800, 600), (1366, 768), (1920, 1080)):
             window.resize(width, height)
             application.processEvents()
             QTest.qWait(50)
             assert dashboard.width() > 260 and dashboard.height() > 200
             assert abs(dashboard.width() - dashboard.parentItem().width()) < 1
             assert dashboard.width() > width - 350
+            summary = window.findChild(QQuickItem, "durationSummary")
+            charts = window.findChild(QQuickItem, "statisticsCharts")
+            assert summary.property("columns") == (3 if width >= 1366 else 1)
+            assert charts.property("columns") == (2 if width >= 1366 else 1)
+        total = window.findChild(QQuickItem, "totalScreenTime")
+        movie_time = window.findChild(QQuickItem, "movieScreenTime")
+        episode_time = window.findChild(QQuickItem, "episodeScreenTime")
+        assert total.property("value") == movie_time.property("value") == "1 sa 35 dk"
+        assert episode_time.property("value") == "0 dk"
         assert window.findChild(QQuickItem, "totalScreenTime") is not None
         assert statistics.stats["estimated_total_minutes"] == 95
         description = window.findChild(QQuickItem, "screenTimeDescription")

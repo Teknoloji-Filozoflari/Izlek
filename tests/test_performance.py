@@ -220,7 +220,7 @@ def test_large_grid_requests_only_instantiated_thumbnails(tmp_path):
         }
         for index in range(500)
     ]
-    controller._apply_loaded(1, items, [], {"total": 500}, "")
+    controller._apply_loaded(1, items, [], {"total": 500}, {}, "")
     assert images.requests == []
 
     for item in items[:12]:

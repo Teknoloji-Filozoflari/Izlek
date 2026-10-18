@@ -2,7 +2,7 @@
 
 ## Kapsam
 
-İzlek, Linux öncelikli, tek kullanıcıya ait ve local-first bir masaüstü uygulamasıdır. Python 3.11+ temel dil, PySide6/Qt Quick arayüz katmanı, SQLAlchemy/SQLite kalıcı veri deposu ve TMDb tek çevrimiçi metadata kaynağıdır. Film/dizi kütüphaneleri, dashboard, favoriler, özel listeler ve detaylar yerel veritabanına bağlıdır; Keşfet merkezi TMDb client üzerinden çevrimiçi metadata alır. Tamamlanan fazlar [devir notunda](HANDOFF.md) tutulur.
+İzlek, Linux öncelikli, tek kullanıcıya ait ve local-first bir masaüstü uygulamasıdır. Python 3.11+ temel dil, PySide6/Qt Quick arayüz katmanı, SQLAlchemy/SQLite kalıcı veri deposu ve TMDb tek çevrimiçi metadata kaynağıdır. Film/dizi kütüphaneleri, dashboard, favoriler, özel listeler ve detaylar yerel veritabanına bağlıdır; Keşfet merkezi TMDb client üzerinden çevrimiçi metadata alır.
 
 ## Katmanlar ve bağımlılık yönü
 
@@ -26,8 +26,27 @@ istenir; film/dizi kimliği birlikte kullanılır ve eski liste sonuçları yok
 sayılır. Afiş güncellemeleri ayrı `itemsChanged` sinyaliyle medya seçimini
 etkilemez. Disk cache yeniden açılışta ağ/configuration isteği olmadan okunur;
 grid isteği için mevcut yüksek çözünürlüklü detay afişi de kullanılabilir.
-Listeler medya seçicisi KDE'nin yerel ComboBox menüsünü devralmak yerine ortak
-`FilterComboBox` Templates bileşenini kullanır. 180 günlük retention korunur.
+Listeler medya seçicisi `MediaPickerDialog` içinde afişli, sanallaştırılmış
+çoklu seçim kullanır. Seçimler sorgudan bağımsız medya türü/kimliğiyle tutulur;
+controller tek bir `CustomListsService.add_many` transaction'ı başlatır.
+Liste yazımları kapanışta tamamlanır, yalnız bekleyen okumalar iptal edilir.
+180 günlük retention korunur.
+
+Film/dizi özel sırası `0004_library_order` migration'ıyla nullable
+`user_media.sort_order` alanında saklanır. Sırası olmayan eski kayıtlar eklenme
+tarihine göre gösterilir. `LibraryController → LibraryOrderService →
+MediaRepository` akışı görünür kart sırasını ayrı, sıralı yazım worker'ında
+tek `BEGIN IMMEDIATE` transaction'ıyla kaydeder; status/favori/eklenme tarihi
+korunur. Liste/üye sürüklemeleri mevcut liste konumlarını aynı şekilde topluca
+yazar. QML yalnız koordinatı hedef karta çevirir. JSON sürüm 2 bu özel sırayı
+taşır; sürüm 1 içe aktarma desteklenir.
+
+Film/dizi kartları afiş veya başlıktan doğrudan sürüklenir. Ortak
+`ReorderHandle`, `showHandle=false` ile görünmez olay alanı olarak kullanılır;
+platform hareket eşiğini geçen basış detay açmaz. Kart içindeki favori/seçim
+düğmeleri kendi olaylarını alır. Afiş önizlemesi ve kenarda otomatik kaydırma
+yalnız QML etkileşimidir; mevcut sıralama kaydı ve veri şeması değişmez.
+Liste sayfasındaki görünür tutamaçlar korunur.
 
 Linux binary dağıtımı `packaging/izlek.spec` ile PyInstaller one-folder
 çıktısından başlar. QML, SVG/desktop kaynakları ve Alembic migration dosyaları
@@ -38,9 +57,30 @@ zamanındaki `__file__` tabanlı kaynak çözümü değişmez. Doğrulanan one-f
 yanına yönlendirmez. x86_64 AppImage CI build'i Ubuntu 22.04 üzerinde glibc 2.35 tabanıyla,
 test edilmiş PySide6 constraint'i ve paylaşılan Python kütüphanesiyle üretilir.
 
-Kütüphane posterleri görünür GridView/ListView delegeleri tarafından istenir; controller bütün kütüphaneyi önceden indirmez ve aynı generation içindeki isteği tekilleştirir. Bölüm listesi yeniden kullanılan ListView delegeleriyle sanallaştırılır. Sayfadan ayrılma ilgili controller generation'ını geçersiz kılar ve başlamamış Future'ları iptal eder; geç gelen sonuç UI durumuna uygulanmaz. Faz 24 sentetik veri bütçeleri ve ölçümleri [performans profilinde](PHASE_24_PERFORMANCE.md) tutulur.
+Kütüphane posterleri görünür GridView/ListView delegeleri tarafından istenir; controller bütün kütüphaneyi önceden indirmez ve aynı generation içindeki isteği tekilleştirir. Bölüm listesi yeniden kullanılan ListView delegeleriyle sanallaştırılır. Sayfadan ayrılma ilgili controller generation'ını geçersiz kılar ve başlamamış Future'ları iptal eder; geç gelen sonuç UI durumuna uygulanmaz.
 
 `ui/controllers/search_controller.py` film ve dizi aramasını ayrı işçilere gönderir, eski sorgu sonuçlarını geçersiz kılar ve QML'ye yalnızca sunuma hazır veri verir. `GlobalSearch.qml` klavye kısayolu, debounce ve sonuç listesini; `MediaDetailPage.qml` seçilen kaydın detayını gösterir. QML HTTP isteği yapmaz.
+
+Keşfet yönetmen/oyuncu araması `SearchController → DirectorSearchService → TmdbClient`
+akışını kullanır. Kişi araması `search/person`, seçilen kişinin yapımları
+`person/{id}/movie_credits` veya `tv_credits` ile okunur. Tipli yanıtlardan
+oyuncu modunda cast, yönetmen modunda yalnız `crew.job == Director` alınır,
+medya kimliğiyle tekilleştirilir ve
+tarihe göre sıralanır. Yerel hariç tutma ve afiş akışı normal aramayla ortaktır.
+Kişi ve yapım sonuçları generation kontrolüyle uygulanır; ağ/SQLite worker'da
+çalışır. SQLite modeli ve kişisel kayıt kuralları değişmez. TMDb kişi
+aramasının ilk sayfası kullanılır; dizi tarafı kişi/dizi credits kapsamındadır.
+Kişinin tam yapım listesi controller belleğinde saklanır. `includeSaved` yalnız
+bu snapshot'tan görünümü üretir; normal ad araması her zaman kayıtlıları ayıklar.
+`ContentVisibilityService.snapshot` aynı SQLite okuma transaction'ında hariç
+tutma kimliklerini ve takip durumlarını okur. Kayıt değişince snapshot'taki
+rozetler yenilenir; yeni keşif görünümünde yeni kayıtlar gizlenir. Meta cache'i
+kişisel kayıt sayılmaz. Cast sunumuna TMDb kişi kimliği eklenir; ortak
+`CastGrid.actorActivated` → detay `actorSelected` → `Main.openActor` →
+`DiscoverPage.showActor` akışıyla sorgu eşleşmesi olmadan kişi açılır.
+API kaynakları: [Kişi araması](https://developer.themoviedb.org/reference/search-person),
+[film yapımları](https://developer.themoviedb.org/reference/person-movie-credits),
+[dizi yapımları](https://developer.themoviedb.org/reference/person-tv-credits).
 
 Ana sayfa arama/keşfet kartlarının hızlı ekleme düğmesi
 `QuickLibraryController → QuickLibraryService → repository` yolunu kullanır.
@@ -64,11 +104,61 @@ yenilenir; ekleme arama sorgusunu/sonuçlarını veya gezintiyi değiştirmez.
 
 ## Yerel veri ve güvenlik
 
-Faz 16–18'in mevcut mimariye uyumu [denetim notunda](PHASE_16_18_ARCHITECTURE_AUDIT.md) açıklanır. Discover controller'ının ayrı bir servis olmadan doğrudan client kullanması mevcut bir sapmadır; yeni kod için hedef akış yukarıdaki servis katmanını korumalıdır. Model/oturum değişimi mevcut mimariyi veya tamamlanmış fazları yeniden tasarlama gerekçesi değildir; kapsam kuralları `AGENTS.md` içindedir.
+2026-10-18 kişisel özellikler fazında `0005_personal_preferences`,
+`user_media.personal_rating` (nullable, 1–10 constraint), `personal_note` ve
+`dismissed` alanlarını ekler. `PersonalMediaController → PersonalMediaService
+→ repository` puan/not ve gizleme işlerini ayrı okuma ve sıralı yazım
+worker'larında yürütür. Kabul edilen yazımlar kapanışta tamamlanır; eski
+kişisel okumalar generation ile elenir. Bunlar metadata senkronizasyonundan,
+takip durumu ve favoriden bağımsızdır. JSON v3 alanları taşır; v1/v2 içe
+aktarma eksik kişisel alanları silmez. Retention kişisel satırlara dokunmaz.
+`PersonalReview` film/dizi detayında kapalı başlar; sayfanın işlem satırında
+Listeye Ekle yanındaki Puan ve not düğmesiyle satırın altında açılıp kapanır.
+Açıklık yalnız bileşen durumudur, SQLite'a yazılmaz.
+Kapatma taslağı korur; kayıt yine açık Kaydet eylemiyle yapılır.
+
+`LibraryFilters` aynı anda durum, cache türü, yıl aralığı, maksimum süre ve
+minimum TMDb puanı uygular. Film runtime'ı, dizi bildirilmiş en büyük bölüm
+süresi kullanılır; bilinmeyen değerler etkin filtreden geçmez. Kütüphane
+servisleri filtreden önce tür seçenekleri ve toplam istatistikleri üretir;
+Favoriler/Devam Et bağımsızdır. Filtreler controller ömrü boyunca korunur.
+QML seçim kimliklerini tutar; `LibraryController.batchApply` seçilen türdeki
+kayıtları worker'da `BEGIN IMMEDIATE` transaction'ıyla değiştirir. Bütün
+üyeler ve hedef liste yazımdan önce doğrulanır; status, favorite veya liste
+üyeliği dışında alan yazılmaz. Dizi bölüm ilerlemesi değiştirilmez. Filtre
+ve seçim modunda sürükleme kapalıdır, kaydedilmiş özel sıra korunur.
+
+Öneri ayıklamasında repository, WATCHED ile dismissed kimliklerini birleştirir;
+ham API cache'i korunur. DiscoverController tam API sayfasını bellekte tutar,
+gizle/geri aç bildiriminde yeniden HTTP araması yapmadan ayıklar. Geç sayfa
+yanıtı yeni gizleme kimliklerini geçersiz kılamaz. Açık ad/kişi araması bu
+tercihle gizlenmez; mevcut kayıtlıları gizleme davranışı korunur. Ayarlar
+gizlenenleri yerel sorgudan okur ve tek tek geri açar.
+
+Discover controller'ının ayrı bir servis olmadan doğrudan client kullanması mevcut bir sapmadır; yeni kod için hedef akış yukarıdaki servis katmanını korumalıdır.
 
 `XDG_CONFIG_HOME/izlek`, `XDG_DATA_HOME/izlek`, `XDG_CACHE_HOME/izlek` ve `XDG_STATE_HOME/izlek/logs` kullanılır; tanımsız değişkenler için XDG varsayılanları geçerlidir. Yol hesaplamak dizin oluşturmaz. Pencere boyutu ve büyütülmüş durumu `XDG_CONFIG_HOME/izlek/window.ini` içine yazılır; ekran konumu saklanmaz. SQLite dosyası `XDG_DATA_HOME/izlek/izlek.sqlite3` altındadır; yeni dosya yalnızca kullanıcıya açık izinlerle oluşturulur. Açılışta Alembic `head` revizyonuna yükseltilir; değişiklikler `db/migrations/versions/` içinde sürümlenir. SQLite yabancı anahtarları her bağlantıda açılır. `MediaItem`, `Season` ve `Episode` metadata tutar; `UserMedia`, `EpisodeProgress` ve özel listeler kişisel veriyi ayrı tutar. Metadata upsert işlemleri takip durumuna ve izlenen bölümlere dokunmaz. `security/token_store.py`, tokenı önce sistem anahtarlığında tutar; anahtarlık kullanılamazsa `XDG_CONFIG_HOME/izlek/tmdb-token` dosyasını `0600` izniyle yazar ve kullanıcıyı bilgilendirir. Token SQLite, QSettings ve loglara girmez. `tmdb/client.py`, `GET /3/authentication` isteğini Bearer başlığıyla gönderir; doğrulama ve saklama UI thread'i dışında yapılır. Cache silinmesi kişisel takip verisini etkilememelidir. Gelecekteki ağır veritabanı işleri de Qt UI thread'i dışında çalıştırılacaktır.
 
 ## Test sınırları
+
+2026-10-18 kişiselleştirmesinde `ContentVisibilityService`, worker'da
+`MediaRepository.excluded_tmdb_ids` üzerinden aramanın kayıtlı/izlenmiş
+kimliklerini okur. Takip/favori, özel liste ve izlenmiş bölüm kaydı kişisel
+kayıt sayılır; yalnız cache metadata'sı sayılmaz. Anahtar medya türü + TMDb
+kimliğidir. Arama sonrası yerel yazım bildirimleri ağ isteğini tekrar etmeden
+sonuçları ayıklar. Detay servisleri önerileri SQLite'taki WATCHED kayıtlarına
+göre sunumda ayıklar; ham öneri metadata'sı korunur. Liste snapshot'ı medya
+ve kişisel durumu tek outer join ile okur. Detay StackView öğeleri `mediaId`
+tutar; öneriler push edilir, Geri tek öğe pop edip önceki kimliği yükler.
+Discover, puan filtresi ve oy eşiğini koruyarak popularity.desc kullanır.
+
+2026-10-18 denetiminde film/dizi controller'larının kabul edilmiş kişisel
+yazımları ayrı, sıralı worker'a taşındı. Sayfa geçişi yalnız okuma/görsel
+işlerini iptal eder; önceki sayfanın başarılı yazımı yerel modelleri yine
+yeniler. Kapanış yazım kuyruğunu tamamladıktan sonra servisi kapatır. JSON
+aktarımında bilinen metadata bölümleri doğrulanmış türlerle saklanır; eski
+oyuncu kayıtları sunumda da doğrulanır. `scripts/run_dev.py`, kaynak kodu
+proje içi `.dev-data/` XDG dizinleri ve null keyring ile çalıştırır.
 
 2026-10-04 sekme performans düzeltmesinde kütüphane ve Devam Et modellerinin
 bildirimi `itemsChanged` ile yükleme/durum bildirimlerinden ayrıldı. Görsel
@@ -159,14 +249,13 @@ CI gerçek token gerektirmez. Qt testleri offscreen platformda çalışır, QML
 uyarılarını yakalar ve screenshot karşılaştırmasına dayanmaz.
 
 `python scripts/quality.py`, önce Ruff'ı sonra tam pytest paketini çalıştıran
-yerel ve CI kalite kapısıdır. Kapsam matrisi ve CI sınırları
-[Faz 25 kalite notunda](PHASE_25_QUALITY.md) tutulur.
+yerel ve CI kalite kapısıdır.
 
 Paket smoke modu gerçek QML'i offscreen açar, migration ile SQLite dosyasını
 oluşturur ve config/data/cache/state yollarının executable dizininin altında
 olmadığını doğrular. AppImage workflow'u build sonrasında artifact'ı temiz
 Ubuntu 22.04 ve 24.04 ortamlarında tekrar çalıştırır; ayrıntılar
-[Faz 26 AppImage notunda](PHASE_26_APPIMAGE.md) yer alır.
+[release sürecinde](releases.md) yer alır.
 
 
 RPM/Snap paketleri mevcut `packaging/izlek.spec` PyInstaller payload'ını
@@ -182,3 +271,16 @@ ile kaynak wheel ve Python bağımlılıklarını kurar. wrapQtAppsHook Qt
 plugin/QML yollarını Python wrapper'ına aktarır. Masaüstü dosyaları Nix
 store'daki share altında; kişisel veriler mevcut XDG yollarındadır. Flake
 checks paket kalite kapısı ve kurulu executable için offscreen smoke içerir.
+
+
+Windows x64 paketleme aynı PyInstaller spec dosyasını kullanır; çıktı Inno
+Setup ile kullanıcı başına kurulan EXE olur. Windows runner, paketli QML ve
+migration dosyalarını, sessiz kurulum/açılış/kaldırmayı ve veri korumayı
+doğrular. Ayarlar APPDATA, veritabanı/cache/loglar LOCALAPPDATA altındadır;
+mutlak XDG değişkenleri izole geliştirme için önceliklidir. Windows profil
+ACL'leri POSIX mod bitlerinden ayrıdır; token önce sistem keyring'ine gider.
+Bu altyapının ilk gerçek Windows build koşusu henüz doğrulanmadı.
+
+GitHub kaynaklarında yalnız README'nin kullandığı altı demo ekran görüntüsü
+tutulur. Yerel çalışma raporları ve HANDOFF Git dışında kalır. Installer
+payload'ı yalnız uygulama kaynaklarını/bağımlılıklarını ve lisansı içerir.

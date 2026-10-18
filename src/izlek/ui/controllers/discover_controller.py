@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
+from izlek.services.personal_media import PersonalMediaService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
 from izlek.tmdb.models import MovieSummary, TvSummary
 from izlek.ui.controllers.messages import NETWORK_UNAVAILABLE
@@ -20,11 +22,12 @@ def _local_url(path: Path) -> str:
 
 
 class DiscoverController(QObject):
-    """Load controlled, score-ranked Discover pages outside the UI thread."""
+    """Load popular Discover pages outside the UI thread."""
 
     changed = Signal()
     _loaded = Signal(int, object, int, int, str)
     _poster_ready = Signal(int, int, str)
+    _hidden_ready = Signal(int, str, object, str)
 
     def __init__(
         self,
@@ -32,9 +35,14 @@ class DiscoverController(QObject):
         client: TmdbClient | None = None,
         images: ImageService | None = None,
         parent: QObject | None = None,
+        preferences: PersonalMediaService | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store or TokenStore()
+        self._preferences = preferences or PersonalMediaService()
+        self._closed = False
+        self._source_items: list[dict] = []
+        self._hidden_ids: dict[str, set[int]] = {}
         self._client = client
         self._images = images
         self._retired_images: list[ImageService] = []
@@ -56,6 +64,7 @@ class DiscoverController(QObject):
         self._error = ""
         self._loaded.connect(self._apply_loaded)
         self._poster_ready.connect(self._apply_poster)
+        self._hidden_ready.connect(self._apply_hidden)
         if client is None:
             self.refresh_token()
 
@@ -74,6 +83,32 @@ class DiscoverController(QObject):
     @Property(int, notify=changed)
     def totalPages(self) -> int:
         return self._total_pages
+
+    @Slot()
+    def refresh_preferences(self) -> None:
+        if not self._closed:
+            self._executor.submit(self._read_hidden, self._generation, self._kind)
+
+    def _read_hidden(self, generation: int, kind: str) -> None:
+        try:
+            ids = self._preferences.suppressed_ids(kind)
+        except (OSError, ValueError, SQLAlchemyError):
+            self._hidden_ready.emit(generation, kind, set(), "Tercihler okunamadı.")
+        else:
+            self._hidden_ready.emit(generation, kind, ids, "")
+
+    @Slot(int, str, object, str)
+    def _apply_hidden(
+        self, generation: int, kind: str, ids: set[int], error: str
+    ) -> None:
+        if self._closed or generation != self._generation:
+            return
+        if error:
+            self._error = error
+        else:
+            self._hidden_ids[kind] = ids
+            self._items = [item for item in self._source_items if item["id"] not in ids]
+        self.changed.emit()
 
     @Property(bool, notify=changed)
     def busy(self) -> bool:
@@ -142,6 +177,8 @@ class DiscoverController(QObject):
         generation = self._generation
         self._page = page
         self._items = []
+        self._source_items = []
+        self._hidden_ids = {}
         self._error = ""
         self._busy = True
         self.changed.emit()
@@ -214,13 +251,19 @@ class DiscoverController(QObject):
                     min_vote_count=_MIN_VOTE_COUNT,
                 )
             )
-            items = [self._summary(item, kind, images) for item in result.results]
+            hidden = self._preferences.suppressed_ids(kind)
+            items = [
+                {**self._summary(item, kind, images), "dismissed": item.id in hidden}
+                for item in result.results
+            ]
         except NetworkError:
             self._loaded.emit(generation, [], page, 1, NETWORK_UNAVAILABLE)
         except TMDbError:
             self._loaded.emit(
                 generation, [], page, 1, "Keşfet sonuçları yüklenemedi. Tekrar deneyin."
             )
+        except (OSError, ValueError, SQLAlchemyError):
+            self._loaded.emit(generation, [], page, 1, "Yerel tercihler okunamadı.")
         else:
             self._loaded.emit(generation, items, result.page, result.total_pages, "")
 
@@ -239,6 +282,7 @@ class DiscoverController(QObject):
             "posterPath": item.poster_path or "",
             "poster": _local_url(images.poster(None).result()),
             "progressText": f"TMDb {item.vote_average:.1f}",
+            "score": item.vote_average,
         }
 
     @Slot(int, object, int, int, str)
@@ -256,7 +300,13 @@ class DiscoverController(QObject):
         self._error = error
         self._page = page
         self._total_pages = max(1, min(total_pages, 500))
-        self._items = items
+        self._source_items = items
+        hidden = self._hidden_ids.get(self._kind)
+        self._items = (
+            [item for item in items if item["id"] not in hidden]
+            if hidden is not None
+            else [item for item in items if not item.get("dismissed")]
+        )
         self.changed.emit()
         if error:
             return
@@ -265,8 +315,9 @@ class DiscoverController(QObject):
             future = self._images.poster(item["posterPath"])
             self._image_futures.add(future)
             future.add_done_callback(
-                lambda done, item_id=item["id"], generation=generation:
-                self._poster_done(done, generation, item_id)
+                lambda done, item_id=item["id"], generation=generation: (
+                    self._poster_done(done, generation, item_id)
+                )
             )
 
     def _poster_done(self, future: Future, generation: int, item_id: int) -> None:
@@ -283,13 +334,14 @@ class DiscoverController(QObject):
     def _apply_poster(self, generation: int, item_id: int, url: str) -> None:
         if generation != self._generation:
             return
-        for index, item in enumerate(self._items):
+        for item in self._source_items:
             if item["id"] == item_id:
-                self._items[index] = {**item, "poster": url}
+                item["poster"] = url
                 self.changed.emit()
                 return
 
     def close(self) -> None:
+        self._closed = True
         self.cancelPending()
         self._executor.shutdown(wait=True, cancel_futures=True)
         if self._own_images and self._images is not None:
@@ -297,3 +349,4 @@ class DiscoverController(QObject):
         for images in self._retired_images:
             images.close()
         self._retired_images.clear()
+        self._preferences.close()

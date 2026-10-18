@@ -1,0 +1,74 @@
+name: Windows EXE
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: ["**"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/build_windows.py"
+      - "packaging/izlek.spec"
+      - "packaging/windows/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/build_windows.py"
+      - "packaging/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+          cache: pip
+      - name: Install project and build tools
+        run: python -m pip install -e ".[dev,package]"
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check code and Windows packaging behavior
+        run: |
+          python -m ruff check .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pytest tests/test_windows_packaging.py tests/test_database.py tests/test_personal_features.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build EXE and verify install, launch and uninstall
+        shell: pwsh
+        run: |
+          $compiler = Get-ChildItem "${env:ProgramFiles}\Inno Setup *\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $compiler) { throw "ISCC.exe bulunamadı." }
+          python scripts/build_windows.py --iscc $compiler.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: izlek-windows-x64
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/windows/Izlek-*-windows-x64-setup.exe
+            dist/windows/Izlek-*-windows-x64-setup.exe.sha256

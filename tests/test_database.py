@@ -1,5 +1,6 @@
 """Migration, constraint, and repository behavior on real SQLite files."""
 
+import os
 from datetime import date
 from stat import S_IMODE
 
@@ -44,7 +45,8 @@ def test_auto_migration_and_xdg_location(tmp_path, monkeypatch):
     engine = initialize_database()
     try:
         assert path.is_file()
-        assert S_IMODE(path.stat().st_mode) == 0o600
+        if os.name == "posix":
+            assert S_IMODE(path.stat().st_mode) == 0o600
         tables = set(inspect(engine).get_table_names())
         assert tables == {
             "alembic_version",
@@ -62,7 +64,7 @@ def test_auto_migration_and_xdg_location(tmp_path, monkeypatch):
         with engine.connect() as connection:
             assert connection.scalar(
                 text("SELECT version_num FROM alembic_version")
-            ) == ("0003_season_freshness")
+            ) == ("0005_personal_preferences")
             assert connection.scalar(text("PRAGMA foreign_keys")) == 1
         upgrade_database(engine)
     finally:
@@ -117,6 +119,10 @@ def test_existing_status_is_preserved_as_manual_on_upgrade(tmp_path):
             user = UserMediaRepository(session).get(1)
             assert user.status == TrackingStatus.WATCHED
             assert user.status_is_manual is True
+            assert user.sort_order is None
+            assert user.personal_rating is None
+            assert user.personal_note == ""
+            assert user.dismissed is False
     finally:
         engine.dispose()
 

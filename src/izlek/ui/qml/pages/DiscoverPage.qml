@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../components"
+import "../components" as Components
 import "../theme" as Tokens
 
 Rectangle {
@@ -10,7 +11,12 @@ Rectangle {
     property var controller
     property var searchModelController
     readonly property var libraryActions: quickLibraryController
-    readonly property bool searching: searchInput.text.trim().length > 0
+    property string searchMode: "title"
+    property bool restoringPerson: false
+    readonly property bool personMode: searchMode !== "title"
+    readonly property bool directorMode: searchMode === "director"
+    readonly property bool choosingPerson: personMode && !searchModelController.selectedPerson.id
+    readonly property bool searching: personMode || searchInput.text.trim().length > 0
     readonly property var displayedItems: searching
         ? searchModelController.movies.concat(searchModelController.shows) : controller.items
     readonly property bool resultsBusy: searching ? searchModelController.busy : controller.busy
@@ -50,13 +56,35 @@ Rectangle {
 
     function updateSearchMedia() {
         searchDebounce.stop()
+        if (personMode) {
+            if (searchModelController.selectedPerson.id)
+                searchModelController.selectPerson(searchModelController.selectedPerson.id, mediaSelector.currentValue, searchMode)
+            else if (searchInput.text.trim().length >= 3) searchDebounce.start()
+            return
+        }
         searchModelController.setMediaType(mediaSelector.currentValue)
         if (searchInput.text.trim().length >= 3) searchDebounce.start()
+    }
+
+    function showActor(personId, name, kind) {
+        restoringPerson = true
+        searchMode = "actor"
+        mediaSelector.currentIndex = kind === "tv" ? 1 : 0
+        searchInput.text = name
+        restoringPerson = false
+        searchDebounce.stop()
+        searchModelController.openActor(personId, name, kind)
     }
 
     function focusSearch() { searchInput.forceActiveFocus() }
 
     function runSearch() {
+        if (personMode) {
+            if (searchModelController.selectedPerson.id)
+                searchModelController.selectPerson(searchModelController.selectedPerson.id, mediaSelector.currentValue, searchMode)
+            else searchModelController.searchPeople(searchInput.text, searchMode)
+            return
+        }
         searchModelController.setMediaType(mediaSelector.currentValue)
         searchModelController.search(searchInput.text)
     }
@@ -118,6 +146,7 @@ Rectangle {
                 Label { text: "Yıl"; color: Tokens.Theme.textSecondary }
                 FilterTextField {
                     id: yearInput
+                    enabled: !page.personMode
                     objectName: "discoverYear"
                     Layout.fillWidth: true
                     placeholderText: "Örn. 2024"
@@ -127,6 +156,7 @@ Rectangle {
                 Label { text: "Tür"; color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: genreSelector
+                    enabled: !page.personMode
                     objectName: "discoverGenre"
                     Layout.fillWidth: true
                     model: mediaSelector.currentValue === "movie"
@@ -137,6 +167,7 @@ Rectangle {
                 Label { text: "Ülke"; color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: countrySelector
+                    enabled: !page.personMode
                     objectName: "discoverCountry"
                     Layout.fillWidth: true
                     model: page.countries
@@ -149,6 +180,7 @@ Rectangle {
                 }
                 FilterSpinBox {
                     id: minScore
+                    enabled: !page.personMode
                     objectName: "discoverMinScore"
                     Layout.fillWidth: true
                     from: 0
@@ -164,6 +196,7 @@ Rectangle {
                 }
                 FilterSpinBox {
                     id: maxScore
+                    enabled: !page.personMode
                     objectName: "discoverMaxScore"
                     Layout.fillWidth: true
                     from: 0
@@ -175,7 +208,9 @@ Rectangle {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "Sıralama: TMDb puanı · En az 100 oy"
+                    text: page.personMode
+                        ? "Kişi aramasında Film/Dizi seçimi kullanılır. Yapımlar en yeniden eskiye sıralanır."
+                        : "Sıralama: Popülerlik · En az 100 oy"
                     color: Tokens.Theme.textMuted
                     font.pixelSize: Tokens.Theme.textSmall
                     wrapMode: Text.WordWrap
@@ -185,7 +220,7 @@ Rectangle {
                     objectName: "applyDiscoverFilters"
                     Layout.fillWidth: true
                     text: "Uygula"
-                    enabled: !controller.busy && minScore.value <= maxScore.value
+                    enabled: !page.personMode && !controller.busy && minScore.value <= maxScore.value
                     onClicked: page.applyFilters()
                 }
                 IzlekButton {
@@ -193,7 +228,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: "Temizle"
                     variant: "secondary"
-                    enabled: !controller.busy
+                    enabled: !page.personMode && !controller.busy
                     onClicked: {
                         yearInput.text = ""
                         genreSelector.currentIndex = 0
@@ -219,37 +254,89 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Label {
+                        Layout.fillWidth: true
                         text: "Ana Sayfa · Keşfet"
                         color: Tokens.Theme.textPrimary
                         font.pixelSize: Tokens.Theme.textHeading
                         font.weight: Tokens.Theme.weightDemiBold
+                        elide: Text.ElideRight
                     }
-                    Item { Layout.fillWidth: true }
+                    SegmentedControl {
+                        objectName: "discoverCardDensity"
+                        options: ["Rahat", "Sıkı"]
+                        currentIndex: resultsGrid.compact ? 1 : 0
+                        onSelected: function(index) { resultsGrid.compact = index === 1 }
+                    }
                     Label {
                         visible: !page.searching && !controller.busy && controller.items.length > 0
                         text: "Sayfa " + controller.page + " / " + controller.totalPages
                         color: Tokens.Theme.textMuted
                     }
                 }
-                SearchField {
-                    id: searchInput
-                    objectName: "dashboardSearch"
+                GridLayout {
                     Layout.fillWidth: true
-                    placeholderText: (mediaSelector.currentValue === "tv" ? "Dizi" : "Film") + " ara · Ctrl+K"
-                    onTextChanged: {
-                        searchDebounce.stop()
-                        page.searchModelController.clear()
-                        if (text.trim().length >= 3) searchDebounce.start()
+                    columns: width >= 650 ? 2 : 1
+                    SegmentedControl {
+                        objectName: "discoverSearchMode"
+                        options: ["İçerik", "Yönetmen", "Oyuncu"]
+                        currentIndex: ["title", "director", "actor"].indexOf(page.searchMode)
+                        onSelected: function(index) {
+                            page.searchMode = ["title", "director", "actor"][index]
+                            searchDebounce.stop()
+                            page.searchModelController.clear()
+                            if (searchInput.text.trim().length >= 3) searchDebounce.start()
+                            searchInput.forceActiveFocus()
+                        }
                     }
-                    onAccepted: {
-                        searchDebounce.stop()
-                        page.runSearch()
+                    Components.SearchField {
+                        id: searchInput
+                        objectName: "dashboardSearch"
+                        Layout.fillWidth: true
+                        placeholderText: page.personMode ? (page.directorMode ? "Yönetmen" : "Oyuncu") + " adı ara · Ctrl+K"
+                            : (mediaSelector.currentValue === "tv" ? "Dizi" : "Film") + " ara · Ctrl+K"
+                        onTextChanged: {
+                            if (page.restoringPerson) return
+                            searchDebounce.stop()
+                            page.searchModelController.clear()
+                            if (text.trim().length >= 3) searchDebounce.start()
+                        }
+                        onAccepted: {
+                            searchDebounce.stop()
+                            page.runSearch()
+                        }
                     }
+                }
+                RowLayout {
+                    visible: page.personMode && !!page.searchModelController.selectedPerson.id
+                    Layout.fillWidth: true
+                    Label {
+                        Layout.fillWidth: true
+                        text: (page.searchModelController.selectedPerson.name || "") + (page.directorMode ? " · Yönetmen" : " · Oyuncu")
+                        color: Tokens.Theme.textPrimary
+                        elide: Text.ElideRight
+                    }
+                    IzlekButton {
+                        objectName: "changeDirectorButton"
+                        text: "Değiştir"
+                        variant: "secondary"
+                        onClicked: page.searchModelController.searchPeople(searchInput.text, page.searchMode)
+                    }
+                }
+                SegmentedControl {
+                    objectName: "personResultsScope"
+                    visible: page.personMode && !!page.searchModelController.selectedPerson.id
+                    options: ["Yeni keşifler", "Tüm yapımları"]
+                    currentIndex: page.searchModelController.includeSaved ? 1 : 0
+                    onSelected: function(index) { page.searchModelController.setIncludeSaved(index === 1) }
                 }
                 Label {
                     visible: page.searching
-                    text: searchInput.text.trim().length < 3 ? "Aramak için en az 3 karakter yazın."
+                    text: page.searchModelController.selectedPerson.id ? "Arama sonuçları · " + page.displayedItems.length
+                          : searchInput.text.trim().length < 3 ? "Aramak için en az 3 karakter yazın."
+                          : page.choosingPerson ? "Yapımlarını görmek için bir kişi seç · " + page.searchModelController.people.length
                           : "Arama sonuçları · " + page.displayedItems.length
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                     color: Tokens.Theme.textMuted
                 }
                 Label {
@@ -281,9 +368,46 @@ Rectangle {
                         anchors.centerIn: parent
                         visible: !page.resultsBusy && !page.resultsError
                                  && page.displayedItems.length === 0
-                                 && (!page.searching || searchInput.text.trim().length >= 3)
+                                 && (!page.choosingPerson || page.searchModelController.people.length === 0)
+                                 && (!page.searching || !!page.searchModelController.selectedPerson.id || searchInput.text.trim().length >= 3)
                         title: "Sonuç bulunamadı"
-                        description: page.searching ? "Başka bir adla tekrar arayın." : "Filtreleri genişletip tekrar deneyin."
+                        description: page.choosingPerson ? "Başka bir kişi adıyla tekrar arayın."
+                            : page.personMode ? "Bu görünümde yapım bulunamadı. Tüm yapımları veya Film/Dizi seçimini değiştirebilirsin."
+                            : page.searching ? "Kaydettiğin ve izlediğin içerikler gizlenir. Başka bir adla tekrar arayın." : "Filtreleri genişletip tekrar deneyin."
+                    }
+                    ListView {
+                        id: directorResults
+                        objectName: "directorSearchResults"
+                        anchors.fill: parent
+                        visible: page.choosingPerson && !page.resultsBusy && !page.resultsError
+                        model: page.searchModelController.people
+                        clip: true
+                        spacing: Tokens.Theme.spaceSm
+                        delegate: ItemDelegate {
+                            id: personOption
+                            required property var modelData
+                            objectName: "directorSearchOption"
+                            width: directorResults.width
+                            height: Tokens.Theme.controlHeight + Tokens.Theme.spaceMd
+                            text: modelData.name
+                            Accessible.name: text + " yapımlarını göster"
+                            onClicked: page.searchModelController.selectPerson(modelData.id, mediaSelector.currentValue, page.searchMode)
+                            contentItem: RowLayout {
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: personOption.text
+                                    color: Tokens.Theme.textPrimary
+                                    elide: Text.ElideRight
+                                }
+                                Label { text: "Yapımlarını göster →"; color: Tokens.Theme.textSecondary }
+                            }
+                            background: Rectangle {
+                                radius: Tokens.Theme.radiusSm
+                                color: personOption.hovered ? Tokens.Theme.hoverSurface : Tokens.Theme.surfaceElevated
+                                border.color: personOption.activeFocus ? Tokens.Theme.accent : Tokens.Theme.border
+                            }
+                        }
+                        ScrollBar.vertical: ScrollBar {}
                     }
                     MediaGrid {
                         id: resultsGrid
@@ -292,6 +416,7 @@ Rectangle {
                         visible: !page.resultsBusy && page.displayedItems.length > 0
                         items: page.displayedItems
                         quickLibraryController: page.libraryActions
+                        dismissController: page.searching ? null : personalController
                         onMediaActivated: function(media) {
                             page.mediaSelected(media.mediaType, media.id)
                         }

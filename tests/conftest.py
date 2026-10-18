@@ -4,6 +4,18 @@ import socket
 
 import pytest
 
+from izlek.db.engine import create_session_factory, initialize_database
+
+
+@pytest.fixture
+def initialized_factory(tmp_path):
+    """Exclude schema setup from tests measuring asynchronous response timing."""
+    engine = initialize_database(tmp_path / "ready.sqlite3")
+    try:
+        yield create_session_factory(engine)
+    finally:
+        engine.dispose()
+
 
 @pytest.fixture(autouse=True)
 def isolate_user_storage(tmp_path, monkeypatch):
@@ -17,6 +29,8 @@ def isolate_user_storage(tmp_path, monkeypatch):
         monkeypatch.setenv(name, str(tmp_path / "xdg" / directory))
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     monkeypatch.setenv("QT_QUICK_BACKEND", "software")
+    # Unlike a Python patch, this also isolates subprocess smoke tests.
+    monkeypatch.setenv("PYTHON_KEYRING_BACKEND", "keyring.backends.null.Keyring")
     monkeypatch.setattr("izlek.security.token_store._system_keyring", lambda: None)
 
 

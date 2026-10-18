@@ -65,6 +65,39 @@ class Genre(ApiModel):
     name: str
 
 
+class PersonSummary(ApiModel):
+    id: int
+    name: str
+    known_for_department: str = ""
+
+
+class PersonSearchResults(ApiModel):
+    page: int
+    results: list[PersonSummary]
+    total_pages: int
+    total_results: int
+
+
+class DirectedMovieCredit(MovieSummary):
+    job: str = ""
+
+
+class DirectedTvCredit(TvSummary):
+    job: str = ""
+
+
+class PersonMovieCredits(ApiModel):
+    id: int
+    crew: list[DirectedMovieCredit] = Field(default_factory=list)
+    cast: list[MovieSummary] = Field(default_factory=list)
+
+
+class PersonTvCredits(ApiModel):
+    id: int
+    crew: list[DirectedTvCredit] = Field(default_factory=list)
+    cast: list[TvSummary] = Field(default_factory=list)
+
+
 class MovieDetail(MovieSummary):
     runtime: int | None = None
     genres: list[Genre] = Field(default_factory=list)
@@ -146,6 +179,7 @@ class SeasonSummary(ApiModel):
 
 
 class TvDetail(TvSummary):
+    episode_run_time: list[int] = Field(default_factory=list)
     number_of_seasons: int = 0
     number_of_episodes: int = 0
     seasons: list[SeasonSummary] = Field(default_factory=list)

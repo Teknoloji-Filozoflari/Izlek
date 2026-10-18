@@ -71,6 +71,58 @@ class MediaRepository:
     def list_all(self) -> list[MediaItem]:
         return list(self.session.scalars(select(MediaItem).order_by(MediaItem.id)))
 
+    def list_all_with_tracking(self) -> list[tuple[MediaItem, UserMedia | None]]:
+        """Read list candidates and their optional tracking state in one query."""
+        return list(self.session.execute(
+            select(MediaItem, UserMedia)
+            .outerjoin(UserMedia, UserMedia.media_id == MediaItem.id)
+            .order_by(MediaItem.id)
+        ))
+
+    def excluded_tmdb_ids(
+        self, media_type: MediaType, *, watched_only: bool = False
+    ) -> set[int]:
+        """Select personal media identities without mistaking metadata for saves."""
+        state_condition = (
+            UserMedia.status == TrackingStatus.WATCHED if watched_only
+            else (UserMedia.status.is_not(None) | UserMedia.favorite)
+        )
+        tracked = select(UserMedia.media_id).where(
+            UserMedia.media_id == MediaItem.id, state_condition
+        ).exists()
+        condition = tracked
+        if not watched_only:
+            listed = select(CustomListItem.media_id).where(
+                CustomListItem.media_id == MediaItem.id
+            ).exists()
+            progressed = (
+                select(EpisodeProgress.episode_id)
+                .join(Episode, Episode.id == EpisodeProgress.episode_id)
+                .join(Season, Season.id == Episode.season_id)
+                .where(
+                    Season.media_id == MediaItem.id,
+                    EpisodeProgress.watched.is_(True),
+                )
+                .exists()
+            )
+            condition = tracked | listed | progressed
+        return set(self.session.scalars(
+            select(MediaItem.tmdb_id).where(
+                MediaItem.media_type == media_type, condition
+            )
+        ))
+
+    def dismissed_tmdb_ids(self, media_type: MediaType) -> set[int]:
+        return set(self.session.scalars(
+            select(MediaItem.tmdb_id).join(UserMedia).where(
+                MediaItem.media_type == media_type, UserMedia.dismissed.is_(True)
+            )
+        ))
+
+    def recommendation_excluded_ids(self, media_type: MediaType) -> set[int]:
+        return (self.excluded_tmdb_ids(media_type, watched_only=True)
+                | self.dismissed_tmdb_ids(media_type))
+
     def list_local_media(
         self, media_type: MediaType
     ) -> list[tuple[MediaItem, UserMedia]]:
@@ -157,6 +209,19 @@ class UserMediaRepository:
     def set_favorite(self, media_id: int, favorite: bool) -> UserMedia:
         item = self._get_or_create(media_id)
         item.favorite = favorite
+        self.session.flush()
+        return item
+
+    def set_personal(self, media_id: int, rating: int | None, note: str) -> UserMedia:
+        item = self._get_or_create(media_id)
+        item.personal_rating = rating
+        item.personal_note = note
+        self.session.flush()
+        return item
+
+    def set_dismissed(self, media_id: int, dismissed: bool) -> UserMedia:
+        item = self._get_or_create(media_id)
+        item.dismissed = dismissed
         self.session.flush()
         return item
 

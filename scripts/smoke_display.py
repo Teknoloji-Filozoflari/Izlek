@@ -134,7 +134,23 @@ def main() -> int:
                             found.extend(option_labels(child))
                         return found
 
-                    names = (("listMediaPicker",) if args.hover_list_picker else
+                    if args.hover_list_picker:
+                        button = window.findChild(QQuickItem, "addMediaToListButton")
+                        button.forceActiveFocus()
+                        QTest.keyClick(window, Qt.Key.Key_Space)
+                        QTest.qWait(100)
+                        picker_view = window.findChild(
+                            QQuickItem, "mediaPickerCandidates"
+                        )
+                        assert picker_view is not None and picker_view.isVisible()
+                        assert len(lists_controller.candidates) == 2
+                        search = window.findChild(QQuickItem, "listMediaSearchInput")
+                        search.forceActiveFocus()
+                        QTest.keyClick(window, Qt.Key.Key_Escape)
+                        QTest.qWait(50)
+                        assert window.property("currentIndex") == 3
+                        print("Multi-select media picker verified")
+                    names = (() if args.hover_list_picker else
                              ("discoverMedia", "discoverGenre", "discoverCountry"))
                     for name in names:
                         combo = window.findChild(QQuickItem, name)

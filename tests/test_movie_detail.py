@@ -253,7 +253,7 @@ def test_movie_sections_save_metadata_and_personal_state_survives_restart(tmp_pa
         assert detail["genres"] == ["Dram"]
         assert detail["score"] == 7.6
         assert detail["cast"] == [
-            {"name": "Actor", "character": "Lead", "profilePath": ""}
+            {"id": 1, "name": "Actor", "character": "Lead", "profilePath": ""}
         ]
         assert detail["directors"] == ["Director"]
         assert detail["companies"] == ["Studio"]

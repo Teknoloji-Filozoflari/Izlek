@@ -4,8 +4,11 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from izlek.db.engine import create_session_factory, initialize_database
-from izlek.db.models import MediaType
-from izlek.repositories.local import CustomListRepository, MediaRepository
+from izlek.db.models import MediaType, TrackingStatus
+from izlek.repositories.local import (
+    CustomListRepository,
+    MediaRepository,
+)
 
 
 def _clean_name(name: str) -> str:
@@ -39,8 +42,13 @@ class CustomListsService:
             for member in repo.list_all_items():
                 members_by_list.setdefault(member.list_id, []).append(member)
             media_repo = MediaRepository(session)
-            all_media = media_repo.list_all()
+            media_with_tracking = media_repo.list_all_with_tracking()
+            all_media = [media for media, _ in media_with_tracking]
             media_by_id = {media.id: media for media in all_media}
+            states = {
+                media.id: user for media, user in media_with_tracking
+                if user is not None
+            }
             summaries = [
                 {
                     "id": item.id,
@@ -56,7 +64,7 @@ class CustomListsService:
                 if media is None:
                     continue
                 selected_media_ids.add(media.id)
-                members.append(self._media_dict(media))
+                members.append(self._media_dict(media, states.get(media.id)))
             candidates = [
                 self._media_dict(media)
                 for media in all_media
@@ -70,7 +78,13 @@ class CustomListsService:
         }
 
     @staticmethod
-    def _media_dict(media) -> dict:
+    def _media_dict(media, user=None) -> dict:
+        status = user.status if user else None
+        labels = {
+            TrackingStatus.WATCHED: "İzlendi",
+            TrackingStatus.WATCHING: "İzleniyor",
+            TrackingStatus.PLANNED: "İzlenecek",
+        }
         date = (
             media.release_date
             if media.media_type == MediaType.MOVIE
@@ -85,6 +99,9 @@ class CustomListsService:
             ),
             "poster_path": media.poster_path,
             "year": str(date.year) if date else "",
+            "status": status.value if status else "",
+            "status_label": labels.get(status, "İzlenmedi"),
+            "watched": status == TrackingStatus.WATCHED,
         }
 
     def create(self, name: str) -> int:
@@ -127,6 +144,63 @@ class CustomListsService:
             members = repo.list_items(list_id)
             if not any(item.media_id == media.id for item in members):
                 repo.add_item(list_id, media.id, len(members))
+
+    def add_many(self, list_id: int, selections: list[dict]) -> None:
+        """Validate every selection before atomically adding unique members."""
+        keys = list(dict.fromkeys(
+            (MediaType(item["kind"].upper()), int(item["tmdb_id"]))
+            for item in selections
+        ))
+        with self._sessions().begin() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            repo = CustomListRepository(session)
+            if repo.get(list_id) is None:
+                raise LookupError("Liste bulunamadı")
+            media_repo = MediaRepository(session)
+            selected = [media_repo.get_by_tmdb(item_id, kind) for kind, item_id in keys]
+            if any(media is None for media in selected):
+                raise LookupError("Seçilen içerik bulunamadı")
+            members = repo.list_items(list_id)
+            existing = {item.media_id for item in members}
+            position = max((item.sort_order for item in members), default=-1) + 1
+            for media in selected:
+                if media.id not in existing:
+                    repo.add_item(list_id, media.id, position)
+                    existing.add(media.id)
+                    position += 1
+
+    def reorder_list(self, source: int, target: int) -> None:
+        with self._sessions().begin() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            repo = CustomListRepository(session)
+            items = repo.list_all()
+            ids = [item.id for item in items]
+            if source not in ids or target not in ids:
+                raise LookupError("Liste bulunamadı")
+            destination = ids.index(target)
+            items.insert(destination, items.pop(ids.index(source)))
+            for position, item in enumerate(items):
+                repo.set_position(item.id, position)
+
+    def reorder_item(
+        self, list_id: int, source_kind: str, source_id: int,
+        target_kind: str, target_id: int,
+    ) -> None:
+        with self._sessions().begin() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            repo = CustomListRepository(session)
+            media_repo = MediaRepository(session)
+            source = media_repo.get_by_tmdb(source_id, MediaType(source_kind.upper()))
+            target = media_repo.get_by_tmdb(target_id, MediaType(target_kind.upper()))
+            members = repo.list_items(list_id)
+            ids = [item.media_id for item in members]
+            if (source is None or target is None
+                    or source.id not in ids or target.id not in ids):
+                raise LookupError("Liste içeriği bulunamadı")
+            destination = ids.index(target.id)
+            members.insert(destination, members.pop(ids.index(source.id)))
+            for position, member in enumerate(members):
+                repo.set_item_position(list_id, member.media_id, position)
 
     def add_by_name(self, kind: str, tmdb_id: int, name: str) -> int:
         """Choose a matching list or create one, then add a local media item."""

@@ -9,7 +9,8 @@ SORT_RECENT = "recent"
 SORT_TITLE = "title"
 SORT_YEAR = "year"
 SORT_SCORE = "score"
-SORT_OPTIONS = frozenset({SORT_RECENT, SORT_TITLE, SORT_YEAR, SORT_SCORE})
+SORT_CUSTOM = "custom"
+SORT_OPTIONS = frozenset({SORT_RECENT, SORT_TITLE, SORT_YEAR, SORT_SCORE, SORT_CUSTOM})
 
 
 class SortableItem(Protocol):
@@ -19,6 +20,7 @@ class SortableItem(Protocol):
     score: float | None
     status: str
     added_at: datetime
+    sort_order: int | None
 
 
 ItemT = TypeVar("ItemT", bound=SortableItem)
@@ -35,6 +37,12 @@ def metadata_score(media: MediaItem) -> float | None:
 
 def sort_items(items: list[ItemT], sort_by: str) -> list[ItemT]:
     """Sort library entries with missing year and score values last."""
+    if sort_by == SORT_CUSTOM:
+        return sorted(items, key=lambda item: (
+            item.sort_order is None,
+            item.sort_order if item.sort_order is not None else 0,
+            -item.added_at.timestamp(), -item.tmdb_id,
+        ))
     if sort_by == SORT_TITLE:
         return sorted(items, key=lambda item: (item.title.casefold(), item.tmdb_id))
     if sort_by == SORT_YEAR:

@@ -43,6 +43,8 @@ class TvDetailController(QObject):
         self._retired_images: list[ImageService] = []
         self._own_images = images is None
         self._executor = ThreadPoolExecutor(max_workers=2)
+        self._write_executor = ThreadPoolExecutor(max_workers=1)
+        self._closed = False
         self._futures: set[Future] = set()
         self._generation = 0
         self._season_generation = 0
@@ -424,12 +426,13 @@ class TvDetailController(QObject):
         self._submit("list", name, None)
 
     def _submit(self, action: str, value: Any, watched: bool | None) -> None:
-        if not self._detail or self._saving or self._season_busy:
+        if self._closed or not self._detail or self._saving or self._season_busy:
             return
         self._saving = True
         self._feedback = ""
         self.changed.emit()
-        self._submit_future(
+        # Keep accepted progress/status writes independent of page cancellation.
+        self._write_executor.submit(
             self._save,
             self._generation,
             self._detail["id"],
@@ -476,7 +479,11 @@ class TvDetailController(QObject):
         episodes: list[dict[str, Any]],
         feedback: str,
     ) -> None:
+        if self._closed:
+            return
         if generation != self._generation:
+            if detail:
+                self.libraryChanged.emit()
             return
         self._saving = False
         self._feedback = feedback
@@ -508,10 +515,12 @@ class TvDetailController(QObject):
             QDesktopServices.openUrl(QUrl(url))
 
     def close(self) -> None:
+        self._closed = True
         self._generation += 1
         self._season_generation += 1
         self._cancel_futures()
         self._executor.shutdown(wait=True, cancel_futures=True)
+        self._write_executor.shutdown(wait=True)
         if self._own_images and self._images is not None:
             self._images.close()
         for images in self._retired_images:

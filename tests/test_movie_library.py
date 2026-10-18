@@ -159,6 +159,7 @@ def test_movies_page_status_grid_and_compact_sections(tmp_path, monkeypatch):
         application.processEvents()
         sort_box.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Down)
+        QTest.keyClick(window, Qt.Key.Key_Down)
         _wait_for(application, lambda: library.sortBy == "title" and not library.busy)
         assert [item["tmdb_id"] for item in library.items] == [3, 2, 4, 5, 1]
         QTest.qWait(300)

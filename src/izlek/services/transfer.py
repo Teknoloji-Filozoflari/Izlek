@@ -27,7 +27,10 @@ from izlek.repositories.local import (
 from izlek.services.transfer_schema import SCHEMA_VERSION, IzlekExport
 
 _MAX_IMPORT_BYTES = 64 * 1024 * 1024
-_SCHEMA_MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
+_SCHEMA_MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
+    1: lambda payload: dict(payload),  # v1 has no personal card order.
+    2: lambda payload: dict(payload),  # v2 has no personal reviews/dismissals.
+}
 _BLOCKED_METADATA_KEYS = {
     "access_token",
     "authorization",
@@ -210,6 +213,10 @@ class TransferService:
                         **identity,
                         "status": state.status.value if state.status else None,
                         "status_is_manual": state.status_is_manual,
+                        "sort_order": state.sort_order,
+                        "personal_rating": state.personal_rating,
+                        "personal_note": state.personal_note,
+                        "dismissed": state.dismissed,
                         "added_at": _aware(state.added_at),
                         "updated_at": _aware(state.updated_at),
                     }
@@ -476,6 +483,14 @@ class TransferService:
             if missing_state or _prefer_imported(record.updated_at, state.updated_at):
                 state.status = TrackingStatus(record.status) if record.status else None
                 state.status_is_manual = record.status_is_manual and bool(record.status)
+                if record.sort_order is not None:
+                    state.sort_order = record.sort_order
+                if "personal_rating" in record.model_fields_set:
+                    state.personal_rating = record.personal_rating
+                if record.personal_note is not None:
+                    state.personal_note = record.personal_note
+                if record.dismissed is not None:
+                    state.dismissed = record.dismissed
                 state.added_at = min(
                     state.added_at, _naive(record.added_at) or state.added_at
                 )

@@ -22,6 +22,9 @@ dist/
 htmlcov/
 
 # Local application data and secrets
+.dev-data/
+tmdb-token
+.tmdb-token-*
 *.log
 *.sqlite
 *.sqlite3
@@ -40,3 +43,24 @@ htmlcov/
 .idea/
 .vscode/
 *~
+
+# Local working notes; publish only maintained user/developer documentation.
+/AGENTS.md
+/docs/*.md
+!/docs/architecture.md
+!/docs/components.md
+!/docs/development.md
+!/docs/izlek-json.md
+!/docs/releases.md
+!/docs/status-automation.md
+!/docs/TMDB_JUSTWATCH_COMPLIANCE.md
+!/docs/user-guide.md
+
+# Only the six screenshots used by README belong in the public repository.
+/docs/screenshots/*
+!/docs/screenshots/actor-new-1366.png
+!/docs/screenshots/card-direct-1366.png
+!/docs/screenshots/multi-picker-1366.png
+!/docs/screenshots/design-statistics-1366.png
+!/docs/screenshots/review-actions-movie-open-1366.png
+!/docs/screenshots/personal-library-1366.png

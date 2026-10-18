@@ -16,6 +16,9 @@ from izlek.tmdb.models import (
     MovieSearchResults,
     MovieVideos,
     MovieWatchProviders,
+    PersonMovieCredits,
+    PersonSearchResults,
+    PersonTvCredits,
     SeasonDetail,
     TvDetail,
     TvSearchResults,
@@ -182,6 +185,26 @@ class TmdbClient:
             {"query": query, "page": page, "language": language},
         )
 
+    def search_person(self, query: str, *, page: int = 1) -> PersonSearchResults:
+        """Search names and aliases without including adult results."""
+        return self._request(
+            endpoints.SEARCH_PERSON, PersonSearchResults,
+            {"query": query, "page": page, "language": "tr-TR",
+             "include_adult": "false"},
+        )
+
+    def person_movie_credits(self, person_id: int) -> PersonMovieCredits:
+        return self._request(
+            endpoints.PERSON_MOVIE_CREDITS.format(person_id=person_id),
+            PersonMovieCredits, {"language": "tr-TR"},
+        )
+
+    def person_tv_credits(self, person_id: int) -> PersonTvCredits:
+        return self._request(
+            endpoints.PERSON_TV_CREDITS.format(person_id=person_id),
+            PersonTvCredits, {"language": "tr-TR"},
+        )
+
     def discover_movie(
         self,
         *,
@@ -194,7 +217,7 @@ class TmdbClient:
         min_vote_count: int = 100,
         language: str = "tr-TR",
     ) -> MovieSearchResults:
-        """Discover movies ranked by score while excluding thinly voted titles."""
+        """Discover popular movies while excluding thinly voted titles."""
         return self._request(
             endpoints.DISCOVER_MOVIE,
             MovieSearchResults,
@@ -238,11 +261,11 @@ class TmdbClient:
         language: str,
         year_key: str,
     ) -> dict[str, str | int]:
-        """Build only supported Discover filters, with stable score ordering."""
+        """Build supported filters with popularity ordering across countries."""
         params: dict[str, str | int] = {
             "page": max(1, min(page, 500)),
             "language": language,
-            "sort_by": "vote_average.desc",
+            "sort_by": "popularity.desc",
             "vote_count.gte": max(0, min_vote_count),
             "vote_average.gte": f"{max(0.0, min(min_score, 10.0)):.1f}",
             "vote_average.lte": f"{max(0.0, min(max_score, 10.0)):.1f}",

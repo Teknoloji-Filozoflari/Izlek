@@ -90,7 +90,6 @@ def test_package_smoke_mode_writes_only_to_isolated_user_dirs(tmp_path):
     environment = os.environ | {
         "APPDIR": str(fake_appdir),
         "APPIMAGE": str(fake_appimage),
-        "HOME": str(user_root / "home"),
         "XDG_CONFIG_HOME": str(user_root / "config"),
         "XDG_DATA_HOME": str(user_root / "data"),
         "XDG_CACHE_HOME": str(user_root / "cache"),

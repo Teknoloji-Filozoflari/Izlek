@@ -5,6 +5,18 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+- Windows 10/11 x64 için EXE kurulum paketi ve GitHub Actions üretim akışı;
+  kurulum, açılış, kaldırma ve kişisel veri koruma kontrolleri. İlk gerçek
+  Windows build'i henüz doğrulanmadı.
+- Oyuncu/yönetmen araması, kişi yapımlarında Yeni keşifler/Tüm yapımları ve
+  kayıtlı/izlenmiş içeriklerin arama ve önerilerde ayıklanması.
+- Kişisel puan/not, birleşik kütüphane filtreleri, toplu işlemler ve öneri
+  gizleme/geri açma; kişisel alanları taşıyan JSON v3 yedekleri.
+- Afişli çoklu liste seçimi, kalıcı özel sıralar, karttan doğrudan sürükleme,
+  Rahat/Sıkı görünüm ve yenilenen istatistik düzeni.
+- Detaylar arası geri geçmişi, sayfa geçişi sırasında kabul edilmiş kişisel
+  yazımların korunması ve bozuk metadata/token hata durumları düzeltildi.
+
 ## [1.0.1] - 2026-10-04
 
 ### Fixed
@@ -57,8 +69,7 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
   istek sonuçları yok sayılır ve yalnız seçili kategorinin sorgusu çalışır.
 - Resmî TMDB SVG logosu ve kişisel verileri koruyan 180 günlük metadata/görsel
   temizliği; başarısız opsiyonel endpoint'ler kendi eski sync tarihini korur.
-- Ayrıntılı kod denetimi ve regresyon doğrulamaları:
-  [2026-10-04 denetim raporu](docs/AUDIT_2026_10_04.md).
+- Kod denetimi bulguları regresyon testleriyle doğrulandı.
 
 ## [1.0.0] - 2026-10-04
 

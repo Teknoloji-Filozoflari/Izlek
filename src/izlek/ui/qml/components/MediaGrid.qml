@@ -6,13 +6,18 @@ GridView {
     id: grid
     property var items: []
     property var quickLibraryController: null
-    readonly property int columns: Math.max(1, Math.floor(width / (Tokens.Theme.cardWidth
+    property var dismissController: null
+    property bool compact: false
+    readonly property int targetCardWidth: compact ? Tokens.Theme.cardCompactWidth : Tokens.Theme.cardWidth
+    readonly property real posterCardWidth: Math.min(targetCardWidth, cellWidth - Tokens.Theme.gridGap)
+    readonly property real posterCardHeight: Math.round(posterCardWidth * 1.5) + Tokens.Theme.cardInfoHeight
+        + (quickLibraryController ? Tokens.Theme.controlHeight + Tokens.Theme.spaceSm : 0)
+    readonly property int columns: Math.max(1, Math.floor(width / (targetCardWidth
                                                           + Tokens.Theme.gridGap)))
     signal mediaActivated(var media)
     model: items
     cellWidth: width / columns
-    cellHeight: Tokens.Theme.cardHeight + Tokens.Theme.gridGap
-                + (quickLibraryController ? Tokens.Theme.controlHeight + Tokens.Theme.spaceSm : 0)
+    cellHeight: posterCardHeight + Tokens.Theme.gridGap
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     keyNavigationEnabled: true
@@ -21,8 +26,9 @@ GridView {
         required property var modelData
         media: modelData
         quickLibraryController: grid.quickLibraryController
-        width: Math.min(Tokens.Theme.cardWidth, grid.cellWidth - Tokens.Theme.gridGap)
-        height: Tokens.Theme.cardHeight
+        dismissController: grid.dismissController
+        width: grid.posterCardWidth
+        height: grid.posterCardHeight
         onActivated: grid.mediaActivated(media)
     }
 

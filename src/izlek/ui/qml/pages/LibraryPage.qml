@@ -11,11 +11,36 @@ Rectangle {
     property var controller
     property var continueModelController: null
     property bool pageReady: false
+    property bool selecting: false
+    property bool filtersExpanded: false
+    property var selectedIds: []
+    property string feedback: ""
+    readonly property bool filterPopupOpen: bulkDialog.visible || filterPanel.filterPopupOpen || sortBox.popup.visible
     readonly property string emptyTitle:
         kind === "tv" ? "Henüz dizi eklemedin" : "Henüz film eklemedin"
     readonly property string mediaNoun: kind === "movie" ? "film" : "dizi"
     signal mediaSelected(int tmdbId)
     color: Tokens.Theme.background
+
+    function toggleSelection(itemId) {
+        var next = selectedIds.slice()
+        var index = next.indexOf(itemId)
+        if (index >= 0) next.splice(index, 1)
+        else next.push(itemId)
+        selectedIds = next
+    }
+    Connections {
+        target: page.controller
+        function onItemsChanged() {
+            var visibleIds = page.controller.items.map(function(item) { return item.tmdb_id })
+            page.selectedIds = page.selectedIds.filter(function(id) { return visibleIds.indexOf(id) >= 0 })
+        }
+        function onBulkCompleted(count) {
+            page.selectedIds = []
+            page.selecting = false
+            page.feedback = count + " içerik güncellendi."
+        }
+    }
 
     function refreshLibrary() {
         controller.refresh()
@@ -52,11 +77,70 @@ Rectangle {
                 font.weight: Tokens.Theme.weightDemiBold
             }
             Item { Layout.fillWidth: true }
+            IzlekButton {
+                objectName: "toggleLibraryFiltersButton"
+                text: page.filtersExpanded ? "Filtreleri kapat" : "Filtreler"
+                variant: "secondary"
+                onClicked: page.filtersExpanded = !page.filtersExpanded
+            }
+            IzlekButton {
+                objectName: "toggleLibrarySelectionButton"
+                text: page.selecting ? "Seçimi kapat" : "Seç"
+                variant: "secondary"
+                enabled: !page.controller.batchBusy
+                onClicked: { page.selecting = !page.selecting; page.selectedIds = [] }
+            }
             Label {
                 text: (controller.stats.total || 0) + " " + page.mediaNoun
                 color: Tokens.Theme.textSecondary
                 font.pixelSize: Tokens.Theme.textBody
             }
+        }
+
+        LibraryFiltersPanel {
+            id: filterPanel
+            objectName: "libraryFiltersPanel"
+            visible: page.filtersExpanded
+            width: parent.width
+            height: implicitHeight
+            kind: page.kind
+            controller: page.controller
+            onApplied: page.selectedIds = []
+        }
+        Label {
+            visible: page.controller.filtersActive
+            width: parent.width
+            text: controller.items.length + " eşleşme · Sürükleyerek sıralamak için filtreleri temizle."
+            color: Tokens.Theme.textMuted
+            wrapMode: Text.WordWrap
+        }
+        RowLayout {
+            visible: page.selecting
+            width: parent.width
+            height: Tokens.Theme.controlHeight
+            Label { text: page.selectedIds.length + " seçili"; color: Tokens.Theme.textPrimary }
+            IzlekButton {
+                objectName: "selectVisibleLibraryButton"
+                text: "Görünenlerin tümü"
+                variant: "secondary"
+                enabled: !page.controller.batchBusy
+                onClicked: page.selectedIds = page.controller.items.map(function(item) { return item.tmdb_id })
+            }
+            IzlekButton { text: "Temizle"; variant: "ghost"; enabled: !page.controller.batchBusy; onClicked: page.selectedIds = [] }
+            Item { Layout.fillWidth: true }
+            IzlekButton {
+                objectName: "openLibraryBatchButton"
+                text: "Toplu işlem"
+                enabled: page.selectedIds.length > 0 && !page.controller.busy && !page.controller.batchBusy
+                onClicked: { bulkDialog.selectedIds = page.selectedIds.slice(); bulkDialog.open() }
+            }
+        }
+        Label {
+            visible: !!page.feedback || !!page.controller.error
+            width: parent.width
+            text: page.controller.error || page.feedback
+            color: page.controller.error ? Tokens.Theme.danger : Tokens.Theme.success
+            wrapMode: Text.WordWrap
         }
 
         RowLayout {
@@ -73,6 +157,12 @@ Rectangle {
                     controller.setStatus(["PLANNED", "WATCHING", "WATCHED"][index])
                 }
             }
+            SegmentedControl {
+                objectName: page.kind === "movie" ? "movieCardDensity" : "tvCardDensity"
+                options: ["Rahat", "Sıkı"]
+                currentIndex: movieGrid.compact ? 1 : 0
+                onSelected: function(index) { movieGrid.compact = index === 1 }
+            }
             Item { Layout.fillWidth: true }
             Label {
                 text: "Sırala"
@@ -84,6 +174,7 @@ Rectangle {
                 Layout.preferredWidth: 168
                 Layout.preferredHeight: Tokens.Theme.controlHeight
                 model: [
+                    { text: "Özel Sıram", value: "custom" },
                     { text: "Son Eklenen", value: "recent" },
                     { text: "Başlık", value: "title" },
                     { text: "Yıl", value: "year" },
@@ -91,7 +182,7 @@ Rectangle {
                 ]
                 textRole: "text"
                 valueRole: "value"
-                currentIndex: ["recent", "title", "year", "score"].indexOf(controller.sortBy)
+                currentIndex: ["custom", "recent", "title", "year", "score"].indexOf(controller.sortBy)
                 onActivated: controller.setSort(currentValue)
                 contentItem: Label {
                     text: sortBox.displayText
@@ -158,10 +249,16 @@ Rectangle {
                 visible: controller.items.length > 0
                 items: controller.items
                 controller: page.controller
+                selectionMode: page.selecting
+                selectedIds: page.selectedIds
+                onSelectionToggled: function(itemId) { page.toggleSelection(itemId) }
                 onPosterRequested: function(tmdbId) { controller.requestPoster(tmdbId) }
                 onMediaActivated: function(tmdbId) { page.mediaSelected(tmdbId) }
                 onFavoriteToggled: function(tmdbId, favorite) {
                     controller.setFavorite(tmdbId, favorite)
+                }
+                onReorderRequested: function(sourceId, targetId) {
+                    controller.reorderMedia(sourceId, targetId)
                 }
             }
             LoadingState {
@@ -180,8 +277,9 @@ Rectangle {
                 width: parent.width - 2 * Tokens.Theme.spaceMd
                 height: Math.min(206, parent.height)
                 visible: !controller.busy && controller.items.length === 0
-                title: controller.error || page.emptyTitle
+                title: controller.error || (controller.filtersActive ? "Filtreyle eşleşen içerik yok" : page.emptyTitle)
                 description: controller.error ? "Lütfen tekrar deneyin."
+                    : controller.filtersActive ? "Filtreleri genişletip yeniden deneyebilirsin."
                     : (page.kind === "movie" ? "Film" : "Dizi")
                       + " arayıp kütüphanene eklediğinde burada görünecek."
             }
@@ -335,5 +433,10 @@ Rectangle {
             }
         }
     }
+    }
+    LibraryBulkDialog {
+        id: bulkDialog
+        objectName: "libraryBulkDialog"
+        controller: page.controller
     }
 }
