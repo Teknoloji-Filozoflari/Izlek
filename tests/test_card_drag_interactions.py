@@ -26,6 +26,38 @@ def _click(window, item):
     )
 
 
+def _stable_scene_center(application, area):
+    """Wait until the drag hit-box stops moving in scene coordinates.
+
+    TV library flashes the Continue Watching busy chrome, then collapses it
+    when the worker finishes empty — that yank mid-press cancels MouseArea
+    clicks under offscreen/software Qt.
+    """
+    last = None
+    stable = 0
+    for _ in range(500):
+        application.processEvents()
+        if area is None or area.width() <= 10 or area.height() <= 10:
+            stable = 0
+            last = None
+            QTest.qWait(10)
+            continue
+        point = area.mapToScene(QPointF(area.width() / 2, area.height() / 2))
+        if (
+            last is not None
+            and abs(point.x() - last.x()) < 0.5
+            and abs(point.y() - last.y()) < 0.5
+        ):
+            stable += 1
+            if stable >= 5:
+                return point
+        else:
+            stable = 0
+        last = point
+        QTest.qWait(10)
+    raise AssertionError("Timed out waiting for stable card geometry")
+
+
 @pytest.mark.parametrize("kind", ["movie", "tv"])
 def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
     ordered_factory, kind
@@ -48,7 +80,7 @@ def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
         area = _visual(card, "cardDragArea")
         assert not _visual(card, "cardReorderHandle")
         # Movement below the platform threshold remains an ordinary click.
-        start = area.mapToScene(QPointF(area.width() / 2, area.height() / 2))
+        start = _stable_scene_center(app, area)
         QTest.mousePress(
             window,
             Qt.MouseButton.LeftButton,
@@ -56,11 +88,15 @@ def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
             start.toPoint(),
         )
         QTest.mouseMove(window, (start + QPointF(1, 1)).toPoint())
+        # Re-map release through live geometry in case layout still drifts.
+        release = area.mapToScene(
+            QPointF(area.width() / 2, area.height() / 2)
+        ) + QPointF(1, 1)
         QTest.mouseRelease(
             window,
             Qt.MouseButton.LeftButton,
             Qt.KeyboardModifier.NoModifier,
-            (start + QPointF(1, 1)).toPoint(),
+            release.toPoint(),
         )
         wait_for(app, lambda: stack.property("depth") == 2)
         assert stack.property("currentItem").property("mediaId") == ids[0]
