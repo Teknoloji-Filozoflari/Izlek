@@ -342,11 +342,12 @@ def test_picker_selects_both_types_across_queries_and_adds_once(ordered_factory)
         search.setProperty("text", "Item 1")
         view = window.findChild(QQuickItem, "mediaPickerCandidates")
         wait_for(app, lambda: view.property("count") == 2)
+        wait_for(app, lambda: len(_all_visual(view, "mediaPickerOption")) == 2)
         for kind in ("movie", "tv"):
             row = next(
                 item
                 for item in _all_visual(view, "mediaPickerOption")
-                if item.property("modelData")["kind"] == kind
+                if _model_data(item)["kind"] == kind
             )
             row.forceActiveFocus()
             QTest.keyClick(window, Qt.Key.Key_Space)
@@ -372,6 +373,14 @@ def _all_visual(item, name):
     for child in item.childItems():
         found.extend(_all_visual(child, name))
     return found
+
+
+def _model_data(item):
+    """QML modelData is often a QJSValue under PySide6 — normalize to a mapping."""
+    data = item.property("modelData")
+    if hasattr(data, "toVariant"):
+        data = data.toVariant()
+    return data
 
 
 def test_shutdown_drains_queued_multi_add(ordered_factory):

@@ -1,3 +1,5 @@
 # Use the tested Qt/PyInstaller versions; release builds use Ubuntu 22.04 (glibc 2.35).
 PySide6==6.8.2.1
 PyInstaller==6.22.3
+# SQLAlchemy 2.1 + Alembic batch alter has segfaulted under offscreen package CI.
+SQLAlchemy>=2.0,<2.1

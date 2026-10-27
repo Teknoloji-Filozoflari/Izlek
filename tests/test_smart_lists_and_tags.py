@@ -3,7 +3,6 @@
 import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtQuick import QQuickItem
-from PySide6.QtTest import QTest
 
 from izlek.app import create_application
 from izlek.db.engine import create_session_factory, initialize_database
@@ -16,6 +15,7 @@ from izlek.services.tags import TagsService
 from izlek.ui.controllers.cache_controller import format_bytes
 from izlek.ui.controllers.theme_controller import ThemeController
 from izlek.ui.controllers.token_controller import TokenController
+from test_global_search import wait_for
 
 
 class _Store:
@@ -119,22 +119,25 @@ def test_settings_shows_cache_size_and_theme_control(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     application, engine, window = create_application(
         token_controller=TokenController(store=_Store())
     )
     try:
+        window.resize(1366, 768)
         window.navigate(5)
-        QTest.qWait(400)
+        wait_for(
+            application,
+            lambda: window.findChild(QQuickItem, "cacheSizeLabel") is not None
+            and window.findChild(QQuickItem, "themeModeControl") is not None,
+        )
         size = window.findChild(QQuickItem, "cacheSizeLabel")
         theme = window.findChild(QQuickItem, "themeModeControl")
-        assert size is not None
         assert "Mevcut cache boyutu" in size.property("text")
-        assert theme is not None
         assert theme.property("currentIndex") in (0, 1)
         theme_controller = engine.rootContext().contextProperty("themeController")
         theme_controller.setMode("light")
-        QTest.qWait(100)
-        assert theme.property("currentIndex") == 1
+        wait_for(application, lambda: theme.property("currentIndex") == 1)
     finally:
         window.close()
         application.processEvents()
