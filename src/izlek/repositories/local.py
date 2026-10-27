@@ -9,8 +9,10 @@ from izlek.db.models import (
     Episode,
     EpisodeProgress,
     MediaItem,
+    MediaTag,
     MediaType,
     Season,
+    Tag,
     TrackingStatus,
     UserMedia,
     utc_now,
@@ -611,6 +613,114 @@ class CustomListRepository:
 
     def remove_item(self, list_id: int, media_id: int) -> bool:
         item = self.session.get(CustomListItem, (list_id, media_id))
+        if item is None:
+            return False
+        self.session.delete(item)
+        self.session.flush()
+        return True
+
+
+class TagRepository:
+    """Create and attach user tags without changing tracking state."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, tag_id: int) -> Tag | None:
+        return self.session.get(Tag, tag_id)
+
+    def get_by_name(self, name: str) -> Tag | None:
+        return self.session.scalar(select(Tag).where(Tag.name == name))
+
+    def list_all(self) -> list[Tag]:
+        return list(self.session.scalars(select(Tag).order_by(Tag.name, Tag.id)))
+
+    def create(self, name: str) -> Tag:
+        item = Tag(name=name)
+        self.session.add(item)
+        self.session.flush()
+        return item
+
+    def rename(self, tag_id: int, name: str) -> Tag:
+        item = self.get(tag_id)
+        if item is None:
+            raise LookupError(f"Etiket bulunamadı: {tag_id}")
+        item.name = name
+        self.session.flush()
+        return item
+
+    def delete(self, tag_id: int) -> bool:
+        item = self.get(tag_id)
+        if item is None:
+            return False
+        self.session.delete(item)
+        self.session.flush()
+        return True
+
+    def names_for_media(self, media_id: int) -> list[str]:
+        return list(
+            self.session.scalars(
+                select(Tag.name)
+                .join(MediaTag, MediaTag.tag_id == Tag.id)
+                .where(MediaTag.media_id == media_id)
+                .order_by(Tag.name, Tag.id)
+            )
+        )
+
+    def names_by_media(self) -> dict[int, list[str]]:
+        """Return every media id mapped to sorted tag names in one query."""
+        rows = self.session.execute(
+            select(MediaTag.media_id, Tag.name)
+            .join(Tag, Tag.id == MediaTag.tag_id)
+            .order_by(MediaTag.media_id, Tag.name, Tag.id)
+        ).all()
+        result: dict[int, list[str]] = {}
+        for media_id, name in rows:
+            result.setdefault(media_id, []).append(name)
+        return result
+
+    def media_ids_for_tag(self, tag_id: int) -> set[int]:
+        return set(
+            self.session.scalars(
+                select(MediaTag.media_id).where(MediaTag.tag_id == tag_id)
+            )
+        )
+
+    def counts(self) -> dict[int, int]:
+        rows = self.session.execute(
+            select(MediaTag.tag_id, MediaTag.media_id)
+        ).all()
+        totals: dict[int, int] = {}
+        for tag_id, _media_id in rows:
+            totals[tag_id] = totals.get(tag_id, 0) + 1
+        return totals
+
+    def set_for_media(self, media_id: int, tag_ids: list[int]) -> None:
+        wanted = set(tag_ids)
+        existing = {
+            row.tag_id: row
+            for row in self.session.scalars(
+                select(MediaTag).where(MediaTag.media_id == media_id)
+            )
+        }
+        for tag_id, row in list(existing.items()):
+            if tag_id not in wanted:
+                self.session.delete(row)
+        for tag_id in wanted:
+            if tag_id not in existing:
+                self.session.add(MediaTag(tag_id=tag_id, media_id=media_id))
+        self.session.flush()
+
+    def attach(self, tag_id: int, media_id: int) -> MediaTag:
+        item = self.session.get(MediaTag, (tag_id, media_id))
+        if item is None:
+            item = MediaTag(tag_id=tag_id, media_id=media_id)
+            self.session.add(item)
+            self.session.flush()
+        return item
+
+    def detach(self, tag_id: int, media_id: int) -> bool:
+        item = self.session.get(MediaTag, (tag_id, media_id))
         if item is None:
             return False
         self.session.delete(item)

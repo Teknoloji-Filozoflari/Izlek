@@ -1,6 +1,6 @@
 # QML Bileşenleri
 
-QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `import "components"` ile ayrı kullanılabilir. Renkler, boşluklar, yazı boyutları, süreler ve kart ölçüleri `theme/Theme.qml` içinden alınır. Galeriyi yerel örnek veriyle `python -m izlek --gallery` komutuyla açın; bu komut ana pencerenin kayıtlı boyutunu değiştirmez.
+QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `import "components"` ile ayrı kullanılabilir. Renkler, boşluklar, yazı boyutları, süreler ve kart ölçüleri `theme/Theme.qml` içinden alınır; `mode` (`dark` / `light`) Ayarlar'daki görünüm tercihine bağlanır. Galeriyi yerel örnek veriyle `python -m izlek --gallery` komutuyla açın; bu komut ana pencerenin kayıtlı boyutunu değiştirmez.
 
 | Bileşen | Temel özellikler ve olay |
 | --- | --- |

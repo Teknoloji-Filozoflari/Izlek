@@ -22,6 +22,15 @@ ApplicationWindow {
         discoverPage, moviesPage, showsPage, listsPage, homePage, settingsPage
     ]
 
+    function applyThemeMode() {
+        Tokens.Theme.mode = themeController.mode
+    }
+    Component.onCompleted: window.applyThemeMode()
+    Connections {
+        target: themeController
+        function onChanged() { window.applyThemeMode() }
+    }
+
     function cancelSectionTasks(index) {
         if (index === 0)
             discoverController.cancelPending()
