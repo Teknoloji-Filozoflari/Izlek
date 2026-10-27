@@ -151,7 +151,9 @@ def create_application(
         engine.rootContext().setContextProperty("customListsController", custom_lists)
         application.aboutToQuit.connect(custom_lists.close)
         controller.tokenSaved.connect(custom_lists.refresh_token)
-        discover = discover_controller or DiscoverController(parent=engine)
+        discover = discover_controller or DiscoverController(
+            settings=settings, parent=engine
+        )
         if discover.parent() is None:
             discover.setParent(engine)
         engine.rootContext().setContextProperty("discoverController", discover)

@@ -132,7 +132,10 @@
     "export_title": "Exportar datos de İzlek",
     "import_title": "Elegir archivo JSON de İzlek",
     "filter_izlek_json": "İzlek JSON (*.json)",
-    "filter_json": "JSON (*.json)"
+    "filter_json": "JSON (*.json)",
+    "discover": "Discover",
+    "discover_for_you": "“For you” strip",
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
   },
   "errors": {
     "network": "No se pudo contactar con TMDb. Comprueba tu conexión a internet.",

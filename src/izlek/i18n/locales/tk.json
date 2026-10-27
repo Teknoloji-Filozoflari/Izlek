@@ -132,7 +132,10 @@
     "export_title": "İzlek maglumatyny eksport et",
     "import_title": "İzlek JSON faýlyny saýla",
     "filter_izlek_json": "İzlek JSON (*.json)",
-    "filter_json": "JSON (*.json)"
+    "filter_json": "JSON (*.json)",
+    "discover": "Discover",
+    "discover_for_you": "“For you” strip",
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
   },
   "errors": {
     "network": "TMDb-ä ýetip bolmady. Internet birikmäňizi barlaň.",
