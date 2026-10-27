@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from izlek.metadata.capabilities import Capability
-from izlek.metadata.catalog import SourceId
 from izlek.metadata.clients import OmdbMetadataClient, TraktMetadataClient
 from izlek.metadata.protocol import UnsupportedCapabilityError
 from izlek.metadata.registry import MetadataClientRegistry

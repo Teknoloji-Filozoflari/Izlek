@@ -13,7 +13,8 @@ from izlek.ui.controllers.token_controller import TokenController
 from izlek.ui.controllers.tv_library_controller import TvLibraryController
 from test_global_search import ExistingTokenStore, FakeImages, wait_for
 from test_reordering import _drag, _visual
-from test_reordering import ordered_factory as ordered_factory
+
+pytest_plugins = ("test_reordering",)
 
 
 def _click(window, item):

@@ -117,7 +117,12 @@ def test_for_you_skips_dismissed_seeds(initialized_factory):
             7,
             MediaType.MOVIE,
             "Hidden",
-            metadata_json={"detail": {"id": 7, "genres": [{"id": 18, "name": "Drama"}]}},
+            metadata_json={
+                "detail": {
+                    "id": 7,
+                    "genres": [{"id": 18, "name": "Drama"}],
+                }
+            },
         )
         users = UserMediaRepository(session)
         users.set_favorite(media.id, True)

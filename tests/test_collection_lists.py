@@ -117,7 +117,8 @@ def test_add_collection_movies_creates_list_without_forcing_library(tmp_path):
 
 
 def test_movie_detail_imports_tmdb_collection_into_list(tmp_path):
-    app = QGuiApplication.instance() or QGuiApplication([])
+    if QGuiApplication.instance() is None:
+        QGuiApplication([])
     db = initialize_database(tmp_path / "movie-collection.sqlite3")
     factory = create_session_factory(db)
     payload = _collection_payload()
