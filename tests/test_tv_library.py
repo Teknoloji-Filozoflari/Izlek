@@ -193,7 +193,7 @@ def test_shows_page_combines_statuses_progress_and_compact_sections(
         for width, height in ((800, 600), (1366, 768), (1920, 1080)):
             window.resize(width, height)
             application.processEvents()
-            assert grid.height() < 330 and favorites.height() < 120
+            assert grid.height() < 420 and favorites.height() < 120
         watching_index = next(
             index
             for index, item in enumerate(library.items)

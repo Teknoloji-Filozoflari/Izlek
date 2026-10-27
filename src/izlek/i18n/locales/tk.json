@@ -167,7 +167,9 @@
     "show_credits": "Işlerini görkez →",
     "show_credits_a11y": "{name} işlerini görkez",
     "all_genres": "Ähli žanrlar",
-    "all_countries": "Ähli ýurtlar"
+    "all_countries": "Ähli ýurtlar",
+    "for_you": "For you",
+    "for_you_help": "TMDb neighbors from your local ratings, favorites, and dismissals — data stays on device."
   },
   "genre": {
     "action": "Hereket",
@@ -274,7 +276,10 @@
     "show_watched_a11y": "Serialy görüldi et",
     "show_unwatched_a11y": "Serialy görülmedi et",
     "no_episodes": "Bu möwsümde bölüm ýok.",
-    "saved": "Ýatda saklandy."
+    "saved": "Ýatda saklandy.",
+    "add_collection_list": "Add series / collection to list",
+    "collection_added": "Added {added}/{total} movies to «{name}».",
+    "collection_failed": "Could not add the collection to a list."
   },
   "search": {
     "placeholder": "Film ýa-da serial gözle",
@@ -296,7 +301,19 @@
     "title": "Nirede görülýär",
     "empty": "Türkiýede üpjünçi tapylmady",
     "attribution": "Görmek opsiýalaryny JustWatch üpjün edýär · Türkiýe",
-    "tmdb_link": "TMDb-de görmek opsiýalary"
+    "tmdb_link": "TMDb-de görmek opsiýalary",
+    "empty_help": "No subscription, free, ads, rental, or purchase options are listed.",
+    "group_ads": "With ads",
+    "group_buy": "Buy",
+    "group_free": "Free",
+    "group_rent": "Rent",
+    "group_subscription": "Subscription",
+    "help": "All options for the selected region are listed by group for information only.",
+    "hint_ads": "AVOD — free with ads",
+    "hint_buy": "Purchase / digital ownership",
+    "hint_free": "Free to watch (no ads)",
+    "hint_rent": "TVOD rental",
+    "hint_subscription": "SVOD — watch with a subscription"
   },
   "review": {
     "title": "Baham we belligim",

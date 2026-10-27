@@ -67,3 +67,8 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Pytest fixture re-exports (`import fixture as fixture`) shadow parameter names.
+"tests/test_personal_ui.py" = ["F811"]
+"tests/test_card_drag_interactions.py" = ["F811"]

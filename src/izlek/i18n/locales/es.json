@@ -167,7 +167,9 @@
     "show_credits": "Ver créditos →",
     "show_credits_a11y": "Ver créditos de {name}",
     "all_genres": "Todos los géneros",
-    "all_countries": "Todos los países"
+    "all_countries": "Todos los países",
+    "for_you": "For you",
+    "for_you_help": "TMDb neighbors from your local ratings, favorites, and dismissals — data stays on device."
   },
   "genre": {
     "action": "Acción",
@@ -274,7 +276,10 @@
     "show_watched_a11y": "Marcar serie como vista",
     "show_unwatched_a11y": "Marcar serie como no vista",
     "no_episodes": "No hay episodios en esta temporada.",
-    "saved": "Guardado."
+    "saved": "Guardado.",
+    "add_collection_list": "Add series / collection to list",
+    "collection_added": "Added {added}/{total} movies to «{name}».",
+    "collection_failed": "Could not add the collection to a list."
   },
   "search": {
     "placeholder": "Buscar películas o series",
@@ -296,7 +301,19 @@
     "title": "Dónde ver",
     "empty": "No se encontraron proveedores en Türkiye",
     "attribution": "Opciones de visionado proporcionadas por JustWatch · Türkiye",
-    "tmdb_link": "Opciones de visionado en TMDb"
+    "tmdb_link": "Opciones de visionado en TMDb",
+    "empty_help": "No subscription, free, ads, rental, or purchase options are listed.",
+    "group_ads": "With ads",
+    "group_buy": "Buy",
+    "group_free": "Free",
+    "group_rent": "Rent",
+    "group_subscription": "Subscription",
+    "help": "All options for the selected region are listed by group for information only.",
+    "hint_ads": "AVOD — free with ads",
+    "hint_buy": "Purchase / digital ownership",
+    "hint_free": "Free to watch (no ads)",
+    "hint_rent": "TVOD rental",
+    "hint_subscription": "SVOD — watch with a subscription"
   },
   "review": {
     "title": "Mi nota y puntuación",

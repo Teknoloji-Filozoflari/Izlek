@@ -167,7 +167,9 @@
     "show_credits": "Показать работы →",
     "show_credits_a11y": "Показать работы {name}",
     "all_genres": "Все жанры",
-    "all_countries": "Все страны"
+    "all_countries": "Все страны",
+    "for_you": "For you",
+    "for_you_help": "TMDb neighbors from your local ratings, favorites, and dismissals — data stays on device."
   },
   "genre": {
     "action": "Боевик",
@@ -274,7 +276,10 @@
     "show_watched_a11y": "Отметить сериал просмотренным",
     "show_unwatched_a11y": "Отметить сериал непросмотренным",
     "no_episodes": "В этом сезоне нет эпизодов.",
-    "saved": "Сохранено."
+    "saved": "Сохранено.",
+    "add_collection_list": "Add series / collection to list",
+    "collection_added": "Added {added}/{total} movies to «{name}».",
+    "collection_failed": "Could not add the collection to a list."
   },
   "search": {
     "placeholder": "Поиск фильмов или сериалов",
@@ -296,7 +301,19 @@
     "title": "Где смотреть",
     "empty": "Провайдеры для Türkiye не найдены",
     "attribution": "Варианты просмотра предоставлены JustWatch · Türkiye",
-    "tmdb_link": "Варианты просмотра на TMDb"
+    "tmdb_link": "Варианты просмотра на TMDb",
+    "empty_help": "No subscription, free, ads, rental, or purchase options are listed.",
+    "group_ads": "With ads",
+    "group_buy": "Buy",
+    "group_free": "Free",
+    "group_rent": "Rent",
+    "group_subscription": "Subscription",
+    "help": "All options for the selected region are listed by group for information only.",
+    "hint_ads": "AVOD — free with ads",
+    "hint_buy": "Purchase / digital ownership",
+    "hint_free": "Free to watch (no ads)",
+    "hint_rent": "TVOD rental",
+    "hint_subscription": "SVOD — watch with a subscription"
   },
   "review": {
     "title": "Моя оценка и заметка",

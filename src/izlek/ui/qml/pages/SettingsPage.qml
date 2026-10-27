@@ -311,7 +311,11 @@ Rectangle {
 
             Card { objectName: "cacheSettingsCard"; title: page.tr("settings.cache")
                 Label { Layout.fillWidth: true; text: page.tr("settings.cache_help"); color: Tokens.Theme.textMuted; wrapMode: Text.WordWrap }
-                Label { text: i18n.tf("settings.cache_size", cacheController.sizeLabel); color: Tokens.Theme.textSecondary }
+                Label {
+                    objectName: "cacheSizeLabel"
+                    text: i18n.tf("settings.cache_size", cacheController.sizeLabel)
+                    color: Tokens.Theme.textSecondary
+                }
                 RowLayout {
                     IzlekButton { objectName: "refreshCacheButton"; text: page.tr("common.refresh"); variant: "secondary"; enabled: !cacheController.busy; onClicked: cacheController.refresh() }
                     IzlekButton { objectName: "clearCacheButton"; text: page.tr("settings.cache_clear"); enabled: !cacheController.busy; onClicked: cacheController.clear() }

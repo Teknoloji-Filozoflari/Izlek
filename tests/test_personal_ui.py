@@ -26,10 +26,9 @@ from izlek.ui.controllers.tv_library_controller import TvLibraryController
 from test_discover import _DiscoverClient
 from test_global_search import ExistingTokenStore, FakeImages, find_visual, wait_for
 from test_movie_detail import responses
+from test_personal_features import personal_factory as personal_factory
 from test_tv_detail import FakeImages as DetailImages
 from test_tv_detail import payloads
-
-pytest_plugins = ("test_personal_features",)
 
 
 def close_all(app, engine, window):

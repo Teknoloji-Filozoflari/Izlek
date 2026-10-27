@@ -167,7 +167,9 @@
     "show_credits": "Ishlarini koʻrsatish →",
     "show_credits_a11y": "{name} ishlarini koʻrsatish",
     "all_genres": "Barcha janrlar",
-    "all_countries": "Barcha mamlakatlar"
+    "all_countries": "Barcha mamlakatlar",
+    "for_you": "For you",
+    "for_you_help": "TMDb neighbors from your local ratings, favorites, and dismissals — data stays on device."
   },
   "genre": {
     "action": "Jangari",
@@ -274,7 +276,10 @@
     "show_watched_a11y": "Serialni koʻrilgan qilish",
     "show_unwatched_a11y": "Serialni koʻrilmagan qilish",
     "no_episodes": "Bu mavsumda qism yoʻq.",
-    "saved": "Saqlandi."
+    "saved": "Saqlandi.",
+    "add_collection_list": "Add series / collection to list",
+    "collection_added": "Added {added}/{total} movies to «{name}».",
+    "collection_failed": "Could not add the collection to a list."
   },
   "search": {
     "placeholder": "Film yoki serial qidirish",
@@ -296,7 +301,19 @@
     "title": "Qayerda koʻrish mumkin",
     "empty": "Turkiyada provayder topilmadi",
     "attribution": "Koʻrish variantlarini JustWatch taqdim etadi · Turkiya",
-    "tmdb_link": "TMDb dagi koʻrish variantlari"
+    "tmdb_link": "TMDb dagi koʻrish variantlari",
+    "empty_help": "No subscription, free, ads, rental, or purchase options are listed.",
+    "group_ads": "With ads",
+    "group_buy": "Buy",
+    "group_free": "Free",
+    "group_rent": "Rent",
+    "group_subscription": "Subscription",
+    "help": "All options for the selected region are listed by group for information only.",
+    "hint_ads": "AVOD — free with ads",
+    "hint_buy": "Purchase / digital ownership",
+    "hint_free": "Free to watch (no ads)",
+    "hint_rent": "TVOD rental",
+    "hint_subscription": "SVOD — watch with a subscription"
   },
   "review": {
     "title": "Bahom va eslatmam",
