@@ -97,7 +97,9 @@ class TransferController(QObject):
     @Slot()
     def importSelected(self) -> None:
         if self._import_path is None or not self._preview:
-            self._feedback = "Önce geçerli bir İzlek JSON dosyası seçin."
+            self._feedback = (
+                "Önce geçerli bir İzlek/Trakt JSON veya Letterboxd CSV seçin."
+            )
             self._feedback_kind = "danger"
             self.changed.emit()
             return

@@ -102,7 +102,7 @@ yenilenir; ekleme arama sorgusunu/sonuçlarını veya gezintiyi değiştirmez.
 
 `user_media.watched_at` WATCHED'e geçişte yazılır; WATCHED dışına çıkınca temizlenir. Film detayında İzlendi'ye yeniden basmak `rewatch=True` ile `rewatch_count` artırır ve tarihi yeniler; toplu status ve otomatik dizi teyidi yeniden izleme saymaz. JSON şema v4 bu alanları taşır.
 
-`services/transfer.py`, `TransferRepository` üzerinden tüm taşınabilir kayıtları okuyup `services/transfer_schema.py` içindeki sürümlü Pydantic modele çevirir. Export atomik dosya değişimiyle ve `0600` izniyle yazılır. Import önce dosyanın tamamını doğrular, sonra medya kimliği, bölüm numarası ve büyük/küçük harften bağımsız liste adı üzerinden tek SQLite transaction içinde birleştirir. Controller dosya ve veritabanı işlerini UI thread'i dışında yürütür; başarılı import sonrasında yerel dashboard, kütüphane, favori, liste ve istatistik controller'ları yenilenir. Şema alanları ve migration yaklaşımı [İzlek JSON belgesinde](izlek-json.md) tanımlıdır.
+`services/transfer.py`, `TransferRepository` üzerinden tüm taşınabilir kayıtları okuyup `services/transfer_schema.py` içindeki sürümlü Pydantic modele çevirir. Export atomik dosya değişimiyle ve `0600` izniyle yazılır. Import önce dosyanın tamamını doğrular, sonra medya kimliği, bölüm numarası ve büyük/küçük harften bağımsız liste adı üzerinden tek SQLite transaction içinde birleştirir. `services/import_adapters.py`, Trakt izlenen/geçmiş/puan/izleme listesi JSON dizilerini ve Letterboxd CSV dosyalarını (çevrimdışı eşleşme için `tmdbID` / `tmdb_id` zorunlu) aynı İzlek belgesine dönüştürüp mevcut birleştirme kurallarına besler. Controller dosya ve veritabanı işlerini UI thread'i dışında yürütür; başarılı import sonrasında yerel dashboard, kütüphane, favori, liste ve istatistik controller'ları yenilenir. Şema alanları ve migration yaklaşımı [İzlek JSON belgesinde](izlek-json.md) tanımlıdır.
 
 ## Yerel veri ve güvenlik
 
@@ -142,7 +142,9 @@ yanıtı yeni gizleme kimliklerini geçersiz kılamaz. Açık ad/kişi araması 
 tercihle gizlenmez; mevcut kayıtlıları gizleme davranışı korunur. Ayarlar
 gizlenenleri yerel sorgudan okur ve tek tek geri açar.
 
-Discover controller'ının ayrı bir servis olmadan doğrudan client kullanması mevcut bir sapmadır; yeni kod için hedef akış yukarıdaki servis katmanını korumalıdır.
+Keşfet akışı `DiscoverController → DiscoverService → TmdbClient` katmanını izler.
+Servis Discover filtrelerini, oy eşiğini ve yerel gizleme kimliklerini uygular;
+controller yalnız nesil iptali, afiş ve QML durumunu yönetir.
 
 `XDG_CONFIG_HOME/izlek`, `XDG_DATA_HOME/izlek`, `XDG_CACHE_HOME/izlek` ve `XDG_STATE_HOME/izlek/logs` kullanılır; tanımsız değişkenler için XDG varsayılanları geçerlidir. Yol hesaplamak dizin oluşturmaz. Pencere boyutu ve büyütülmüş durumu `XDG_CONFIG_HOME/izlek/window.ini` içine yazılır; ekran konumu saklanmaz. Meta veri kaynağı anahtarları ve izleme bölgesi `metadata-sources.json` içindedir (gizli kimlik bilgisi yazılmaz). SQLite dosyası `XDG_DATA_HOME/izlek/izlek.sqlite3` altındadır; yeni dosya yalnızca kullanıcıya açık izinlerle oluşturulur. Açılışta Alembic `head` revizyonuna yükseltilir; değişiklikler `db/migrations/versions/` içinde sürümlenir. SQLite yabancı anahtarları her bağlantıda açılır. `MediaItem`, `Season` ve `Episode` metadata tutar; `UserMedia`, `EpisodeProgress` ve özel listeler kişisel veriyi ayrı tutar. Metadata upsert işlemleri takip durumuna ve izlenen bölümlere dokunmaz. `security/token_store.py`, tokenı önce sistem anahtarlığında tutar; anahtarlık kullanılamazsa `XDG_CONFIG_HOME/izlek/tmdb-token` dosyasını `0600` izniyle yazar ve kullanıcıyı bilgilendirir. Token SQLite, QSettings ve loglara girmez. `tmdb/client.py`, `GET /3/authentication` isteğini Bearer başlığıyla gönderir; doğrulama ve saklama UI thread'i dışında yapılır. Cache silinmesi kişisel takip verisini etkilememelidir. Gelecekteki ağır veritabanı işleri de Qt UI thread'i dışında çalıştırılacaktır.
 

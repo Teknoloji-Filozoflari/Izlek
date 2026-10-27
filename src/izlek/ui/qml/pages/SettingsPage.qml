@@ -224,12 +224,12 @@ Rectangle {
             }
 
             Card { objectName: "dataSettingsCard"; title: "Veriler"
-                Label { Layout.fillWidth: true; text: "Metadata, takip, favoriler, bölüm ilerlemesi ve listeleri İzlek JSON olarak yönetin. Token ve cache yolları dışarıda tutulur."; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
+                Label { Layout.fillWidth: true; text: "İzlek JSON dışa/içe aktarır; Trakt JSON ve Letterboxd CSV (tmdbID sütunlu) içe aktarılabilir. Token ve cache yolları dışarıda tutulur."; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
                 RowLayout { IzlekButton { objectName: "exportDataButton"; text: "Dışa Aktar"; enabled: !page.transferModelController.busy; onClicked: exportDialog.open() } IzlekButton { objectName: "selectImportButton"; text: "İçe Aktar"; variant: "secondary"; enabled: !page.transferModelController.busy; onClicked: importDialog.open() } }
                 Label { visible: page.transferModelController.busy; text: "İşlem sürüyor…"; color: Tokens.Theme.textMuted }
                 Label { objectName: "transferFeedback"; visible: page.transferModelController.feedback.length > 0; text: page.transferModelController.feedback; color: page.transferModelController.feedbackKind === "danger" ? Tokens.Theme.danger : Tokens.Theme.success; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Rectangle { objectName: "importPreview"; visible: Object.keys(page.transferModelController.preview).length > 0; Layout.fillWidth: true; implicitHeight: preview.implicitHeight + 2 * Tokens.Theme.spaceMd; color: Tokens.Theme.surfaceElevated; radius: Tokens.Theme.radiusMd; border.color: Tokens.Theme.border
-                    ColumnLayout { id: preview; anchors.fill: parent; anchors.margins: Tokens.Theme.spaceMd; Label { text: "Import özeti"; color: Tokens.Theme.textPrimary } Label { text: (page.transferModelController.preview.movies || 0) + " film · " + (page.transferModelController.preview.shows || 0) + " dizi · " + (page.transferModelController.preview.episode_progress || 0) + " bölüm"; color: Tokens.Theme.textSecondary } IzlekButton { objectName: "confirmImportButton"; text: "İçe Aktar"; onClicked: page.transferModelController.importSelected() } }
+                    ColumnLayout { id: preview; anchors.fill: parent; anchors.margins: Tokens.Theme.spaceMd; Label { text: "Import özeti" + (page.transferModelController.preview.source ? (" · " + page.transferModelController.preview.source) : ""); color: Tokens.Theme.textPrimary } Label { text: (page.transferModelController.preview.movies || 0) + " film · " + (page.transferModelController.preview.shows || 0) + " dizi · " + (page.transferModelController.preview.episode_progress || 0) + " bölüm"; color: Tokens.Theme.textSecondary } IzlekButton { objectName: "confirmImportButton"; text: "İçe Aktar"; onClicked: page.transferModelController.importSelected() } }
                 }
             }
 
@@ -277,5 +277,5 @@ Rectangle {
         }
     }
     FileDialog { id: exportDialog; objectName: "exportFileDialog"; title: "İzlek verisini dışa aktar"; fileMode: FileDialog.SaveFile; nameFilters: ["İzlek JSON (*.json)"]; defaultSuffix: "json"; onAccepted: page.transferModelController.exportTo(selectedFile.toString()) }
-    FileDialog { id: importDialog; objectName: "importFileDialog"; title: "İzlek JSON dosyası seç"; fileMode: FileDialog.OpenFile; nameFilters: ["İzlek JSON (*.json)", "JSON (*.json)"]; onAccepted: page.transferModelController.previewImport(selectedFile.toString()) }
+    FileDialog { id: importDialog; objectName: "importFileDialog"; title: "İçe aktarma dosyası seç"; fileMode: FileDialog.OpenFile; nameFilters: ["Desteklenen (*.json *.csv)", "İzlek / Trakt JSON (*.json)", "Letterboxd CSV (*.csv)"]; onAccepted: page.transferModelController.previewImport(selectedFile.toString()) }
 }
