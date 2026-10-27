@@ -15,7 +15,7 @@ edilmelidir.
 | Image URL'leri | Uyumlu | URL'ler TMDB `/configuration` yanıtının `secure_base_url`, desteklenen boyut ve `file_path` birleşiminden kurulur; `original` seçilmez. |
 | Görsel cache | Uygulandı | İstek sırasındaki yaş kontrolüne ek olarak açılışta ve saatlik bakımda kullanılmayan eski görseller de temizlenir. |
 | SQLite metadata / provider cache | Uygulandı (2026-10-04) | Arka plan bakımında 180 günlük uzak alanlar temizlenir; user_media, episode_progress, custom_list ve custom_list_item satırları ile ilişkisel kimlikler korunur. Provider/credits/video/öneri yanıtlarının bağımsız sync tarihleri başarısız endpoint'lerde ilerletilmez. Tam sezon cache'i kendi tarihini kullanır; bilinmeyen sezon tarihleri için medya oluşturma tarihi muhafazakâr sınırdır. |
-| Watch providers / JustWatch | Uyumlu | TR provider verisi yalnız `flatrate`, `rent` ve `buy` gruplarında gösterilir; arayüz `İzleme seçenekleri JustWatch tarafından sağlanır` metnini ve TMDB'nin verdiği linki kullanır. |
+| Watch providers / JustWatch | Uyumlu | Seçilen bölgenin (varsayılan TR; Ayarlar → İzleme bölgesi) provider verisi yalnız `flatrate`, `rent` ve `buy` gruplarında gösterilir; arayüz `İzleme seçenekleri JustWatch tarafından sağlanır` metnini ve TMDB'nin verdiği linki kullanır. |
 
 ## Kaynaklar
 

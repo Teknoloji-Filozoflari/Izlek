@@ -291,6 +291,7 @@ ApplicationWindow {
         SettingsPage {
             controller: tokenController
             transferModelController: transferController
+            metadataModelController: metadataSettingsController
         }
     }
     Component {

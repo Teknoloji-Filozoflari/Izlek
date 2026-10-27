@@ -8,6 +8,7 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.metadata.settings import MetadataSettings
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.movie_detail import MovieDetailService
@@ -33,11 +34,16 @@ class MovieDetailController(QObject):
         service: MovieDetailService | None = None,
         images: ImageService | None = None,
         store: TokenStore | None = None,
+        metadata_settings: MetadataSettings | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store or TokenStore()
-        self._service = service or MovieDetailService(TmdbClient())
+        self._metadata_settings = metadata_settings or MetadataSettings()
+        self._service = service or MovieDetailService(
+            TmdbClient(),
+            watch_region=lambda: self._metadata_settings.watch_provider_region,
+        )
         self._images = images
         self._retired_images: list[ImageService] = []
         self._own_images = images is None
@@ -303,7 +309,7 @@ class MovieDetailController(QObject):
 
     @Slot()
     def openProviderLink(self) -> None:
-        """Open only TMDb's provider link returned for the TR region."""
+        """Open only TMDb's provider link returned for the configured region."""
         url = self._detail.get("providerLink", "")
         if url.startswith("https://www.themoviedb.org/"):
             QDesktopServices.openUrl(QUrl(url))
