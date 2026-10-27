@@ -13,6 +13,7 @@ from izlek.tmdb import endpoints
 from izlek.tmdb.models import (
     CollectionDetail,
     Configuration,
+    ExternalIds,
     MovieCredits,
     MovieDetail,
     MovieSearchResults,
@@ -332,6 +333,10 @@ class TmdbClient:
             endpoints.MOVIE_WATCH_PROVIDERS.format(id=id), MovieWatchProviders
         )
 
+    def movie_external_ids(self, id: int) -> ExternalIds:
+        """Fetch IMDb and other external identifiers for a movie."""
+        return self._request(endpoints.MOVIE_EXTERNAL_IDS.format(id=id), ExternalIds)
+
     def collection(self, id: int, *, language: str | None = None) -> CollectionDetail:
         """Fetch a TMDb movie collection and its ordered parts."""
         return self._request(
@@ -379,3 +384,7 @@ class TmdbClient:
     def tv_watch_providers(self, id: int) -> MovieWatchProviders:
         return self._request(endpoints.TV_WATCH_PROVIDERS.format(id=id),
                              MovieWatchProviders)
+
+    def tv_external_ids(self, id: int) -> ExternalIds:
+        """Fetch IMDb and other external identifiers for a TV show."""
+        return self._request(endpoints.TV_EXTERNAL_IDS.format(id=id), ExternalIds)

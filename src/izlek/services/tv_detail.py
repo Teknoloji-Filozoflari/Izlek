@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from izlek.db.engine import create_session_factory, initialize_database
 from izlek.db.models import MediaType, TrackingStatus, utc_now
 from izlek.metadata.catalog import normalize_watch_region
+from izlek.metadata.registry import MetadataClientRegistry
 from izlek.repositories.local import (
     CustomListRepository,
     EpisodeRepository,
@@ -20,6 +21,7 @@ from izlek.repositories.local import (
     UserMediaRepository,
 )
 from izlek.services.custom_lists import CustomListsService
+from izlek.services.metadata_enrichment import enrich_detail
 from izlek.services.metadata_freshness import metadata_is_fresh
 from izlek.services.metadata_retention import merge_remote_metadata
 from izlek.services.movie_detail import _trailer_url
@@ -61,12 +63,14 @@ class TvDetailService:
         session_factory: sessionmaker[Session] | None = None,
         *,
         watch_region: str | Callable[[], str] = "TR",
+        metadata_registry: MetadataClientRegistry | None = None,
     ) -> None:
         self.client = client
         self._factory = session_factory
         self._owned_engine: Engine | None = None
         self._session_lock = Lock()
         self._watch_region = watch_region
+        self.metadata_registry = metadata_registry
 
     def watch_provider_region(self) -> str:
         if callable(self._watch_region):
@@ -214,7 +218,33 @@ class TvDetailService:
                     poster_path=season.poster_path,
                     air_date=_date(season.air_date),
                 )
-        return self.cached(tv_id) or {}
+        presented = self.cached(tv_id) or {}
+        enriched = enrich_detail(
+            presented,
+            media_type="tv",
+            tmdb_id=tv_id,
+            client=self.client,
+            registry=self.metadata_registry,
+            title=presented.get("title") or "",
+            year=presented.get("year") or "",
+        )
+        enrichment = {
+            key: enriched[key]
+            for key in (
+                "imdbId", "imdbRating", "imdbVotes", "traktRating", "traktVotes",
+            )
+            if enriched.get(key) not in (None, "")
+        }
+        if enrichment:
+            with self._sessions().begin() as session:
+                item = MediaRepository(session).get_by_tmdb(tv_id, MediaType.TV)
+                if item is not None:
+                    blob = dict(item.metadata_json or {})
+                    blob["enrichment"] = enrichment
+                    item.metadata_json = blob
+            for key, value in enrichment.items():
+                enriched[key] = value
+        return enriched
 
     def needs_refresh(self, tv_id: int, *, now: datetime | None = None) -> bool:
         """Check TV detail freshness using only the local media record."""
@@ -273,7 +303,7 @@ class TvDetailService:
                 if blob.get("videos")
                 else None
             )
-            return {
+            presented = {
                 "id": detail.id,
                 "title": detail.original_name,
                 "year": detail.first_air_date[:4] if detail.first_air_date else "",
@@ -338,6 +368,15 @@ class TvDetailService:
                     and progress.unwatched_aired_count > 0
                 ),
             }
+            enrichment = (blob or {}).get("enrichment") or {}
+            if isinstance(enrichment, dict):
+                for key in (
+                    "imdbId", "imdbRating", "imdbVotes", "traktRating", "traktVotes",
+                ):
+                    value = enrichment.get(key)
+                    if value not in (None, ""):
+                        presented[key] = value
+            return presented
 
     def load_season(self, tv_id: int, season_number: int) -> list[dict[str, Any]]:
         """Refresh a season in its original language and return local progress."""

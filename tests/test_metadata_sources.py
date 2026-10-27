@@ -96,7 +96,37 @@ def test_omdb_client_stays_gated_without_key_and_ack():
     ready = OmdbMetadataClient(api_key="key", non_commercial_acknowledged=True)
     assert ready.supports(Capability.TITLE_LOOKUP)
     with pytest.raises(UnsupportedCapabilityError):
-        ready.title_lookup(title="Inception")
+        ready.title_lookup()
+
+
+def test_omdb_title_lookup_uses_http_when_enabled():
+    import httpx
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "www.omdbapi.com"
+        assert request.url.params.get("apikey") == "key"
+        assert request.url.params.get("t") == "Inception"
+        return httpx.Response(
+            200,
+            json={
+                "Response": "True",
+                "imdbID": "tt1375666",
+                "imdbRating": "8.8",
+                "imdbVotes": "2,000,000",
+                "Title": "Inception",
+                "Year": "2010",
+                "Plot": "...",
+                "Rated": "PG-13",
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        client = OmdbMetadataClient(
+            api_key="key", non_commercial_acknowledged=True, http=http
+        )
+        result = client.title_lookup(title="Inception", year="2010")
+    assert result["imdbId"] == "tt1375666"
+    assert result["imdbRating"] == "8.8"
 
 
 def test_source_credential_store_uses_secure_file_fallback(tmp_path: Path):

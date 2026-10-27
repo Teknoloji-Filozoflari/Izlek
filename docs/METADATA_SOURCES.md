@@ -13,7 +13,9 @@ yeniden kontrol edilmelidir.
 QML Settings → MetadataSettingsController → MetadataSettings / CredentialStore
 Service / Controller → MetadataClientRegistry.resolve(capability)
                      ↘ TmdbMetadataClient (çalışan katalog yolu)
-                     ↘ Trakt / TVmaze / OMDb (ayar + yetenek matrisi; HTTP sonraki dilim)
+                     ↘ Trakt (SEARCH / DETAILS — canlı HTTP)
+                     ↘ OMDb (TITLE_LOOKUP — canlı HTTP, ticari olmama kapısı)
+                     ↘ TVmaze (katalogda; HTTP istemcisi henüz ince)
 ```
 
 - Ayarlar: `XDG_CONFIG_HOME/izlek/metadata-sources.json` (anahtar/token yok).
@@ -22,6 +24,20 @@ Service / Controller → MetadataClientRegistry.resolve(capability)
   `0600` dosya). TVmaze ücretsiz genel API anahtarsızdır.
 - İzleme sağlayıcısı bölgesi aynı ayar dosyasında tutulur; detay sunumu
   TMDb `watch/providers` yanıtından seçilen ISO ülke kodunu okur.
+
+### Gerekli anahtarlar (canlı kullanım)
+
+| Kaynak | Ayarlarda | Anahtar / onay | Ne için kullanılır |
+| --- | --- | --- | --- |
+| TMDb | varsayılan açık | TMDb API Read Access Token (`TokenStore`) | katalog, keşfet, detay, sağlayıcılar |
+| Trakt | kaynak + `search` / `details` yetenekleri | **Trakt Client ID** (API key header) | arama; detayda Trakt puanı |
+| OMDb | kaynak + `title_lookup` + **kişisel/ticari olmayan** onay | **OMDb API Key** | detayda IMDb puanı / oy sayısı |
+| TVmaze | isteğe bağlı | anahtar yok | dizi zenginleştirme (sonraki dilim) |
+
+Film/dizi detay yüklemesinde `MovieDetailService` / `TvDetailService`, etkin
+kaynakları `MetadataClientRegistry` üzerinden çağırır: TMDb `external_ids` →
+OMDb `title_lookup` (IMDb) ve Trakt `details_by_tmdb`. Sonuç `metadata_json.enrichment`
+içinde saklanır; anahtar yoksa veya kapı kapalıysa TMDb detayı bozulmaz.
 
 ## Yetenek matrisi (uygulama ihtiyacı)
 
@@ -56,6 +72,10 @@ sınırlar). İzlek:
 Ticari dağıtım veya ürünleştirme planında OMDb kullanılmamalı; TMDb (veya
 uygun lisanslı alternatif) tercih edilmelidir. Ayrıntılı alternatif karşılaştırması
 proje analiz notlarındadır.
+
+Canlı istekler yalnız `OmdbMetadataClient` üzerinden gider; onay veya API key
+eksikse `TITLE_LOOKUP` yeteneği uygulanmış sayılmaz ve detay ekranı IMDb satırını
+göstermez.
 
 ## JustWatch / bölge
 

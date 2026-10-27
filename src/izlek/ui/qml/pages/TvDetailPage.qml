@@ -117,6 +117,24 @@ Rectangle {
                                 color: Tokens.Theme.accent
                             }
                             Label {
+                                objectName: "tvImdbRating"
+                                visible: !!(page.controller.detail.imdbRating)
+                                text: "IMDb: " + (page.controller.detail.imdbRating || "")
+                                      + (page.controller.detail.imdbVotes
+                                         ? " (" + page.controller.detail.imdbVotes + ")" : "")
+                                color: Tokens.Theme.textSecondary
+                            }
+                            Label {
+                                objectName: "tvTraktRating"
+                                visible: page.controller.detail.traktRating !== undefined
+                                         && page.controller.detail.traktRating !== null
+                                         && page.controller.detail.traktRating !== ""
+                                text: "Trakt: " + (page.controller.detail.traktRating || 0)
+                                      + (page.controller.detail.traktVotes
+                                         ? " (" + page.controller.detail.traktVotes + ")" : "")
+                                color: Tokens.Theme.textSecondary
+                            }
+                            Label {
                                 objectName: "tvTmdbSourceLabel"
                                 text: (i18n.revision, i18n.t("detail.tv_attribution"))
                                 color: Tokens.Theme.textSecondary

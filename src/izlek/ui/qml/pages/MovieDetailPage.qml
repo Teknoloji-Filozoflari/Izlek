@@ -109,6 +109,26 @@ Rectangle {
                                 font.pixelSize: Tokens.Theme.textBody
                             }
                             Label {
+                                objectName: "movieImdbRating"
+                                visible: !!(page.controller.detail.imdbRating)
+                                text: "IMDb: " + (page.controller.detail.imdbRating || "")
+                                      + (page.controller.detail.imdbVotes
+                                         ? " (" + page.controller.detail.imdbVotes + ")" : "")
+                                color: Tokens.Theme.textSecondary
+                                font.pixelSize: Tokens.Theme.textBody
+                            }
+                            Label {
+                                objectName: "movieTraktRating"
+                                visible: page.controller.detail.traktRating !== undefined
+                                         && page.controller.detail.traktRating !== null
+                                         && page.controller.detail.traktRating !== ""
+                                text: "Trakt: " + (page.controller.detail.traktRating || 0)
+                                      + (page.controller.detail.traktVotes
+                                         ? " (" + page.controller.detail.traktVotes + ")" : "")
+                                color: Tokens.Theme.textSecondary
+                                font.pixelSize: Tokens.Theme.textBody
+                            }
+                            Label {
                                 objectName: "movieTmdbSourceLabel"
                                 text: (i18n.revision, i18n.t("detail.movie_attribution"))
                                 color: Tokens.Theme.textSecondary

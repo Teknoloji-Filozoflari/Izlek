@@ -167,7 +167,9 @@
     "show_credits": "Show credits →",
     "show_credits_a11y": "Show credits for {name}",
     "all_genres": "All genres",
-    "all_countries": "All countries"
+    "all_countries": "All countries",
+    "for_you": "For you",
+    "for_you_help": "TMDb neighbors from your local ratings, favorites, and dismissals — data stays on device."
   },
   "genre": {
     "action": "Action",
@@ -297,8 +299,20 @@
   },
   "provider": {
     "title": "Where to Watch",
-    "empty": "No providers found for Türkiye",
-    "attribution": "Watch options provided by JustWatch · Türkiye",
+    "help": "All options for the selected region are listed by group for information only.",
+    "empty": "No providers found for this region",
+    "empty_help": "No subscription, free, ads, rental, or purchase options are listed.",
+    "group_subscription": "Subscription",
+    "group_free": "Free",
+    "group_ads": "With ads",
+    "group_rent": "Rent",
+    "group_buy": "Buy",
+    "hint_subscription": "SVOD — watch with a subscription",
+    "hint_free": "Free to watch (no ads)",
+    "hint_ads": "AVOD — free with ads",
+    "hint_rent": "TVOD rental",
+    "hint_buy": "Purchase / digital ownership",
+    "attribution": "Watch options provided by JustWatch",
     "tmdb_link": "Watch options on TMDb"
   },
   "review": {

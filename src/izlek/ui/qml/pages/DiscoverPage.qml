@@ -350,6 +350,33 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
+                ColumnLayout {
+                    objectName: "discoverForYou"
+                    visible: !page.searching && (controller.forYou || []).length > 0
+                    Layout.fillWidth: true
+                    spacing: Tokens.Theme.spaceXs
+                    Label {
+                        text: (i18n.revision, i18n.t("discover.for_you"))
+                        color: Tokens.Theme.textPrimary
+                        font.pixelSize: Tokens.Theme.textBody
+                        font.weight: Tokens.Theme.weightDemiBold
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: (i18n.revision, i18n.t("discover.for_you_help"))
+                        color: Tokens.Theme.textMuted
+                        font.pixelSize: Tokens.Theme.textSmall
+                        wrapMode: Text.WordWrap
+                    }
+                    HorizontalMediaStrip {
+                        objectName: "discoverForYouStrip"
+                        Layout.fillWidth: true
+                        items: controller.forYou || []
+                        onMediaActivated: function(media) {
+                            page.mediaSelected(media.mediaType, media.id)
+                        }
+                    }
+                }
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true

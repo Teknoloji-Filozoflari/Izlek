@@ -9,6 +9,7 @@ from PySide6.QtGui import QDesktopServices
 from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.i18n import t
+from izlek.metadata.registry import MetadataClientRegistry
 from izlek.metadata.settings import MetadataSettings
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
@@ -37,14 +38,17 @@ class TvDetailController(QObject):
         images: ImageService | None = None,
         store: TokenStore | None = None,
         metadata_settings: MetadataSettings | None = None,
+        metadata_registry: MetadataClientRegistry | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store or TokenStore()
         self._metadata_settings = metadata_settings or MetadataSettings()
+        self._metadata_registry = metadata_registry
         self._service = service or TvDetailService(
             TmdbClient(),
             watch_region=lambda: self._metadata_settings.watch_provider_region,
+            metadata_registry=self._metadata_registry,
         )
         self._images = images
         self._retired_images: list[ImageService] = []

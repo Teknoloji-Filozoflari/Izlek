@@ -105,8 +105,11 @@ def create_application(
         engine.rootContext().setContextProperty("searchController", search)
         controller.tokenSaved.connect(search.refresh_token)
         application.aboutToQuit.connect(search.close)
+        metadata_registry = MetadataClientRegistry(shared_metadata)
         movie = movie_controller or MovieDetailController(
-            metadata_settings=shared_metadata, parent=engine
+            metadata_settings=shared_metadata,
+            metadata_registry=metadata_registry,
+            parent=engine,
         )
         if movie.parent() is None:
             movie.setParent(engine)
@@ -114,14 +117,15 @@ def create_application(
         controller.tokenSaved.connect(movie.refresh_token)
         application.aboutToQuit.connect(movie.close)
         tv = tv_controller or TvDetailController(
-            metadata_settings=shared_metadata, parent=engine
+            metadata_settings=shared_metadata,
+            metadata_registry=metadata_registry,
+            parent=engine,
         )
         if tv.parent() is None:
             tv.setParent(engine)
         engine.rootContext().setContextProperty("tvController", tv)
         controller.tokenSaved.connect(tv.refresh_token)
         application.aboutToQuit.connect(tv.close)
-        metadata_registry = MetadataClientRegistry(shared_metadata)
         metadata = metadata_settings_controller or MetadataSettingsController(
             settings=shared_metadata,
             registry=metadata_registry,

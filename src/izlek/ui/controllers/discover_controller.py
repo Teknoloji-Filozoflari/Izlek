@@ -25,6 +25,7 @@ class DiscoverController(QObject):
 
     changed = Signal()
     _loaded = Signal(int, object, int, int, str)
+    _forYouLoaded = Signal(int, object, str)
     _poster_ready = Signal(int, int, str)
     _hidden_ready = Signal(int, str, object, str)
 
@@ -50,9 +51,11 @@ class DiscoverController(QObject):
         self._own_images = images is None
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._future: Future | None = None
+        self._for_you_future: Future | None = None
         self._image_futures: set[Future] = set()
         self._generation = 0
         self._items: list[dict[str, Any]] = []
+        self._for_you: list[dict[str, Any]] = []
         self._kind = "movie"
         self._year = 0
         self._genre_id = 0
@@ -64,6 +67,7 @@ class DiscoverController(QObject):
         self._busy = False
         self._error = ""
         self._loaded.connect(self._apply_loaded)
+        self._forYouLoaded.connect(self._apply_for_you)
         self._poster_ready.connect(self._apply_poster)
         self._hidden_ready.connect(self._apply_hidden)
         if client is None and service is None:
@@ -74,6 +78,10 @@ class DiscoverController(QObject):
     @Property("QVariantList", notify=changed)
     def items(self) -> list[dict[str, Any]]:
         return self._items
+
+    @Property("QVariantList", notify=changed)
+    def forYou(self) -> list[dict[str, Any]]:
+        return self._for_you
 
     @Property(str, notify=changed)
     def mediaKind(self) -> str:
@@ -180,12 +188,15 @@ class DiscoverController(QObject):
         self._generation += 1
         if self._future is not None:
             self._future.cancel()
+        if self._for_you_future is not None:
+            self._for_you_future.cancel()
         for future in tuple(self._image_futures):
             future.cancel()
         self._image_futures.clear()
         generation = self._generation
         self._page = page
         self._items = []
+        self._for_you = []
         self._source_items = []
         self._hidden_ids = {}
         self._error = ""
@@ -212,6 +223,14 @@ class DiscoverController(QObject):
             self._min_score,
             self._max_score,
         )
+        if page == 1:
+            self._for_you_future = self._executor.submit(
+                self._request_for_you,
+                generation,
+                self._service,
+                self._images,
+                self._kind,
+            )
 
     @Slot()
     def cancelPending(self) -> None:
@@ -220,6 +239,9 @@ class DiscoverController(QObject):
         if self._future is not None:
             self._future.cancel()
             self._future = None
+        if self._for_you_future is not None:
+            self._for_you_future.cancel()
+            self._for_you_future = None
         for future in tuple(self._image_futures):
             future.cancel()
         self._image_futures.clear()
@@ -268,6 +290,65 @@ class DiscoverController(QObject):
             self._loaded.emit(
                 generation, items, result.page, result.total_pages, ""
             )
+
+    def _request_for_you(
+        self,
+        generation: int,
+        service: DiscoverService,
+        images: ImageService,
+        kind: str,
+    ) -> None:
+        try:
+            rows = service.for_you(kind)
+            items = [
+                {
+                    **item,
+                    "poster": _local_url(images.poster(None).result()),
+                }
+                for item in rows
+            ]
+        except Exception:
+            # Best-effort strip; Discover page stays usable without taste seeds.
+            self._forYouLoaded.emit(generation, [], "")
+        else:
+            self._forYouLoaded.emit(generation, items, "")
+
+    @Slot(int, object, str)
+    def _apply_for_you(
+        self, generation: int, items: list[dict[str, Any]], error: str
+    ) -> None:
+        if self._closed or generation != self._generation:
+            return
+        self._for_you = items
+        self.changed.emit()
+        if not items or self._images is None:
+            return
+        for item in items:
+            future = self._images.poster(item.get("posterPath") or "")
+            self._image_futures.add(future)
+            future.add_done_callback(
+                lambda done, item_id=item["id"], generation=generation: (
+                    self._for_you_poster_done(done, generation, item_id)
+                )
+            )
+
+    def _for_you_poster_done(
+        self, future: Future, generation: int, item_id: int
+    ) -> None:
+        self._image_futures.discard(future)
+        if future.cancelled():
+            return
+        try:
+            url = _local_url(future.result())
+        except (OSError, ValueError):
+            return
+        if generation != self._generation:
+            return
+        for item in self._for_you:
+            if item["id"] == item_id:
+                item["poster"] = url
+                self.changed.emit()
+                return
 
     @Slot(int, object, int, int, str)
     def _apply_loaded(

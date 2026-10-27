@@ -167,7 +167,9 @@
     "show_credits": "Yapımlarını göster →",
     "show_credits_a11y": "{name} yapımlarını göster",
     "all_genres": "Tüm türler",
-    "all_countries": "Tüm ülkeler"
+    "all_countries": "Tüm ülkeler",
+    "for_you": "Sana göre",
+    "for_you_help": "Yerel puanların, favorilerin ve gizlediklerinle TMDb önerileri — veri cihazında kalır."
   },
   "genre": {
     "action": "Aksiyon",
@@ -297,8 +299,20 @@
   },
   "provider": {
     "title": "Nerede İzlenir",
-    "empty": "Türkiye'de sağlayıcı bulunamadı",
-    "attribution": "İzleme seçenekleri JustWatch tarafından sağlanır · Türkiye",
+    "help": "Seçilen bölgedeki tüm seçenekler gruplar halinde listelenir; yalnızca bilgilendirme amaçlıdır.",
+    "empty": "Bu bölgede sağlayıcı bulunamadı",
+    "empty_help": "Kayıtlı abonelik, ücretsiz, reklamlı, kiralama veya satın alma seçeneği yok.",
+    "group_subscription": "Abonelik",
+    "group_free": "Ücretsiz",
+    "group_ads": "Reklamlı",
+    "group_rent": "Kiralama",
+    "group_buy": "Satın Alma",
+    "hint_subscription": "SVOD — abonelikle izle",
+    "hint_free": "Ücretsiz izleme (reklamsız)",
+    "hint_ads": "AVOD — reklamla ücretsiz",
+    "hint_rent": "TVOD kiralama",
+    "hint_buy": "Satın al / dijital sahiplik",
+    "attribution": "İzleme seçenekleri JustWatch tarafından sağlanır",
     "tmdb_link": "TMDb'de izleme seçenekleri"
   },
   "review": {

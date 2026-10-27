@@ -12,12 +12,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from izlek.db.engine import create_session_factory, initialize_database
 from izlek.db.models import MediaType, TrackingStatus, utc_now
 from izlek.metadata.catalog import normalize_watch_region
+from izlek.metadata.registry import MetadataClientRegistry
 from izlek.repositories.local import (
     CustomListRepository,
     MediaRepository,
     UserMediaRepository,
 )
 from izlek.services.custom_lists import CustomListsService
+from izlek.services.metadata_enrichment import enrich_detail
 from izlek.services.metadata_freshness import metadata_is_fresh
 from izlek.services.metadata_retention import merge_remote_metadata
 from izlek.services.provider_presentation import present_providers
@@ -63,12 +65,14 @@ class MovieDetailService:
         session_factory: sessionmaker[Session] | None = None,
         *,
         watch_region: str | Callable[[], str] = "TR",
+        metadata_registry: MetadataClientRegistry | None = None,
     ) -> None:
         self.client = client
         self._factory = session_factory
         self._owned_engine: Engine | None = None
         self._session_lock = Lock()
         self._watch_region = watch_region
+        self.metadata_registry = metadata_registry
 
     def watch_provider_region(self) -> str:
         if callable(self._watch_region):
@@ -130,7 +134,33 @@ class MovieDetailService:
                 metadata_json=blob,
                 last_synced_at=synced_at,
             )
-        return self.cached(movie_id) or {}
+        presented = self.cached(movie_id) or {}
+        enriched = enrich_detail(
+            presented,
+            media_type="movie",
+            tmdb_id=movie_id,
+            client=self.client,
+            registry=self.metadata_registry,
+            title=presented.get("title") or "",
+            year=presented.get("year") or "",
+        )
+        enrichment = {
+            key: enriched[key]
+            for key in (
+                "imdbId", "imdbRating", "imdbVotes", "traktRating", "traktVotes",
+            )
+            if enriched.get(key) not in (None, "")
+        }
+        if enrichment:
+            with sessions.begin() as session:
+                item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
+                if item is not None:
+                    blob = dict(item.metadata_json or {})
+                    blob["enrichment"] = enrichment
+                    item.metadata_json = blob
+            for key, value in enrichment.items():
+                enriched[key] = value
+        return enriched
 
     def needs_refresh(self, movie_id: int, *, now: datetime | None = None) -> bool:
         """Check the saved timestamp without making a network request."""
@@ -170,7 +200,16 @@ class MovieDetailService:
                 if any(item.metadata_json.get(key)
                        for key in ("similar", "recommendations")) else set()
             )
-            return self._presentation(item.metadata_json, state, excluded)
+            presented = self._presentation(item.metadata_json, state, excluded)
+            enrichment = (item.metadata_json or {}).get("enrichment") or {}
+            if isinstance(enrichment, dict):
+                for key in (
+                    "imdbId", "imdbRating", "imdbVotes", "traktRating", "traktVotes",
+                ):
+                    value = enrichment.get(key)
+                    if value not in (None, ""):
+                        presented[key] = value
+            return presented
 
     def _presentation(
         self, blob: dict[str, Any], state: dict[str, Any],

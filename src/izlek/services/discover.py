@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from izlek.services.personal_media import PersonalMediaService
+from izlek.services.recommendations import ForYouService
 from izlek.tmdb.client import TmdbClient
 from izlek.tmdb.models import MovieSummary, TvSummary
 
@@ -31,6 +32,7 @@ class DiscoverService:
     ) -> None:
         self._client = client
         self._preferences = preferences or PersonalMediaService()
+        self._for_you = ForYouService(client, self._preferences.sessions())
 
     def fetch_page(
         self,
@@ -69,6 +71,12 @@ class DiscoverService:
         return DiscoverPage(
             page=result.page, total_pages=result.total_pages, items=items
         )
+
+    def for_you(self, kind: str) -> list[dict[str, Any]]:
+        """Local-taste strip: ratings/favorites/genres + TMDb neighbors/discover."""
+        if kind not in {"movie", "tv"}:
+            raise ValueError("Geçersiz medya türü")
+        return self._for_you.fetch(kind)
 
     @staticmethod
     def summary_dict(item: MovieSummary | TvSummary, kind: str) -> dict[str, Any]:
