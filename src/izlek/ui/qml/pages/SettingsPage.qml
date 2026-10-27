@@ -286,6 +286,31 @@ Rectangle {
                 }
             }
 
+            Card {
+                objectName: "discoverSettingsCard"
+                title: page.tr("settings.discover")
+                Label {
+                    Layout.fillWidth: true
+                    text: page.tr("settings.discover_for_you_help")
+                    color: Tokens.Theme.textSecondary
+                    wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label {
+                        Layout.fillWidth: true
+                        text: page.tr("settings.discover_for_you")
+                        color: Tokens.Theme.textPrimary
+                    }
+                    Switch {
+                        objectName: "showForYouSwitch"
+                        checked: discoverController.showForYou
+                        onToggled: discoverController.setShowForYou(checked)
+                        Accessible.name: page.tr("settings.discover_for_you")
+                    }
+                }
+            }
+
             Card { objectName: "dataSettingsCard"; title: page.tr("settings.data")
                 Label { Layout.fillWidth: true; text: page.tr("settings.data_help"); color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
                 RowLayout {

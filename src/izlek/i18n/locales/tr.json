@@ -132,7 +132,10 @@
     "export_title": "İzlek verisini dışa aktar",
     "import_title": "İzlek JSON dosyası seç",
     "filter_izlek_json": "İzlek JSON (*.json)",
-    "filter_json": "JSON (*.json)"
+    "filter_json": "JSON (*.json)",
+    "discover": "Keşfet",
+    "discover_for_you": "“Sana göre” şeridi",
+    "discover_for_you_help": "Keşfet sayfasındaki yerel zevke göre öneri şeridini göster veya gizle. Kapalıyken şerit yüklenmez."
   },
   "errors": {
     "network": "TMDb sunucusuna ulaşılamadı. İnternet bağlantınızı kontrol edin.",

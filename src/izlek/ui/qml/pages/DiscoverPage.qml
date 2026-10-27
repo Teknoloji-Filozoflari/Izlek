@@ -352,7 +352,7 @@ Rectangle {
                 }
                 ColumnLayout {
                     objectName: "discoverForYou"
-                    visible: !page.searching && (controller.forYou || []).length > 0
+                    visible: !page.searching && controller.showForYou && (controller.forYou || []).length > 0
                     Layout.fillWidth: true
                     spacing: Tokens.Theme.spaceXs
                     Label {

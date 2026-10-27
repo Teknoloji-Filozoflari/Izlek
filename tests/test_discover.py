@@ -4,7 +4,7 @@ from concurrent.futures import Future
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QPointF, Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtCore import QPointF, QSettings, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlExpression
 from PySide6.QtQuick import QQuickItem
@@ -12,6 +12,7 @@ from PySide6.QtTest import QTest
 
 from izlek.app import create_application
 from izlek.security.token_store import StoredToken
+from izlek.services.discover import DiscoverPage
 from izlek.services.personal_media import PersonalMediaService
 from izlek.tmdb.models import MovieSearchResults, TvSearchResults
 from izlek.ui.controllers.discover_controller import DiscoverController
@@ -306,6 +307,122 @@ def test_score_apply_preserves_decimal_value_and_clear_resets(locale):
         _wait_for(application, lambda: not discover.busy)
         assert minimum.property("value") == 0
         assert maximum.property("value") == 100
+    finally:
+        window.close()
+        discover.close()
+        application.processEvents()
+
+
+class _ForYouTrackingService:
+    def __init__(self) -> None:
+        self.for_you_calls: list[str] = []
+
+    def fetch_page(self, kind, **_kwargs):
+        return DiscoverPage(
+            page=1,
+            total_pages=1,
+            items=[
+                {
+                    "id": 1,
+                    "mediaType": kind,
+                    "title": "Hit",
+                    "year": "2024",
+                    "posterPath": "",
+                    "progressText": "TMDb 8.0",
+                    "dismissed": False,
+                }
+            ],
+        )
+
+    def for_you(self, kind: str):
+        self.for_you_calls.append(kind)
+        return [
+            {
+                "id": 99,
+                "mediaType": kind,
+                "title": "Seeded",
+                "year": "2020",
+                "posterPath": "",
+                "progressText": "TMDb 7.0",
+                "reason": "for_you",
+            }
+        ]
+
+
+def test_show_for_you_defaults_on_and_persists(tmp_path):
+    path = tmp_path / "window.ini"
+    settings = QSettings(str(path), QSettings.Format.IniFormat)
+    controller = DiscoverController(
+        client=_DiscoverClient(), images=_Images(), settings=settings
+    )
+    try:
+        assert controller.showForYou is True
+        controller.setShowForYou(False)
+        assert controller.showForYou is False
+        settings.sync()
+    finally:
+        controller.close()
+    reopened = DiscoverController(
+        client=_DiscoverClient(),
+        images=_Images(),
+        settings=QSettings(str(path), QSettings.Format.IniFormat),
+    )
+    try:
+        assert reopened.showForYou is False
+    finally:
+        reopened.close()
+
+
+def test_show_for_you_off_skips_strip_fetch(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    application = QGuiApplication.instance() or QGuiApplication([])
+    service = _ForYouTrackingService()
+    controller = DiscoverController(service=service, images=_Images())
+    try:
+        assert controller.showForYou is True
+        controller.applyFilters("movie", "", 0, "", 0, 100)
+        _wait_for(
+            application,
+            lambda: not controller.busy and len(controller.forYou) == 1,
+        )
+        assert service.for_you_calls == ["movie"]
+
+        controller.setShowForYou(False)
+        assert controller.forYou == []
+        service.for_you_calls.clear()
+        controller.applyFilters("movie", "", 0, "", 0, 100)
+        _wait_for(application, lambda: not controller.busy and bool(controller.items))
+        QTest.qWait(50)
+        application.processEvents()
+        assert service.for_you_calls == []
+        assert controller.forYou == []
+    finally:
+        controller.close()
+
+
+def test_settings_show_for_you_switch(monkeypatch, tmp_path):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.setenv("QT_QUICK_BACKEND", "software")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    discover = DiscoverController(
+        client=_DiscoverClient(), images=_Images(), settings=settings
+    )
+    application, _engine, window = create_application(
+        token_controller=TokenController(store=_Store()),
+        discover_controller=discover,
+    )
+    try:
+        window.navigate(5)
+        QTest.qWait(400)
+        switch = window.findChild(QQuickItem, "showForYouSwitch")
+        assert switch is not None
+        assert switch.property("checked") is True
+        switch.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        QTest.qWait(100)
+        assert discover.showForYou is False
+        assert settings.value("discover/show_for_you") in (False, "false")
     finally:
         window.close()
         discover.close()

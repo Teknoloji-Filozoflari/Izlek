@@ -132,7 +132,10 @@
     "export_title": "İzlek maʼlumotini eksport qilish",
     "import_title": "İzlek JSON faylini tanlash",
     "filter_izlek_json": "İzlek JSON (*.json)",
-    "filter_json": "JSON (*.json)"
+    "filter_json": "JSON (*.json)",
+    "discover": "Discover",
+    "discover_for_you": "“For you” strip",
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
   },
   "errors": {
     "network": "TMDb ga ulanib boʻlmadi. Internet aloqangizni tekshiring.",

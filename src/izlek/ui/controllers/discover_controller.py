@@ -4,7 +4,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QSettings, QUrl, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.i18n import t
@@ -15,9 +15,25 @@ from izlek.services.personal_media import PersonalMediaService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
 from izlek.ui.controllers.messages import network_unavailable
 
+_SHOW_FOR_YOU_KEY = "discover/show_for_you"
+
 
 def _local_url(path: Path) -> str:
     return QUrl.fromLocalFile(str(path)).toString()
+
+
+def _read_show_for_you(settings: QSettings | None) -> bool:
+    """Default on; tolerate QSettings string/int bool encodings."""
+    if settings is None:
+        return True
+    stored = settings.value(_SHOW_FOR_YOU_KEY, True)
+    if isinstance(stored, bool):
+        return stored
+    if isinstance(stored, (int, float)):
+        return bool(stored)
+    if isinstance(stored, str):
+        return stored.strip().lower() not in {"0", "false", "no", "off"}
+    return True
 
 
 class DiscoverController(QObject):
@@ -37,10 +53,13 @@ class DiscoverController(QObject):
         parent: QObject | None = None,
         preferences: PersonalMediaService | None = None,
         service: DiscoverService | None = None,
+        settings: QSettings | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store or TokenStore()
         self._preferences = preferences or PersonalMediaService()
+        self._settings = settings
+        self._show_for_you = _read_show_for_you(settings)
         self._service = service
         self._closed = False
         self._source_items: list[dict] = []
@@ -82,6 +101,42 @@ class DiscoverController(QObject):
     @Property("QVariantList", notify=changed)
     def forYou(self) -> list[dict[str, Any]]:
         return self._for_you
+
+    @Property(bool, notify=changed)
+    def showForYou(self) -> bool:
+        return self._show_for_you
+
+    @Slot(bool)
+    def setShowForYou(self, enabled: bool) -> None:
+        """Persist and apply the Discover “For you” strip visibility preference."""
+        wanted = bool(enabled)
+        if wanted == self._show_for_you:
+            return
+        self._show_for_you = wanted
+        if self._settings is not None:
+            self._settings.setValue(_SHOW_FOR_YOU_KEY, wanted)
+            self._settings.sync()
+        if not wanted:
+            if self._for_you_future is not None:
+                self._for_you_future.cancel()
+                self._for_you_future = None
+            self._for_you = []
+            self.changed.emit()
+            return
+        self.changed.emit()
+        if (
+            not self._closed
+            and self._page == 1
+            and self._service is not None
+            and self._images is not None
+        ):
+            self._for_you_future = self._executor.submit(
+                self._request_for_you,
+                self._generation,
+                self._service,
+                self._images,
+                self._kind,
+            )
 
     @Property(str, notify=changed)
     def mediaKind(self) -> str:
@@ -223,7 +278,7 @@ class DiscoverController(QObject):
             self._min_score,
             self._max_score,
         )
-        if page == 1:
+        if page == 1 and self._show_for_you:
             self._for_you_future = self._executor.submit(
                 self._request_for_you,
                 generation,
