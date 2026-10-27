@@ -7,7 +7,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.services.favorites import FavoritesService
-from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE
+from izlek.ui.controllers.messages import local_data_unavailable
 
 
 class FavoritesController(QObject):
@@ -44,7 +44,7 @@ class FavoritesController(QObject):
         try:
             items = [asdict(item) for item in self._service.list_all()]
         except (OSError, ValueError, SQLAlchemyError):
-            self._loaded.emit(generation, [], LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, [], local_data_unavailable())
         else:
             self._loaded.emit(generation, items, "")
 
@@ -65,7 +65,7 @@ class FavoritesController(QObject):
         try:
             self._service.set_favorite(kind, tmdb_id, favorite)
         except (OSError, ValueError, LookupError, SQLAlchemyError):
-            self._loaded.emit(self._generation, [], LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(self._generation, [], local_data_unavailable())
         else:
             self._load(self._generation)
 

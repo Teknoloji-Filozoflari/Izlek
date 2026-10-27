@@ -69,8 +69,8 @@ ColumnLayout {
         columnSpacing: Tokens.Theme.spaceSm
         Repeater {
             model: [
-                {label: "İzlenen bölüm", value: panel.stats.watched_episodes || 0},
-                {label: "İzlenen film", value: panel.stats.watched_movies || 0},
+                {label: (i18n.revision, i18n.t("stats.watched_episodes")), value: panel.stats.watched_episodes || 0},
+                {label: (i18n.revision, i18n.t("stats.watched_movies")), value: panel.stats.watched_movies || 0},
                 {label: "Tamamlanan dizi", value: panel.stats.completed_tv || 0}
             ]
             StatCard {
@@ -106,7 +106,7 @@ ColumnLayout {
                 anchors.margins: Tokens.Theme.spaceMd
                 spacing: Tokens.Theme.spaceMd
                 Label {
-                    text: "İzlediğin türler"
+                    text: (i18n.revision, i18n.t("stats.genres_title"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold
@@ -144,7 +144,7 @@ ColumnLayout {
                         }
                         Label {
                             anchors.centerIn: parent
-                            text: "Türler"
+                            text: (i18n.revision, i18n.t("stats.genres"))
                             color: Tokens.Theme.textSecondary
                             font.pixelSize: Tokens.Theme.textSmall
                         }
@@ -155,7 +155,7 @@ ColumnLayout {
                         Label {
                             visible: panel.genres.length === 0
                             Layout.fillWidth: true
-                            text: "Henüz tür verisi yok."
+                            text: (i18n.revision, i18n.t("stats.genres_empty"))
                             color: Tokens.Theme.textMuted
                             wrapMode: Text.WordWrap
                         }
@@ -190,7 +190,7 @@ ColumnLayout {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "Bir içerik birden fazla türde sayılabilir."
+                    text: (i18n.revision, i18n.t("stats.genres_note"))
                     color: Tokens.Theme.textMuted
                     font.pixelSize: Tokens.Theme.textSmall
                     wrapMode: Text.WordWrap
@@ -215,7 +215,7 @@ ColumnLayout {
                 spacing: Tokens.Theme.spaceMd
                 Label {
                     Layout.fillWidth: true
-                    text: "En çok zaman ayırdığın diziler"
+                    text: (i18n.revision, i18n.t("stats.top_shows"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold
@@ -224,7 +224,7 @@ ColumnLayout {
                 Label {
                     visible: panel.shows.length === 0
                     Layout.fillWidth: true
-                    text: "Bölüm izledikçe dizilerin burada görünür."
+                    text: (i18n.revision, i18n.t("stats.top_shows_empty"))
                     color: Tokens.Theme.textMuted
                     wrapMode: Text.WordWrap
                 }

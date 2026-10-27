@@ -8,11 +8,12 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.tv_detail import TvDetailService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.ui.controllers.messages import NETWORK_UNAVAILABLE
+from izlek.ui.controllers.messages import network_unavailable
 
 
 def _url(path: Path) -> str:
@@ -168,7 +169,7 @@ class TvDetailController(QObject):
                 self._loaded.emit(
                     generation,
                     {},
-                    NETWORK_UNAVAILABLE,
+                    network_unavailable(),
                 )
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             if cached is None:
@@ -299,7 +300,7 @@ class TvDetailController(QObject):
                     generation,
                     serial,
                     {},
-                    NETWORK_UNAVAILABLE,
+                    network_unavailable(),
                 )
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             if not cached_published:
@@ -469,7 +470,7 @@ class TvDetailController(QObject):
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             self._saved.emit(generation, {}, [], "Değişiklik kaydedilemedi.")
         else:
-            self._saved.emit(generation, detail, episodes, "Kaydedildi.")
+            self._saved.emit(generation, detail, episodes, t("detail.saved"))
 
     @Slot(int, object, object, str)
     def _apply_saved(

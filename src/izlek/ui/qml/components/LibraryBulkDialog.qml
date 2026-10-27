@@ -25,12 +25,12 @@ Dialog {
             objectName: "libraryBatchAction"
             Layout.fillWidth: true
             model: [
-                {text: "İzlendi yap", value: "WATCHED"},
-                {text: "İzleniyor yap", value: "WATCHING"},
-                {text: "İzlenecek yap", value: "PLANNED"},
-                {text: "Favorilere ekle", value: "favorite"},
-                {text: "Favorilerden çıkar", value: "unfavorite"},
-                {text: "Listeye ekle", value: "list"}
+                {text: (i18n.revision, i18n.t("status.make_watched")), value: "WATCHED"},
+                {text: (i18n.revision, i18n.t("status.make_watching")), value: "WATCHING"},
+                {text: (i18n.revision, i18n.t("status.make_planned")), value: "PLANNED"},
+                {text: (i18n.revision, i18n.t("library.add_favorite")), value: "favorite"},
+                {text: (i18n.revision, i18n.t("library.remove_favorite")), value: "unfavorite"},
+                {text: (i18n.revision, i18n.t("library.add_to_list")), value: "list"}
             ]
             textRole: "text"; valueRole: "value"
             enabled: !dialog.controller.batchBusy
@@ -47,7 +47,7 @@ Dialog {
         Label {
             Layout.fillWidth: true
             visible: action.currentValue === "list" && list.count === 0
-            text: "Önce Listeler sayfasında bir liste oluştur."
+            text: (i18n.revision, i18n.t("library.need_list"))
             color: Tokens.Theme.textMuted
             wrapMode: Text.WordWrap
         }
@@ -60,7 +60,7 @@ Dialog {
         }
         RowLayout {
             Item { Layout.fillWidth: true }
-            IzlekButton { text: "Vazgeç"; variant: "secondary"; enabled: !dialog.controller.batchBusy; onClicked: dialog.close() }
+            IzlekButton { text: (i18n.revision, i18n.t("common.cancel")); variant: "secondary"; enabled: !dialog.controller.batchBusy; onClicked: dialog.close() }
             IzlekButton {
                 objectName: "applyLibraryBatchButton"
                 text: dialog.controller.batchBusy ? "Kaydediliyor…" : "Uygula"
@@ -76,7 +76,7 @@ Dialog {
         id: confirm
         objectName: "libraryBatchConfirm"
         parent: Overlay.overlay
-        title: "İzleme durumunu değiştir"
+        title: (i18n.revision, i18n.t("library.bulk_status_title"))
         message: dialog.selectedIds.length + " içerik için “" + action.currentText + "” işlemi uygulanacak. Dizilerde bölüm işaretleri değişmez."
         confirmText: "Seçilenlere uygula"
         onConfirmed: dialog.apply()

@@ -6,7 +6,7 @@ import "../theme" as Tokens
 
 Rectangle {
     id: page
-    property string pageTitle: "Listeler"
+    property string pageTitle: (i18n.revision, i18n.t("page.lists"))
     property var controller
     readonly property bool filterPopupOpen: mediaPicker.visible
     signal mediaSelected(string kind, int tmdbId)
@@ -33,7 +33,7 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Label {
-                        text: "Listeler"
+                        text: page.pageTitle
                         color: Tokens.Theme.textPrimary
                         font.pixelSize: Tokens.Theme.textHeading
                         font.weight: Tokens.Theme.weightDemiBold
@@ -41,7 +41,7 @@ Rectangle {
                     Item { Layout.fillWidth: true }
                     IzlekButton {
                         objectName: "createListButton"
-                        text: "+ Yeni"
+                        text: (i18n.revision, i18n.t("lists.new"))
                         enabled: !controller.busy
                         onClicked: page.openNameDialog(false)
                     }
@@ -49,7 +49,7 @@ Rectangle {
                 Label {
                     visible: controller.lists.length === 0
                     Layout.fillWidth: true
-                    text: "Henüz listen yok. Yeni liste oluştur."
+                    text: (i18n.revision, i18n.t("lists.empty"))
                     color: Tokens.Theme.textSecondary
                     wrapMode: Text.WordWrap
                 }
@@ -143,14 +143,14 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "renameListButton"
-                        text: "Yeniden Adlandır"
+                        text: (i18n.revision, i18n.t("lists.rename"))
                         variant: "secondary"
                         enabled: controller.selectedId > 0 && !controller.busy
                         onClicked: page.openNameDialog(true)
                     }
                     IzlekButton {
                         objectName: "deleteListButton"
-                        text: "Sil"
+                        text: (i18n.revision, i18n.t("common.delete"))
                         variant: "danger"
                         enabled: controller.selectedId > 0 && !controller.busy
                         onClicked: deleteDialog.open()
@@ -161,7 +161,7 @@ Rectangle {
                     visible: controller.selectedId > 0
                     IzlekButton {
                         objectName: "addMediaToListButton"
-                        text: "+ İçerik Ekle"
+                        text: (i18n.revision, i18n.t("lists.add_items"))
                         enabled: !controller.busy
                         onClicked: {
                             mediaPicker.listId = controller.selectedId
@@ -170,7 +170,7 @@ Rectangle {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: "Tutamaçları sürükleyerek sırala"
+                        text: (i18n.revision, i18n.t("lists.reorder_hint"))
                         color: Tokens.Theme.textMuted
                         elide: Text.ElideRight
                     }
@@ -287,7 +287,7 @@ Rectangle {
                                                                 modelData.tmdb_id, 1)
                             }
                             IzlekButton {
-                                text: "Çıkar"
+                                text: (i18n.revision, i18n.t("lists.remove"))
                                 variant: "danger"
                                 Layout.preferredWidth: 68
                                 enabled: !controller.busy
@@ -337,7 +337,7 @@ Rectangle {
                 id: nameInput
                 objectName: "listNameInput"
                 Layout.fillWidth: true
-                placeholderText: "Liste adı"
+                placeholderText: (i18n.revision, i18n.t("lists.name_ph"))
                 maximumLength: 200
                 onAccepted: nameDialog.save()
             }
@@ -362,7 +362,7 @@ Rectangle {
     IzlekDialog {
         id: deleteDialog
         objectName: "deleteListDialog"
-        title: "Listeyi Sil"
+        title: (i18n.revision, i18n.t("lists.delete_title"))
         message: "Bu liste ve üyelikleri silinsin mi? Medyalar kütüphanede kalır."
         confirmText: "Sil"
         onConfirmed: controller.deleteList(controller.selectedId)

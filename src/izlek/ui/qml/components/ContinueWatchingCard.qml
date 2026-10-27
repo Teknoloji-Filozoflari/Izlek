@@ -87,7 +87,7 @@ Rectangle {
                 Layout.fillWidth: true
                 IzlekButton {
                     objectName: "continueWatchedButton"
-                    text: "İzlendi"
+                    text: (i18n.revision, i18n.t("episode.watched"))
                     enabled: !card.busy
                     onClicked: card.watched(card.itemData.tmdb_id,
                                             card.itemData.season_number,

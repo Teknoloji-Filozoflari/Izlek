@@ -25,18 +25,18 @@ Rectangle {
             columnSpacing: Tokens.Theme.spaceSm
             ColumnLayout {
                 Layout.fillWidth: true
-                Label { text: "İzleme durumu"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("library.filter_status")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: state
                     objectName: "libraryStatusFilter"
                     Layout.fillWidth: true
-                    model: ["Tüm durumlar", "İzlenecek", "İzleniyor", "İzlendi"]
+                    model: [(i18n.revision, i18n.t("status.all")), (i18n.revision, i18n.t("status.planned")), (i18n.revision, i18n.t("status.watching")), (i18n.revision, i18n.t("status.watched"))]
                     currentIndex: ["", "PLANNED", "WATCHING", "WATCHED"].indexOf(panel.controller.filterValues.status || "")
                 }
             }
             ColumnLayout {
                 Layout.fillWidth: true
-                Label { text: "Tür"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("library.filter_genre")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: genre
                     objectName: "libraryGenreFilter"
@@ -48,25 +48,25 @@ Rectangle {
             }
             ColumnLayout {
                 Layout.fillWidth: true
-                Label { text: "İlk yıl"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("library.year_from")); color: Tokens.Theme.textSecondary }
                 FilterTextField {
                     id: yearFrom
                     objectName: "libraryYearFromFilter"
                     Layout.fillWidth: true
                     text: panel.controller.filterValues.year_from || ""
-                    placeholderText: "Örn. 2000"
+                    placeholderText: (i18n.revision, i18n.t("library.year_from_ph"))
                     validator: IntValidator { bottom: 1888; top: 2100 }
                 }
             }
             ColumnLayout {
                 Layout.fillWidth: true
-                Label { text: "Son yıl"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("library.year_to")); color: Tokens.Theme.textSecondary }
                 FilterTextField {
                     id: yearTo
                     objectName: "libraryYearToFilter"
                     Layout.fillWidth: true
                     text: panel.controller.filterValues.year_to || ""
-                    placeholderText: "Örn. 2025"
+                    placeholderText: (i18n.revision, i18n.t("library.year_to_ph"))
                     validator: IntValidator { bottom: 1888; top: 2100 }
                 }
             }
@@ -78,13 +78,13 @@ Rectangle {
                     objectName: "libraryRuntimeFilter"
                     Layout.fillWidth: true
                     text: panel.controller.filterValues.max_runtime || ""
-                    placeholderText: "Dakika · tümü"
+                    placeholderText: (i18n.revision, i18n.t("library.runtime_ph"))
                     validator: IntValidator { bottom: 0; top: 1440 }
                 }
             }
             ColumnLayout {
                 Layout.fillWidth: true
-                Label { text: "En az TMDb puanı"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("library.min_score")); color: Tokens.Theme.textSecondary }
                 FilterSpinBox {
                     id: score
                     objectName: "libraryScoreFilter"
@@ -99,13 +99,13 @@ Rectangle {
             Layout.fillWidth: true
             Label {
                 Layout.fillWidth: true
-                text: "Kayıtlı bilgiler kullanılır. Eksik bilgiler etkin filtreyle eşleşmez."
+                text: (i18n.revision, i18n.t("library.filter_note"))
                 color: Tokens.Theme.textMuted
                 wrapMode: Text.WordWrap
             }
             IzlekButton {
                 objectName: "applyLibraryFiltersButton"
-                text: "Uygula"
+                text: (i18n.revision, i18n.t("common.apply"))
                 enabled: !panel.controller.batchBusy
                 onClicked: {
                     panel.controller.applyFilters({status: ["", "PLANNED", "WATCHING", "WATCHED"][state.currentIndex], genre: panel.selectedGenre, year_from: yearFrom.text, year_to: yearTo.text, max_runtime: runtime.text, min_score: score.value / 10})
@@ -114,7 +114,7 @@ Rectangle {
             }
             IzlekButton {
                 objectName: "clearLibraryFiltersButton"
-                text: "Temizle"
+                text: (i18n.revision, i18n.t("common.clear"))
                 variant: "secondary"
                 enabled: !panel.controller.batchBusy
                 onClicked: {

@@ -8,6 +8,7 @@ from typing import TypeVar
 import httpx
 from pydantic import BaseModel, ValidationError
 
+from izlek.i18n import tmdb_language
 from izlek.tmdb import endpoints
 from izlek.tmdb.models import (
     Configuration,
@@ -70,10 +71,12 @@ class TmdbClient:
         client: httpx.Client | None = None,
         sleeper: Callable[[float], None] = time.sleep,
         token: str | None = None,
+        language: str | None = None,
     ) -> None:
         self._client = client
         self._sleep = sleeper
         self._token = token
+        self.language = language or tmdb_language()
 
     def _get(
         self,
@@ -166,43 +169,43 @@ class TmdbClient:
         return self._request(endpoints.CONFIGURATION, Configuration)
 
     def search_movie(
-        self, query: str, *, page: int = 1, language: str = "tr-TR"
+        self, query: str, *, page: int = 1, language: str | None = None
     ) -> MovieSearchResults:
         """Search movies by title."""
         return self._request(
             endpoints.SEARCH_MOVIE,
             MovieSearchResults,
-            {"query": query, "page": page, "language": language},
+            {"query": query, "page": page, "language": language or self.language},
         )
 
     def search_tv(
-        self, query: str, *, page: int = 1, language: str = "tr-TR"
+        self, query: str, *, page: int = 1, language: str | None = None
     ) -> TvSearchResults:
         """Search television shows by title."""
         return self._request(
             endpoints.SEARCH_TV,
             TvSearchResults,
-            {"query": query, "page": page, "language": language},
+            {"query": query, "page": page, "language": language or self.language},
         )
 
     def search_person(self, query: str, *, page: int = 1) -> PersonSearchResults:
         """Search names and aliases without including adult results."""
         return self._request(
             endpoints.SEARCH_PERSON, PersonSearchResults,
-            {"query": query, "page": page, "language": "tr-TR",
+            {"query": query, "page": page, "language": self.language,
              "include_adult": "false"},
         )
 
     def person_movie_credits(self, person_id: int) -> PersonMovieCredits:
         return self._request(
             endpoints.PERSON_MOVIE_CREDITS.format(person_id=person_id),
-            PersonMovieCredits, {"language": "tr-TR"},
+            PersonMovieCredits, {"language": self.language},
         )
 
     def person_tv_credits(self, person_id: int) -> PersonTvCredits:
         return self._request(
             endpoints.PERSON_TV_CREDITS.format(person_id=person_id),
-            PersonTvCredits, {"language": "tr-TR"},
+            PersonTvCredits, {"language": self.language},
         )
 
     def discover_movie(
@@ -215,7 +218,7 @@ class TmdbClient:
         min_score: float = 0.0,
         max_score: float = 10.0,
         min_vote_count: int = 100,
-        language: str = "tr-TR",
+        language: str | None = None,
     ) -> MovieSearchResults:
         """Discover popular movies while excluding thinly voted titles."""
         return self._request(
@@ -223,7 +226,7 @@ class TmdbClient:
             MovieSearchResults,
             self._discover_params(
                 page, year, genre_id, country, min_score, max_score,
-                min_vote_count, language, "primary_release_year"
+                min_vote_count, language or self.language, "primary_release_year"
             ),
         )
 
@@ -237,7 +240,7 @@ class TmdbClient:
         min_score: float = 0.0,
         max_score: float = 10.0,
         min_vote_count: int = 100,
-        language: str = "tr-TR",
+        language: str | None = None,
     ) -> TvSearchResults:
         """Discover TV series using the same score-quality guardrail."""
         return self._request(
@@ -245,7 +248,7 @@ class TmdbClient:
             TvSearchResults,
             self._discover_params(
                 page, year, genre_id, country, min_score, max_score,
-                min_vote_count, language, "first_air_date_year"
+                min_vote_count, language or self.language, "first_air_date_year"
             ),
         )
 
@@ -278,40 +281,48 @@ class TmdbClient:
             params["with_origin_country"] = country.upper()
         return params
 
-    def movie(self, id: int, *, language: str = "tr-TR") -> MovieDetail:
+    def movie(self, id: int, *, language: str | None = None) -> MovieDetail:
         """Fetch a movie's metadata."""
         return self._request(
-            endpoints.MOVIE.format(id=id), MovieDetail, {"language": language}
+            endpoints.MOVIE.format(id=id),
+            MovieDetail,
+            {"language": language or self.language}
         )
 
-    def movie_credits(self, id: int, *, language: str = "tr-TR") -> MovieCredits:
+    def movie_credits(self, id: int, *, language: str | None = None) -> MovieCredits:
         """Fetch cast and crew for a movie."""
         return self._request(
-            endpoints.MOVIE_CREDITS.format(id=id), MovieCredits, {"language": language}
+            endpoints.MOVIE_CREDITS.format(id=id),
+            MovieCredits,
+            {"language": language or self.language}
         )
 
-    def movie_videos(self, id: int, *, language: str = "tr-TR") -> MovieVideos:
+    def movie_videos(self, id: int, *, language: str | None = None) -> MovieVideos:
         """Fetch trailers and other videos for a movie."""
         return self._request(
-            endpoints.MOVIE_VIDEOS.format(id=id), MovieVideos, {"language": language}
+            endpoints.MOVIE_VIDEOS.format(id=id),
+            MovieVideos,
+            {"language": language or self.language}
         )
 
-    def movie_similar(self, id: int, *, language: str = "tr-TR") -> MovieSearchResults:
+    def movie_similar(
+        self, id: int, *, language: str | None = None
+    ) -> MovieSearchResults:
         """Fetch similar movies."""
         return self._request(
             endpoints.MOVIE_SIMILAR.format(id=id),
             MovieSearchResults,
-            {"language": language},
+            {"language": language or self.language},
         )
 
     def movie_recommendations(
-        self, id: int, *, language: str = "tr-TR"
+        self, id: int, *, language: str | None = None
     ) -> MovieSearchResults:
         """Fetch recommended movies."""
         return self._request(
             endpoints.MOVIE_RECOMMENDATIONS.format(id=id),
             MovieSearchResults,
-            {"language": language},
+            {"language": language or self.language},
         )
 
     def movie_watch_providers(self, id: int) -> MovieWatchProviders:
@@ -320,39 +331,41 @@ class TmdbClient:
             endpoints.MOVIE_WATCH_PROVIDERS.format(id=id), MovieWatchProviders
         )
 
-    def tv(self, id: int, *, language: str = "tr-TR") -> TvDetail:
+    def tv(self, id: int, *, language: str | None = None) -> TvDetail:
         """Fetch a show's metadata and season summaries."""
         return self._request(
-            endpoints.TV.format(id=id), TvDetail, {"language": language}
+            endpoints.TV.format(id=id),
+            TvDetail,
+            {"language": language or self.language},
         )
 
     def tv_season(
-        self, id: int, season_number: int, *, language: str = "tr-TR"
+        self, id: int, season_number: int, *, language: str | None = None
     ) -> SeasonDetail:
         """Fetch a season and its episodes."""
         return self._request(
             endpoints.TV_SEASON.format(id=id, season_number=season_number),
             SeasonDetail,
-            {"language": language},
+            {"language": language or self.language},
         )
 
-    def tv_credits(self, id: int, *, language: str = "tr-TR") -> MovieCredits:
+    def tv_credits(self, id: int, *, language: str | None = None) -> MovieCredits:
         return self._request(endpoints.TV_CREDITS.format(id=id), MovieCredits,
-                             {"language": language})
+                             {"language": language or self.language})
 
-    def tv_videos(self, id: int, *, language: str = "tr-TR") -> MovieVideos:
+    def tv_videos(self, id: int, *, language: str | None = None) -> MovieVideos:
         return self._request(endpoints.TV_VIDEOS.format(id=id), MovieVideos,
-                             {"language": language})
+                             {"language": language or self.language})
 
-    def tv_similar(self, id: int, *, language: str = "tr-TR") -> TvSearchResults:
+    def tv_similar(self, id: int, *, language: str | None = None) -> TvSearchResults:
         return self._request(endpoints.TV_SIMILAR.format(id=id), TvSearchResults,
-                             {"language": language})
+                             {"language": language or self.language})
 
     def tv_recommendations(
-        self, id: int, *, language: str = "tr-TR"
+        self, id: int, *, language: str | None = None
     ) -> TvSearchResults:
         return self._request(endpoints.TV_RECOMMENDATIONS.format(id=id),
-                             TvSearchResults, {"language": language})
+                             TvSearchResults, {"language": language or self.language})
 
     def tv_watch_providers(self, id: int) -> MovieWatchProviders:
         return self._request(endpoints.TV_WATCH_PROVIDERS.format(id=id),

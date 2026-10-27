@@ -15,6 +15,7 @@ from izlek.ui.controllers.continue_watching_controller import ContinueWatchingCo
 from izlek.ui.controllers.custom_lists_controller import CustomListsController
 from izlek.ui.controllers.discover_controller import DiscoverController
 from izlek.ui.controllers.favorites_controller import FavoritesController
+from izlek.ui.controllers.locale_controller import LocaleController
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
 from izlek.ui.controllers.personal_media_controller import PersonalMediaController
@@ -49,6 +50,7 @@ def create_application(
     cache_controller: CacheController | None = None,
     quick_library_controller: QuickLibraryController | None = None,
     personal_media_controller: PersonalMediaController | None = None,
+    locale_controller: LocaleController | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
@@ -73,6 +75,10 @@ def create_application(
         return settings.value(key, default, type=value_type)
 
     engine = QQmlApplicationEngine()
+    locale = locale_controller or LocaleController(parent=engine)
+    if locale.parent() is None:
+        locale.setParent(engine)
+    engine.rootContext().setContextProperty("i18n", locale)
     if not gallery:
         controller = token_controller or TokenController(parent=engine)
         if controller.parent() is None:

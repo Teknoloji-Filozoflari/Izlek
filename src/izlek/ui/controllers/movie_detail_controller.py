@@ -8,11 +8,12 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.movie_detail import MovieDetailService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.ui.controllers.messages import NETWORK_UNAVAILABLE
+from izlek.ui.controllers.messages import network_unavailable
 
 
 def _url(path: Path) -> str:
@@ -142,7 +143,7 @@ class MovieDetailController(QObject):
                 self._loaded.emit(
                     generation,
                     {},
-                    NETWORK_UNAVAILABLE,
+                    network_unavailable(),
                 )
         except (TMDbError, OSError, ValueError, KeyError, SQLAlchemyError):
             if cached is None:
@@ -267,7 +268,7 @@ class MovieDetailController(QObject):
         except (OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             self._saved.emit(generation, {}, "Değişiklik kaydedilemedi.")
         else:
-            self._saved.emit(generation, detail, "Kaydedildi.")
+            self._saved.emit(generation, detail, t("detail.saved"))
 
     @Slot(int, object, str)
     def _apply_saved(

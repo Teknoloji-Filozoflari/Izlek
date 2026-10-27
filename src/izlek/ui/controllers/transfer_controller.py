@@ -6,8 +6,9 @@ from pathlib import Path
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
 from izlek.services.transfer import TransferError, TransferService
-from izlek.ui.controllers.messages import FILE_OPERATION_FAILED
+from izlek.ui.controllers.messages import file_operation_failed
 
 
 def _local_path(value: str) -> Path:
@@ -97,7 +98,7 @@ class TransferController(QObject):
     @Slot()
     def importSelected(self) -> None:
         if self._import_path is None or not self._preview:
-            self._feedback = "Önce geçerli bir İzlek JSON dosyası seçin."
+            self._feedback = t("transfer.need_file")
             self._feedback_kind = "danger"
             self.changed.emit()
             return
@@ -114,7 +115,7 @@ class TransferController(QObject):
         except TransferError as exc:
             self._finished.emit(generation, action, {}, str(exc))
         except (OSError, SQLAlchemyError, ValueError, KeyError, OverflowError):
-            self._finished.emit(generation, action, {}, FILE_OPERATION_FAILED)
+            self._finished.emit(generation, action, {}, file_operation_failed())
         else:
             self._finished.emit(generation, action, result, "")
 
@@ -135,23 +136,11 @@ class TransferController(QObject):
             return
         if action == "preview":
             self._preview = result
-            self._feedback = "Dosya doğrulandı. Özeti kontrol edip import edin."
+            self._feedback = t("transfer.validated")
         elif action == "export":
-            self._feedback = (
-                f"Export tamamlandı: {result['media']} medya, "
-                f"{result['episode_progress']} bölüm ilerlemesi, "
-                f"{result['favorites']} favori ve {result['lists']} liste."
-            )
+            self._feedback = t("transfer.exported")
         else:
-            self._feedback = (
-                f"Import tamamlandı: {result['media_created']} yeni medya, "
-                f"{result['media_merged']} birleşen medya, "
-                f"{result['episode_progress_merged']} bölüm ilerlemesi; "
-                f"{result['lists_created']} yeni ve "
-                f"{result['lists_merged']} birleşen liste; "
-                f"{result['list_items_added']} yeni liste öğesi, "
-                f"{result['list_items_existing']} mevcut öğe."
-            )
+            self._feedback = t("transfer.imported")
             self._preview = {}
             self._import_path = None
             self.dataImported.emit()

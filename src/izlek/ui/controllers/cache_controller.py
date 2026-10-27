@@ -6,9 +6,10 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.cache.images import ImageDiskCache
+from izlek.i18n import t
 from izlek.services.library_images import LibraryImagesService
 from izlek.services.metadata_retention import MetadataRetentionService
-from izlek.ui.controllers.messages import FILE_OPERATION_FAILED
+from izlek.ui.controllers.messages import file_operation_failed
 
 
 def format_bytes(value: int) -> str:
@@ -109,7 +110,9 @@ class CacheController(QObject):
                 removed = 0
                 size = self._cache.size_bytes()
         except (OSError, SQLAlchemyError):
-            self._finished.emit(generation, action, 0, "ERROR:" + FILE_OPERATION_FAILED)
+            self._finished.emit(
+                generation, action, 0, "ERROR:" + file_operation_failed()
+            )
         else:
             self._finished.emit(generation, action, size, str(removed))
 
@@ -122,10 +125,10 @@ class CacheController(QObject):
         self._busy = False
         self._size = size
         if detail.startswith("ERROR:"):
-            self._feedback = detail.removeprefix("ERROR:") or "Cache işlemi başarısız."
+            self._feedback = detail.removeprefix("ERROR:") or t("errors.cache_failed")
             self._feedback_kind = "danger"
         elif action == "clear":
-            self._feedback = f"Cache temizlendi ({detail} dosya)."
+            self._feedback = t("errors.cache_cleared", count=detail)
             self._feedback_kind = "success"
         else:
             self._feedback = ""

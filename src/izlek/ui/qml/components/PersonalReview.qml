@@ -51,10 +51,10 @@ ColumnLayout {
             anchors.fill: parent
             anchors.margins: Tokens.Theme.spaceMd
             spacing: Tokens.Theme.spaceSm
-            Label { text: "Puanım ve notum"; color: Tokens.Theme.textPrimary; font.pixelSize: Tokens.Theme.textEmpty }
+            Label { text: (i18n.revision, i18n.t("review.title")); color: Tokens.Theme.textPrimary; font.pixelSize: Tokens.Theme.textEmpty }
             RowLayout {
                 Layout.fillWidth: true
-                Label { text: "Puanım"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("review.rating")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: rating
                     objectName: "personalRatingInput"
@@ -64,7 +64,7 @@ ColumnLayout {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "TMDb puanından ayrı, yalnız sana ait."
+                    text: (i18n.revision, i18n.t("review.rating_help"))
                     color: Tokens.Theme.textMuted
                     wrapMode: Text.WordWrap
                 }
@@ -76,7 +76,7 @@ ColumnLayout {
                 TextArea {
                     id: note
                     objectName: "personalNoteInput"
-                    placeholderText: "İçerik hakkında kısa bir not…"
+                    placeholderText: (i18n.revision, i18n.t("review.note_ph"))
                     color: Tokens.Theme.textPrimary
                     placeholderTextColor: Tokens.Theme.textMuted
                     wrapMode: TextEdit.Wrap
@@ -98,7 +98,7 @@ ColumnLayout {
                 Item { Layout.fillWidth: true }
                 IzlekButton {
                     objectName: "savePersonalReviewButton"
-                    text: "Kaydet"
+                    text: (i18n.revision, i18n.t("common.save"))
                     enabled: editor.matching && !editor.backend.busy && editor.mediaTitle.length > 0 && note.text.length <= 2000
                     onClicked: {
                         editor.backend.saveReview(editor.kind, editor.mediaId, rating.currentIndex, note.text)

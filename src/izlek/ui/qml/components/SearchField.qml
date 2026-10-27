@@ -8,7 +8,7 @@ TextField {
     implicitWidth: 320
     leftPadding: 44
     rightPadding: clearButton.visible ? 46 : Tokens.Theme.spaceMd
-    placeholderText: "Film veya dizi ara"
+    placeholderText: (i18n.revision, i18n.t("search.placeholder"))
     color: Tokens.Theme.textPrimary
     placeholderTextColor: Tokens.Theme.textMuted
     selectionColor: Tokens.Theme.accentSurface

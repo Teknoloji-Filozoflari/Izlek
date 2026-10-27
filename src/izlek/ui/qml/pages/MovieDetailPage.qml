@@ -7,7 +7,8 @@ import "../theme" as Tokens
 Rectangle {
     id: page
     property var controller
-    property string pageTitle: "Film Detayı"
+    readonly property string pageKind: "movie"
+    property string pageTitle: (i18n.revision, i18n.t("page.movie_detail"))
     property int mediaId: 0
     readonly property bool filterPopupOpen: personalReview.filterPopupOpen
     readonly property var providerGroups: controller.detail.providers || ({})
@@ -29,7 +30,7 @@ Rectangle {
             IzlekButton {
                 Layout.leftMargin: Tokens.Theme.spaceXl
                 Layout.topMargin: Tokens.Theme.spaceLg
-                text: "← Geri"
+                text: (i18n.revision, i18n.t("common.back"))
                 variant: "secondary"
                 onClicked: page.backRequested()
             }
@@ -41,7 +42,7 @@ Rectangle {
             EmptyState {
                 visible: !!page.controller.error
                 Layout.fillWidth: true
-                title: "Film yüklenemedi"
+                title: (i18n.revision, i18n.t("detail.movie_load_failed"))
                 description: page.controller.error
             }
             ColumnLayout {
@@ -109,7 +110,7 @@ Rectangle {
                             }
                             Label {
                                 objectName: "movieTmdbSourceLabel"
-                                text: "Film bilgileri ve görseller TMDB tarafından sağlanır"
+                                text: (i18n.revision, i18n.t("detail.movie_attribution"))
                                 color: Tokens.Theme.textSecondary
                                 font.pixelSize: Tokens.Theme.textSmall
                             }
@@ -126,12 +127,12 @@ Rectangle {
                         objectName: "addMovieToLibrary"
                         visible: !page.controller.detail.status
                         enabled: !page.controller.saving
-                        text: "Kütüphaneye Ekle"
+                        text: (i18n.revision, i18n.t("detail.add_library"))
                         onClicked: page.controller.setStatus("PLANNED")
                     }
                     IzlekButton {
                         objectName: "movieWatched"
-                        text: "✓ İzlendi"
+                        text: (i18n.revision, i18n.t("status.mark_watched"))
                         variant: page.controller.detail.status === "WATCHED" ? "primary" : "secondary"
                         enabled: !page.controller.saving
                         onClicked: page.controller.setStatus("WATCHED")
@@ -139,7 +140,7 @@ Rectangle {
                     IzlekButton {
                         objectName: "movieUnwatched"
                         visible: !!page.controller.detail.status
-                        text: "↺ İzlenmedi"
+                        text: (i18n.revision, i18n.t("status.mark_unwatched"))
                         variant: "secondary"
                         enabled: !page.controller.saving
                         onClicked: page.controller.setStatus("PLANNED")
@@ -154,7 +155,7 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "movieListOpen"
-                        text: "Listeye Ekle"
+                        text: (i18n.revision, i18n.t("detail.add_list"))
                         variant: "secondary"
                         enabled: !page.controller.saving
                         onClicked: listDialog.open()
@@ -171,7 +172,7 @@ Rectangle {
                         objectName: "removeMovieFromLibrary"
                         visible: !!page.controller.detail.status
                         enabled: !page.controller.saving
-                        text: "Kütüphaneden Kaldır"
+                        text: (i18n.revision, i18n.t("detail.remove_library"))
                         variant: "danger"
                         onClicked: page.controller.removeFromLibrary()
                     }
@@ -197,14 +198,14 @@ Rectangle {
                         mediaId: page.mediaId
                         mediaTitle: page.controller.detail.title || ""
                     }
-                    SectionHeader { title: "Açıklama"; Layout.fillWidth: true }
+                    SectionHeader { title: (i18n.revision, i18n.t("detail.overview")); Layout.fillWidth: true }
                     Label {
                         Layout.fillWidth: true
                         text: page.controller.detail.overview || "Açıklama bulunmuyor."
                         color: Tokens.Theme.textSecondary
                         wrapMode: Text.WordWrap
                     }
-                    SectionHeader { title: "Oyuncular"; Layout.fillWidth: true }
+                    SectionHeader { title: (i18n.revision, i18n.t("detail.cast")); Layout.fillWidth: true }
                     CastGrid {
                         objectName: "movieCastGrid"
                         Layout.fillWidth: true
@@ -214,7 +215,7 @@ Rectangle {
                     }
                     Label {
                         visible: (page.controller.detail.cast || []).length === 0
-                        text: "Oyuncu bilgisi bulunmuyor."
+                        text: (i18n.revision, i18n.t("detail.cast_empty"))
                         color: Tokens.Theme.textMuted
                     }
                     GridLayout {
@@ -225,9 +226,9 @@ Rectangle {
                         rowSpacing: Tokens.Theme.spaceMd
                         Repeater {
                             model: [
-                                {title: "Yönetmen", values: page.controller.detail.directors || []},
-                                {title: "Yapım Şirketleri", values: page.controller.detail.companies || []},
-                                {title: "Yapım Ülkeleri", values: page.controller.detail.countries || []}
+                                {title: (i18n.revision, i18n.t("detail.director")), values: page.controller.detail.directors || []},
+                                {title: (i18n.revision, i18n.t("detail.companies")), values: page.controller.detail.companies || []},
+                                {title: (i18n.revision, i18n.t("detail.countries")), values: page.controller.detail.countries || []}
                             ]
                             ColumnLayout {
                                 required property var modelData
@@ -265,9 +266,9 @@ Rectangle {
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.alignment: Qt.AlignTop
-                            SectionHeader { title: "Fragman"; Layout.fillWidth: true }
+                            SectionHeader { title: (i18n.revision, i18n.t("detail.trailer")); Layout.fillWidth: true }
                             IzlekButton {
-                                text: "Fragmanı İzle"
+                                text: (i18n.revision, i18n.t("detail.watch_trailer"))
                                 enabled: !!page.controller.detail.trailerUrl
                                 onClicked: page.controller.openTrailer()
                             }
@@ -276,7 +277,7 @@ Rectangle {
                     ColumnLayout {
                         objectName: "movieRelatedGrid"
                         Layout.fillWidth: true
-                        SectionHeader { title: "Önerilen Filmler"; Layout.fillWidth: true }
+                        SectionHeader { title: (i18n.revision, i18n.t("detail.similar_movies")); Layout.fillWidth: true }
                         HorizontalMediaStrip {
                             objectName: "movieRelatedStrip"
                             Layout.fillWidth: true
@@ -286,7 +287,7 @@ Rectangle {
                         }
                         Label {
                             visible: (page.controller.detail.recommendations || []).length === 0
-                            text: "Önerilen film bulunmuyor."
+                            text: (i18n.revision, i18n.t("detail.similar_movies_empty"))
                             color: Tokens.Theme.textMuted
                         }
                     }
@@ -301,7 +302,7 @@ Rectangle {
         objectName: "movieListDialog"
         modal: true
         focus: true
-        title: "Listeye Ekle"
+        title: (i18n.revision, i18n.t("lists.add_to_list"))
         width: Math.min(420, page.width - 2 * Tokens.Theme.spaceLg)
         x: (page.width - width) / 2
         y: (page.height - height) / 2
@@ -311,7 +312,7 @@ Rectangle {
             spacing: Tokens.Theme.spaceMd
             Label {
                 Layout.fillWidth: true
-                text: "Mevcut liste adını yazın veya yeni liste oluşturun."
+                text: (i18n.revision, i18n.t("lists.add_hint"))
                 color: Tokens.Theme.textSecondary
                 wrapMode: Text.WordWrap
             }
@@ -319,7 +320,7 @@ Rectangle {
                 id: listName
                 objectName: "movieListName"
                 Layout.fillWidth: true
-                placeholderText: "Liste adı"
+                placeholderText: (i18n.revision, i18n.t("lists.name_ph"))
                 color: Tokens.Theme.textPrimary
                 onAccepted: {
                     if (text.trim().length > 0) {
@@ -338,7 +339,7 @@ Rectangle {
             }
             IzlekButton {
                 objectName: "movieListAdd"
-                text: "Ekle"
+                text: (i18n.revision, i18n.t("common.add"))
                 enabled: listName.text.trim().length > 0
                 onClicked: {
                     page.controller.addToList(listName.text)

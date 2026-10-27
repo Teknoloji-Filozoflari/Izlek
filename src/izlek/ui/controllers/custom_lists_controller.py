@@ -10,7 +10,7 @@ from izlek.security.token_store import TokenStore
 from izlek.services.custom_lists import CustomListsService
 from izlek.services.image_service import ImageService
 from izlek.tmdb.client import TmdbClient
-from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE
+from izlek.ui.controllers.messages import local_data_unavailable
 
 
 class CustomListsController(QObject):
@@ -121,7 +121,7 @@ class CustomListsController(QObject):
                     selected_id = new_selection
             snapshot = self._service.snapshot(selected_id)
         except (OSError, ValueError, LookupError, TypeError, SQLAlchemyError):
-            self._loaded.emit(generation, {}, LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, {}, local_data_unavailable())
         else:
             snapshot["items"] = [{**item, "poster": ""} for item in snapshot["items"]]
             self._loaded.emit(generation, snapshot, "")

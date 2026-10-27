@@ -7,12 +7,13 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.personal_media import PersonalMediaService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
 from izlek.tmdb.models import MovieSummary, TvSummary
-from izlek.ui.controllers.messages import NETWORK_UNAVAILABLE
+from izlek.ui.controllers.messages import network_unavailable
 
 _MIN_VOTE_COUNT = 100
 
@@ -184,7 +185,7 @@ class DiscoverController(QObject):
         self.changed.emit()
         if self._client is None:
             self._busy = False
-            self._error = "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin."
+            self._error = t("errors.token_missing")
             self.changed.emit()
             return
         if self._images is None:
@@ -257,7 +258,7 @@ class DiscoverController(QObject):
                 for item in result.results
             ]
         except NetworkError:
-            self._loaded.emit(generation, [], page, 1, NETWORK_UNAVAILABLE)
+            self._loaded.emit(generation, [], page, 1, network_unavailable())
         except TMDbError:
             self._loaded.emit(
                 generation, [], page, 1, "Keşfet sonuçları yüklenemedi. Tekrar deneyin."
