@@ -5,6 +5,8 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+- Film/dizi `watched_at` ve `rewatch_count`; JSON şema v4; istatistiklerde film
+  aktivitesi, son 12 ay grafiği ve son izlemeler günlüğü.
 - Windows 10/11 x64 için EXE kurulum paketi ve GitHub Actions üretim akışı;
   kurulum, açılış, kaldırma ve kişisel veri koruma kontrolleri. İlk gerçek
   Windows build'i henüz doğrulanmadı.

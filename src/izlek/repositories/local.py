@@ -196,13 +196,30 @@ class UserMediaRepository:
         *,
         manual: bool = True,
         override_manual: bool = False,
+        rewatch: bool = False,
     ) -> UserMedia:
-        """Persist status; replacing manual choices requires an explicit opt-in."""
+        """Persist status; replacing manual choices requires an explicit opt-in.
+
+        Entering WATCHED records ``watched_at``. Passing ``rewatch=True`` while
+        already watched increments ``rewatch_count`` and refreshes the
+        timestamp; a plain WATCHED write is otherwise idempotent. Leaving
+        WATCHED clears ``watched_at`` but keeps the count.
+        """
         item = self._get_or_create(media_id)
         if not manual and item.status_is_manual and not override_manual:
             return item
+        previous = item.status
         item.status = status
         item.status_is_manual = manual and status is not None
+        if status == TrackingStatus.WATCHED:
+            if previous == TrackingStatus.WATCHED:
+                if rewatch:
+                    item.rewatch_count = (item.rewatch_count or 0) + 1
+                    item.watched_at = utc_now()
+            else:
+                item.watched_at = utc_now()
+        else:
+            item.watched_at = None
         self.session.flush()
         return item
 
@@ -260,11 +277,11 @@ class StatisticsRepository:
 
     def watched_episode_activity(
         self,
-    ) -> list[tuple[MediaItem, Episode, EpisodeProgress]]:
-        """Read show identity, runtime and actual watch timestamps in one query."""
+    ) -> list[tuple[MediaItem, Season, Episode, EpisodeProgress]]:
+        """Read show identity, season, runtime and watch timestamps in one query."""
         return list(
             self.session.execute(
-                select(MediaItem, Episode, EpisodeProgress)
+                select(MediaItem, Season, Episode, EpisodeProgress)
                 .join(Season, Season.media_id == MediaItem.id)
                 .join(Episode, Episode.season_id == Season.id)
                 .join(EpisodeProgress, EpisodeProgress.episode_id == Episode.id)

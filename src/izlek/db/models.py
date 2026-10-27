@@ -107,6 +107,10 @@ class UserMedia(Base):
     dismissed: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("0"), nullable=False
     )
+    watched_at: Mapped[datetime | None] = mapped_column(DateTime)
+    rewatch_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
     added_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=utc_now,

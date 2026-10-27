@@ -142,6 +142,12 @@ class MovieDetailService:
             state = {
                 "status": user.status.value if user and user.status else "",
                 "favorite": bool(user.favorite) if user else False,
+                "watchedAt": (
+                    user.watched_at.replace(microsecond=0).isoformat() + "Z"
+                    if user and user.watched_at
+                    else ""
+                ),
+                "rewatchCount": int(user.rewatch_count or 0) if user else 0,
                 "lists": selected,
                 "availableLists": [entry.name for entry in lists],
             }
@@ -228,13 +234,23 @@ class MovieDetailService:
         }
 
     def set_status(self, movie_id: int, status: str | None) -> dict[str, Any]:
-        """Set tracking status; None removes library membership only."""
+        """Set tracking status; None removes library membership only.
+
+        Selecting WATCHED again records a rewatch for diary and statistics.
+        """
         selected = TrackingStatus(status) if status is not None else None
         with self._sessions().begin() as session:
             media = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
             if media is None:
                 raise LookupError("Film yerel veritabanında yok")
-            UserMediaRepository(session).set_status(media.id, selected)
+            users = UserMediaRepository(session)
+            current = users.get(media.id)
+            rewatch = (
+                selected == TrackingStatus.WATCHED
+                and current is not None
+                and current.status == TrackingStatus.WATCHED
+            )
+            users.set_status(media.id, selected, rewatch=rewatch)
         return self.cached(movie_id) or {}
 
     def set_favorite(self, movie_id: int, favorite: bool) -> dict[str, Any]:

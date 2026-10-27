@@ -131,7 +131,7 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "movieWatched"
-                        text: "✓ İzlendi"
+                        text: page.controller.detail.status === "WATCHED" ? "Yeniden izledim" : "✓ İzlendi"
                         variant: page.controller.detail.status === "WATCHED" ? "primary" : "secondary"
                         enabled: !page.controller.saving
                         onClicked: page.controller.setStatus("WATCHED")
@@ -175,6 +175,14 @@ Rectangle {
                         variant: "danger"
                         onClicked: page.controller.removeFromLibrary()
                     }
+                }
+                Label {
+                    objectName: "movieRewatchCount"
+                    visible: (page.controller.detail.rewatchCount || 0) > 0
+                    Layout.leftMargin: Tokens.Theme.spaceXl
+                    text: (page.controller.detail.rewatchCount || 0) + " kez yeniden izlendi"
+                    color: Tokens.Theme.textSecondary
+                    font.pixelSize: Tokens.Theme.textSmall
                 }
                 Label {
                     visible: page.controller.feedback.length > 0

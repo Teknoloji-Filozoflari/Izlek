@@ -17,7 +17,7 @@ QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `i
 | `PosterCard` | `posterSource`, `posterLoading` (indirme sürerken skeleton), `mediaTitle`, `year`, `score` (negatifse gizli), `status`, isteğe bağlı `progress` (0–1) ve `progressText`; `favorite`, `favoriteEnabled`; `footerHeight` alt eylem alanı; `activated()`, `favoriteToggled(bool)` |
 | `EpisodeCheck` | `episodeName`, standart `checked`/`clicked`; yazısız yuvarlak tik, klavye odağı, erişilebilir ad ve tooltip |
 | `EpisodeProgressBar` | `watched`, `total`, salt okunur `fraction`; bölüm sayacı ve sarı ilerleme çubuğu |
-| `StatisticsPanel` | `stats`: yerel istatistik snapshot'ı; toplam/film/bölüm süre kartları, sayaçlar, adet/yüzde etiketli tür halkası ve bölüm/süre etiketli ilk beş dizi. 900 piksel altında süre kartları ve grafikler tek sütuna geçer. |
+| `StatisticsPanel` | `stats`: yerel istatistik snapshot'ı; toplam/film/bölüm süre kartları, sayaçlar (yeniden izleme dahil), son 12 ay aktivite çubukları, adet/yüzde etiketli tür halkası, bölüm/süre etiketli ilk beş dizi ve son izlemeler günlüğü. 900 piksel altında süre kartları ve grafikler tek sütuna geçer. |
 | `MediaGrid`, `HorizontalMediaStrip` | `items` medya nesneleri dizisi; `mediaActivated(media)`. `MediaGrid.compact` varsayılan `false`; sık görünüm kart genişliğini ve grid satır yüksekliğini birlikte değiştirir. |
 | `SectionHeader` | `title`, `subtitle`, `actionText`; `actionTriggered()` |
 | `CastGrid` | `cast`: `{id, name, character, profilePath, poster}` dizisi; `actorActivated(personId, name)`; `photoObjectName`: görsel test adı. Fotoğraflı ad/rol kartları fare ve klavye ile etkinleştirilir; kimliği olmayan eski kayıtlar tıklanamaz. |

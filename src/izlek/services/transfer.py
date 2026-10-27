@@ -30,6 +30,7 @@ _MAX_IMPORT_BYTES = 64 * 1024 * 1024
 _SCHEMA_MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: lambda payload: dict(payload),  # v1 has no personal card order.
     2: lambda payload: dict(payload),  # v2 has no personal reviews/dismissals.
+    3: lambda payload: dict(payload),  # v3 has no watched_at / rewatch_count.
 }
 _BLOCKED_METADATA_KEYS = {
     "access_token",
@@ -217,6 +218,8 @@ class TransferService:
                         "personal_rating": state.personal_rating,
                         "personal_note": state.personal_note,
                         "dismissed": state.dismissed,
+                        "watched_at": _aware(state.watched_at),
+                        "rewatch_count": state.rewatch_count or 0,
                         "added_at": _aware(state.added_at),
                         "updated_at": _aware(state.updated_at),
                     }
@@ -491,6 +494,10 @@ class TransferService:
                     state.personal_note = record.personal_note
                 if record.dismissed is not None:
                     state.dismissed = record.dismissed
+                if "watched_at" in record.model_fields_set:
+                    state.watched_at = _naive(record.watched_at)
+                if "rewatch_count" in record.model_fields_set:
+                    state.rewatch_count = record.rewatch_count
                 state.added_at = min(
                     state.added_at, _naive(record.added_at) or state.added_at
                 )

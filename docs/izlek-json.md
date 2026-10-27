@@ -9,7 +9,7 @@ dosya SQLite dosya yolundan ve kurulumdan bağımsız kalır.
 
 ```json
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "exported_at": "2026-10-03T18:00:00Z",
   "app_version": "0.1.0",
   "media": [],
@@ -22,7 +22,8 @@ dosya SQLite dosya yolundan ve kurulumdan bağımsız kalır.
 
 - `media`: Film/dizi metadata'sı; dizilerde sezon ve bölüm metadata'sı iç içedir.
 - `tracking`: Durum, manuel seçim bilgisi, `sort_order` kart sırası,
-  `personal_rating`, `personal_note`, `dismissed` ve yerel zaman damgaları.
+  `personal_rating`, `personal_note`, `dismissed`, film/dizi `watched_at`,
+  `rewatch_count` ve yerel zaman damgaları.
 - `episodes`: İzlenen bölüm durumu ve izlenme zamanı.
 - `favorites`: Durumdan bağımsız favori medya referansları.
 - `lists`: Özel listeler, sıraları ve medya üyelikleri.
@@ -50,6 +51,8 @@ import tek SQLite transaction içinde uygulanır.
 - Favoriler birleşim olarak ele alınır; import mevcut favoriyi kaldırmaz.
 - İzlenmiş bölüm tekrar import ile izlenmemişe dönmez ve en yeni `watched_at`
   korunur.
+- Takip kaydındaki `watched_at` / `rewatch_count`, kabul edilen takip
+  satırıyla birlikte alınır. Eski yedekte alan yoksa yerel değerler silinmez.
 - Liste adları büyük/küçük harfe duyarsız eşleştirilir. Mevcut liste korunur,
   eksik üyeler eklenir ve aynı medya üyeliği çoğaltılmaz.
 
@@ -69,3 +72,7 @@ yedeklerini okuyamaz.
 Sürüm 3 kişisel puan/not ve öneri gizleme tercihini ekler. Sürüm 1 ve 2
 okunur; eksik kişisel alanlar korunur. Eski İzlek sürümleri sürüm 3 yedeklerini
 okuyamaz. Kişisel notların da JSON içinde bulunduğunu dışa aktarırken dikkate al.
+
+Sürüm 4 film/dizi `watched_at` ve `rewatch_count` alanlarını ekler. Sürüm 1–3
+okunur; eksik izlenme tarihi ve yeniden izleme sayısı yerel veriyi silmez.
+Eski İzlek sürümleri sürüm 4 yedeklerini okuyamaz.

@@ -50,9 +50,13 @@ def test_empty_statistics_snapshot_has_stable_zero_values(tmp_path):
     try:
         snapshot = StatisticsService(create_session_factory(engine)).snapshot()
         values = snapshot.as_dict()
-        assert len(values.pop("monthly_activity")) == 12
+        monthly = values.pop("monthly_activity")
+        assert len(monthly) == 12
+        assert monthly[0]["movies"] == 0
+        assert monthly[0]["episodes"] == 0
         assert values.pop("top_shows") == []
         assert values.pop("genre_distribution") == []
+        assert values.pop("recent_history") == []
         assert values == {
             "watched_movies": 0,
             "completed_tv": 0,
@@ -66,6 +70,7 @@ def test_empty_statistics_snapshot_has_stable_zero_values(tmp_path):
             "favorite_tv": 0,
             "planned_movies": 0,
             "planned_tv": 0,
+            "movie_rewatch_count": 0,
             "top_genres": [],
         }
     finally:
@@ -265,7 +270,8 @@ def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch
         assert statistics.stats["estimated_total_minutes"] == 95
         description = window.findChild(QQuickItem, "screenTimeDescription")
         assert "1 film ve 0 bölüm hesaba katılmadı" in description.property("text")
-        assert window.findChild(QQuickItem, "monthlyStatistics") is None
+        assert window.findChild(QQuickItem, "monthlyStatistics") is not None
+        assert window.findChild(QQuickItem, "recentHistoryStatistics") is not None
         assert window.findChild(QQuickItem, "genreStatistics") is not None
         assert window.findChild(QQuickItem, "topShowStatistics") is not None
     finally:
@@ -305,26 +311,75 @@ def test_monthly_activity_uses_watch_dates_and_top_shows_use_real_runtimes(tmp_p
             )
             progress = EpisodeRepository(session).set_watched(episode.id, True)
             progress.watched_at = watched_at
+        movie = MediaRepository(session).upsert(
+            88,
+            MediaType.MOVIE,
+            "January Film",
+            runtime=110,
+            release_date=date(2024, 5, 1),
+            metadata_json={"detail": {"genres": [{"name": "Dram"}]}},
+        )
+        user = UserMediaRepository(session).set_status(movie.id, TrackingStatus.WATCHED)
+        user.watched_at = datetime(2026, 1, 12)
+        user.rewatch_count = 2
     try:
         result = StatisticsService(factory).snapshot(today=date(2026, 1, 31))
         assert len(result.monthly_activity) == 12
         assert result.monthly_activity[0]["month"] == 2
         assert result.monthly_activity[0]["year"] == 2025
         assert result.monthly_activity[0]["minutes"] == 25
+        assert result.monthly_activity[0]["movies"] == 0
         assert result.monthly_activity[-2]["minutes"] == 30
-        assert result.monthly_activity[-1]["minutes"] == 40
+        assert result.monthly_activity[-1]["minutes"] == 150
         assert result.monthly_activity[-1]["episodes"] == 2
+        assert result.monthly_activity[-1]["movies"] == 1
+        assert result.monthly_activity[-1]["movie_minutes"] == 110
         assert result.monthly_activity[-1]["missing_runtime"] == 1
         assert result.top_shows[0]["title"] == "Friends"
         assert result.top_shows[0]["minutes"] == 165
         assert result.top_shows[0]["missing_runtime"] == 1
         assert result.watched_episode_minutes == 165
-        assert result.estimated_total_minutes == 165
+        assert result.watched_movie_minutes == 110
+        assert result.estimated_total_minutes == 275
+        assert result.movie_rewatch_count == 2
+        assert result.recent_history[0]["title"] == "January Film"
+        assert result.recent_history[0]["kind"] == "movie"
+        assert result.recent_history[0]["rewatchCount"] == 2
+        assert any(item["kind"] == "episode" for item in result.recent_history)
         assert sum(row["share"] for row in result.genre_distribution) == 1
-        assert result.genre_distribution[0]["share"] == 0.5
         # Unmarking immediately removes the episode from charts and totals.
         with factory.begin() as session:
             EpisodeRepository(session).set_watched(episode.id, False)
         assert StatisticsService(factory).snapshot().top_shows[0]["episodes"] == 5
+    finally:
+        engine.dispose()
+
+
+def test_movie_watched_at_and_rewatch_count_round_trip(tmp_path):
+    engine = initialize_database(tmp_path / "rewatch.sqlite3")
+    factory = create_session_factory(engine)
+    try:
+        with factory.begin() as session:
+            movie = MediaRepository(session).upsert(
+                9, MediaType.MOVIE, "Rewatchable", runtime=95
+            )
+            users = UserMediaRepository(session)
+            first = users.set_status(movie.id, TrackingStatus.WATCHED)
+            assert first.watched_at is not None
+            assert first.rewatch_count == 0
+            stamped = first.watched_at
+            noop = users.set_status(movie.id, TrackingStatus.WATCHED)
+            assert noop.rewatch_count == 0
+            assert noop.watched_at == stamped
+            second = users.set_status(movie.id, TrackingStatus.WATCHED, rewatch=True)
+            assert second.rewatch_count == 1
+            assert second.watched_at >= stamped
+            users.set_status(movie.id, TrackingStatus.PLANNED)
+            cleared = users.get(movie.id)
+            assert cleared.watched_at is None
+            assert cleared.rewatch_count == 1
+            restored = users.set_status(movie.id, TrackingStatus.WATCHED)
+            assert restored.watched_at is not None
+            assert restored.rewatch_count == 1
     finally:
         engine.dispose()

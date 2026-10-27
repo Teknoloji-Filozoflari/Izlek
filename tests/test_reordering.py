@@ -117,7 +117,7 @@ def test_old_backup_migrates_and_keeps_existing_manual_order(ordered_factory, tm
     path = tmp_path / "old.json"
     path.write_text(json.dumps(payload))
     LibraryOrderService(ordered_factory).move(MediaType.MOVIE, 1, 3, [1, 2, 3])
-    assert transfer.read_file(path).schema_version == 3
+    assert transfer.read_file(path).schema_version == 4
     transfer.import_file(path)
     assert [
         row.tmdb_id

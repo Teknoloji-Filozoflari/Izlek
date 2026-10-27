@@ -98,7 +98,9 @@ yenilenir; ekleme arama sorgusunu/sonuçlarını veya gezintiyi değiştirmez.
 
 `services/tv_status.py` bölüm ilerlemesinden otomatik dizi status kararını verir. Eski dolu status kayıtları `0002_status_source` migration'ıyla manuel kabul edilir; 2026-10-04 kullanıcı isteğiyle açık bölüm işlemleri bu eski seçimi de ilerlemeye göre günceller. Repository genel manuel koruması korunur; yalnız dizi ilerleme transaction'ı açık `override_manual=True` kullanır. TMDb metadata yenilemesi status'u değiştirmez; yayınlanmış izlenmemiş bölüm sayısı detay ekranında ayrıca gösterilir. [Kurallar](status-automation.md).
 
-`services/statistics.py`, yalnızca SQLite'taki takip, favori, metadata ve bölüm ilerlemesi kayıtlarından aggregate değerler üretir. Süre toplamları yalnız pozitif runtime değeri bilinen izlenmiş film ve bölümleri toplar; eksik, sıfır veya negatif süreler dışarıda bırakılır. Bilinen süre yoksa toplam 0 olur. UI dışarıda kalan film/bölüm sayısını açıklar; izlenme sayaçları korunur. `StatisticsController` snapshot'ı işçi havuzunda okuyup dashboard'a verir. Türler, tamamlanmış film/dizi metadata'sından sayılır; istatistik sorgusu TMDb isteği yapmaz.
+`services/statistics.py`, yalnızca SQLite'taki takip, favori, metadata ve bölüm ilerlemesi kayıtlarından aggregate değerler üretir. Süre toplamları yalnız pozitif runtime değeri bilinen izlenmiş film ve bölümleri toplar; eksik, sıfır veya negatif süreler dışarıda bırakılır. Bilinen süre yoksa toplam 0 olur. UI dışarıda kalan film/bölüm sayısını açıklar; izlenme sayaçları korunur. Son 12 aylık aktivite hem `user_media.watched_at` (film) hem bölüm `watched_at` değerlerini kullanır; `recent_history` günlük/geçmiş listesini üretir. `StatisticsController` snapshot'ı işçi havuzunda okuyup dashboard'a verir. Türler, tamamlanmış film/dizi metadata'sından sayılır; istatistik sorgusu TMDb isteği yapmaz.
+
+`user_media.watched_at` WATCHED'e geçişte yazılır; WATCHED dışına çıkınca temizlenir. Film detayında İzlendi'ye yeniden basmak `rewatch=True` ile `rewatch_count` artırır ve tarihi yeniler; toplu status ve otomatik dizi teyidi yeniden izleme saymaz. JSON şema v4 bu alanları taşır.
 
 `services/transfer.py`, `TransferRepository` üzerinden tüm taşınabilir kayıtları okuyup `services/transfer_schema.py` içindeki sürümlü Pydantic modele çevirir. Export atomik dosya değişimiyle ve `0600` izniyle yazılır. Import önce dosyanın tamamını doğrular, sonra medya kimliği, bölüm numarası ve büyük/küçük harften bağımsız liste adı üzerinden tek SQLite transaction içinde birleştirir. Controller dosya ve veritabanı işlerini UI thread'i dışında yürütür; başarılı import sonrasında yerel dashboard, kütüphane, favori, liste ve istatistik controller'ları yenilenir. Şema alanları ve migration yaklaşımı [İzlek JSON belgesinde](izlek-json.md) tanımlıdır.
 
@@ -116,6 +118,11 @@ aktarma eksik kişisel alanları silmez. Retention kişisel satırlara dokunmaz.
 Listeye Ekle yanındaki Puan ve not düğmesiyle satırın altında açılıp kapanır.
 Açıklık yalnız bileşen durumudur, SQLite'a yazılmaz.
 Kapatma taslağı korur; kayıt yine açık Kaydet eylemiyle yapılır.
+
+`0006_watched_at_rewatch`, `user_media.watched_at` ve `rewatch_count`
+alanlarını ekler. Film detayında İzlendi / Yeniden izledim aynı status
+yolunu kullanır; JSON v4 alanları taşır ve v1–v3 içe aktarmada eksik alanlar
+yerel tarih/sayıyı silmez.
 
 `LibraryFilters` aynı anda durum, cache türü, yıl aralığı, maksimum süre ve
 minimum TMDb puanı uygular. Film runtime'ı, dizi bildirilmiş en büyük bölüm
