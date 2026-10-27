@@ -26,7 +26,9 @@ Rectangle {
         id: label
         anchors.centerIn: parent
         text: badge.text
-        color: badge.toneColor
+        // Dark accent chips (e.g. İzleniyor) use light text on teal surface, matching the mock.
+        color: tone === "accent" && !Tokens.Theme.isLight ? Tokens.Theme.textPrimary
+                                                         : badge.toneColor
         font.pixelSize: Tokens.Theme.textSmall
         font.weight: Tokens.Theme.weightDemiBold
     }

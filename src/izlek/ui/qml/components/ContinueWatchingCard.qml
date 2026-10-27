@@ -66,9 +66,21 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#00101318" }
-            GradientStop { position: 0.45; color: "#66101318" }
-            GradientStop { position: 1.0; color: "#E6101318" }
+            GradientStop {
+                position: 0.0
+                color: Qt.rgba(Tokens.Theme.background.r, Tokens.Theme.background.g,
+                               Tokens.Theme.background.b, 0.0)
+            }
+            GradientStop {
+                position: 0.45
+                color: Qt.rgba(Tokens.Theme.background.r, Tokens.Theme.background.g,
+                               Tokens.Theme.background.b, 0.4)
+            }
+            GradientStop {
+                position: 1.0
+                color: Qt.rgba(Tokens.Theme.background.r, Tokens.Theme.background.g,
+                               Tokens.Theme.background.b, 0.9)
+            }
         }
     }
     MouseArea {
@@ -84,7 +96,8 @@ Rectangle {
         width: badgeLabel.implicitWidth + Tokens.Theme.spaceSm
         height: Tokens.Theme.controlHeight * 0.55
         radius: Tokens.Theme.radiusSm
-        color: "#CC101318"
+        color: Qt.rgba(Tokens.Theme.background.r, Tokens.Theme.background.g,
+                       Tokens.Theme.background.b, 0.8)
         border.color: Tokens.Theme.border
         Label {
             id: badgeLabel
