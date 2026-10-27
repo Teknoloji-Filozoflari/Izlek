@@ -137,14 +137,19 @@ def _visual(item, name):
 
 def _drag(window, source, destination):
     start = source.mapToScene(QPointF(source.width() / 2, source.height() / 2))
+    # Cross startDragDistance before the path so MouseArea enters dragging under
+    # offscreen/software Qt (Nix CI) as reliably as on desktop PySide wheels.
+    threshold = float(QGuiApplication.styleHints().startDragDistance()) + 1.0
+    primed = start + QPointF(threshold, threshold)
     QTest.mousePress(
         window,
         Qt.MouseButton.LeftButton,
         Qt.KeyboardModifier.NoModifier,
         start.toPoint(),
     )
+    QTest.mouseMove(window, primed.toPoint())
     for index in range(1, 9):
-        point = start + (destination - start) * (index / 8)
+        point = primed + (destination - primed) * (index / 8)
         QTest.mouseMove(window, point.toPoint(), 15)
     QTest.mouseRelease(
         window,
@@ -221,10 +226,22 @@ def test_mouse_drags_custom_list_members(ordered_factory):
         controller.selectList(list_id)
         wait_for(app, lambda: len(controller.items) == 3 and not controller.busy)
         view = window.findChild(QQuickItem, "customListMedia")
-        handle = _visual(view, "listMediaReorderHandle")
-        assert handle is not None
-        target = view.mapToScene(QPointF(view.width() / 2, 2 * 82 + 36))
-        _drag(window, handle, target)
+        wait_for(
+            app,
+            lambda: view is not None
+            and view.isVisible()
+            and len(_all_visual(view, "listMediaReorderHandle")) == 3,
+        )
+        handles = sorted(
+            _all_visual(view, "listMediaReorderHandle"),
+            key=lambda item: item.mapToScene(QPointF(0, 0)).y(),
+        )
+        # Drop onto the third row using live delegate geometry instead of a
+        # hard-coded pitch that drifts with Theme spacing / fontconfig.
+        target = handles[2].mapToScene(
+            QPointF(handles[2].width() / 2, handles[2].height() / 2)
+        )
+        _drag(window, handles[0], target)
         wait_for(app, lambda: [row["tmdb_id"] for row in controller.items] == [2, 3, 1])
         assert window.findChild(QQuickItem, "contentStack").property("depth") == 1
     finally:
