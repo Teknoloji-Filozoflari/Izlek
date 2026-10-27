@@ -38,7 +38,7 @@ QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `i
 Grid ve yatay şerit şu veri biçimini kullanır: `{id, title, year, poster, score, status, progress, progressText}`. Puan/durum/ilerleme alanları isteğe bağlıdır; `poster` boşsa kart yer tutucu gösterir. İki liste de aynı `MediaCardDelegate` bağlamasını kullanır. `MediaGrid`, görünür genişliğe göre sütun sayısını hesaplar ve `GridView` sayesinde yalnızca görünür kartları oluşturur.
 
 `MediaGrid.quickLibraryController` isteğe bağlıdır; ana sayfada verilince
-her kartın içinde ayrılmış alt alanda turkuaz çerçeveli
+her kartın içinde ayrılmış alt alanda vurgu renkli çerçeveli
 `+ Kütüphaneye Ekle` düğmesi gösterir ve satır yüksekliğini genişletir.
 `MediaCardDelegate` bu controller'ın
 `states[mediaType + ':' + id]` değerini okur: `adding` yükleme, `added`
