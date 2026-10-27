@@ -7,7 +7,8 @@ import "../theme" as Tokens
 Rectangle {
     id: page
     property var controller
-    property string pageTitle: "Film Detayı"
+    readonly property string pageKind: "movie"
+    property string pageTitle: (i18n.revision, i18n.t("page.movie_detail"))
     property int mediaId: 0
     readonly property bool filterPopupOpen: personalReview.filterPopupOpen
     readonly property var providerGroups: controller.detail.providers || ({})
@@ -29,7 +30,7 @@ Rectangle {
             IzlekButton {
                 Layout.leftMargin: Tokens.Theme.spaceXl
                 Layout.topMargin: Tokens.Theme.spaceLg
-                text: "← Geri"
+                text: (i18n.revision, i18n.t("common.back"))
                 variant: "secondary"
                 onClicked: page.backRequested()
             }
@@ -41,7 +42,7 @@ Rectangle {
             EmptyState {
                 visible: !!page.controller.error
                 Layout.fillWidth: true
-                title: "Film yüklenemedi"
+                title: (i18n.revision, i18n.t("detail.movie_load_failed"))
                 description: page.controller.error
             }
             ColumnLayout {
@@ -109,7 +110,7 @@ Rectangle {
                             }
                             Label {
                                 objectName: "movieTmdbSourceLabel"
-                                text: "Film bilgileri ve görseller TMDB tarafından sağlanır"
+                                text: (i18n.revision, i18n.t("detail.movie_attribution"))
                                 color: Tokens.Theme.textSecondary
                                 font.pixelSize: Tokens.Theme.textSmall
                             }
@@ -126,238 +127,11 @@ Rectangle {
                         objectName: "addMovieToLibrary"
                         visible: !page.controller.detail.status
                         enabled: !page.controller.saving
-                        text: "Kütüphaneye Ekle"
+                        text: (i18n.revision, i18n.t("detail.add_library"))
                         onClicked: page.controller.setStatus("PLANNED")
                     }
                     IzlekButton {
                         objectName: "movieWatched"
-                        text: page.controller.detail.status === "WATCHED" ? "Yeniden izledim" : "✓ İzlendi"
-                        variant: page.controller.detail.status === "WATCHED" ? "primary" : "secondary"
-                        enabled: !page.controller.saving
-                        onClicked: page.controller.setStatus("WATCHED")
-                    }
-                    IzlekButton {
-                        objectName: "movieUnwatched"
-                        visible: !!page.controller.detail.status
-                        text: "↺ İzlenmedi"
-                        variant: "secondary"
-                        enabled: !page.controller.saving
-                        onClicked: page.controller.setStatus("PLANNED")
-                    }
-                    FavoriteButton {
-                        objectName: "movieFavorite"
-                        checked: !!page.controller.detail.favorite
-                        enabled: !page.controller.saving
-                        onToggledFavorite: function(favorite) {
-                            page.controller.setFavorite(favorite)
-                        }
-                    }
-                    IzlekButton {
-                        objectName: "movieListOpen"
-                        text: "Listeye Ekle"
-                        variant: "secondary"
-                        enabled: !page.controller.saving
-                        onClicked: listDialog.open()
-                    }
-                    IzlekButton {
-                        objectName: "togglePersonalReviewButton"
-                        text: personalReview.expanded ? "Puan ve notu kapat" : "Puan ve not"
-                        variant: "secondary"
-                        enabled: page.mediaId > 0 && !!page.controller.detail.title
-                        onClicked: personalReview.expanded = !personalReview.expanded
-                    }
-                    Item { Layout.fillWidth: true }
-                    IzlekButton {
-                        objectName: "removeMovieFromLibrary"
-                        visible: !!page.controller.detail.status
-                        enabled: !page.controller.saving
-                        text: "Kütüphaneden Kaldır"
-                        variant: "danger"
-                        onClicked: page.controller.removeFromLibrary()
-                    }
-                }
-                Label {
-                    objectName: "movieRewatchCount"
-                    visible: (page.controller.detail.rewatchCount || 0) > 0
-                    Layout.leftMargin: Tokens.Theme.spaceXl
-                    text: (page.controller.detail.rewatchCount || 0) + " kez yeniden izlendi"
-                    color: Tokens.Theme.textSecondary
-                    font.pixelSize: Tokens.Theme.textSmall
-                }
-                Label {
-                    visible: page.controller.feedback.length > 0
-                    Layout.leftMargin: Tokens.Theme.spaceXl
-                    text: page.controller.feedback
-                    color: Tokens.Theme.accent
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Tokens.Theme.spaceXl
-                    Layout.rightMargin: Tokens.Theme.spaceXl
-                    spacing: Tokens.Theme.spaceLg
-
-                    PersonalReview {
-                        id: personalReview
-                        objectName: "moviePersonalReview"
-                        Layout.fillWidth: true
-                        kind: "movie"
-                        mediaId: page.mediaId
-                        mediaTitle: page.controller.detail.title || ""
-                    }
-                    SectionHeader { title: "Açıklama"; Layout.fillWidth: true }
-                    Label {
-                        Layout.fillWidth: true
-                        text: page.controller.detail.overview || "Açıklama bulunmuyor."
-                        color: Tokens.Theme.textSecondary
-                        wrapMode: Text.WordWrap
-                    }
-                    SectionHeader { title: "Oyuncular"; Layout.fillWidth: true }
-                    CastGrid {
-                        objectName: "movieCastGrid"
-                        Layout.fillWidth: true
-                        cast: page.controller.detail.cast || []
-                        photoObjectName: "movieActorPhoto"
-                        onActorActivated: function(personId, name) { page.actorSelected(personId, name) }
-                    }
-                    Label {
-                        visible: (page.controller.detail.cast || []).length === 0
-                        text: "Oyuncu bilgisi bulunmuyor."
-                        color: Tokens.Theme.textMuted
-                    }
-                    GridLayout {
-                        objectName: "movieProductionInfo"
-                        Layout.fillWidth: true
-                        columns: width >= 850 ? 3 : 1
-                        columnSpacing: Tokens.Theme.spaceLg
-                        rowSpacing: Tokens.Theme.spaceMd
-                        Repeater {
-                            model: [
-                                {title: "Yönetmen", values: page.controller.detail.directors || []},
-                                {title: "Yapım Şirketleri", values: page.controller.detail.companies || []},
-                                {title: "Yapım Ülkeleri", values: page.controller.detail.countries || []}
-                            ]
-                            ColumnLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 1
-                                Layout.minimumWidth: 0
-                                Layout.alignment: Qt.AlignTop
-                                SectionHeader { title: modelData.title; Layout.fillWidth: true }
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: modelData.values.join(", ") || "Bilgi bulunmuyor."
-                                    color: Tokens.Theme.textSecondary
-                                    wrapMode: Text.WordWrap
-                                }
-                            }
-                        }
-                    }
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: width >= 850 ? 2 : 1
-                        columnSpacing: Tokens.Theme.spaceLg
-                        rowSpacing: Tokens.Theme.spaceMd
-                        ProviderSection {
-                            objectName: "movieProviders"
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            Layout.alignment: Qt.AlignTop
-                            groups: page.providerGroups
-                            providerLink: page.controller.detail.providerLink || ""
-                            onProviderLinkRequested: page.controller.openProviderLink()
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            Layout.alignment: Qt.AlignTop
-                            SectionHeader { title: "Fragman"; Layout.fillWidth: true }
-                            IzlekButton {
-                                text: "Fragmanı İzle"
-                                enabled: !!page.controller.detail.trailerUrl
-                                onClicked: page.controller.openTrailer()
-                            }
-                        }
-                    }
-                    ColumnLayout {
-                        objectName: "movieRelatedGrid"
-                        Layout.fillWidth: true
-                        SectionHeader { title: "Önerilen Filmler"; Layout.fillWidth: true }
-                        HorizontalMediaStrip {
-                            objectName: "movieRelatedStrip"
-                            Layout.fillWidth: true
-                            visible: items.length > 0
-                            items: page.controller.detail.recommendations || []
-                            onMediaActivated: function(media) { page.movieSelected(media.id) }
-                        }
-                        Label {
-                            visible: (page.controller.detail.recommendations || []).length === 0
-                            text: "Önerilen film bulunmuyor."
-                            color: Tokens.Theme.textMuted
-                        }
-                    }
-                }
-            }
-            Item { Layout.preferredHeight: Tokens.Theme.spaceXl }
-        }
-    }
-
-    Dialog {
-        id: listDialog
-        objectName: "movieListDialog"
-        modal: true
-        focus: true
-        title: "Listeye Ekle"
-        width: Math.min(420, page.width - 2 * Tokens.Theme.spaceLg)
-        x: (page.width - width) / 2
-        y: (page.height - height) / 2
-        closePolicy: Popup.CloseOnEscape
-        onOpened: listName.forceActiveFocus()
-        contentItem: ColumnLayout {
-            spacing: Tokens.Theme.spaceMd
-            Label {
-                Layout.fillWidth: true
-                text: "Mevcut liste adını yazın veya yeni liste oluşturun."
-                color: Tokens.Theme.textSecondary
-                wrapMode: Text.WordWrap
-            }
-            TextField {
-                id: listName
-                objectName: "movieListName"
-                Layout.fillWidth: true
-                placeholderText: "Liste adı"
-                color: Tokens.Theme.textPrimary
-                onAccepted: {
-                    if (text.trim().length > 0) {
-                        page.controller.addToList(text)
-                        listDialog.close()
-                    }
-                }
-            }
-            Label {
-                visible: !!page.controller.detail.availableLists
-                         && page.controller.detail.availableLists.length > 0
-                Layout.fillWidth: true
-                text: "Listeler: " + (page.controller.detail.availableLists || []).join(", ")
-                color: Tokens.Theme.textMuted
-                wrapMode: Text.WordWrap
-            }
-            IzlekButton {
-                objectName: "movieListAdd"
-                text: "Ekle"
-                enabled: listName.text.trim().length > 0
-                onClicked: {
-                    page.controller.addToList(listName.text)
-                    listDialog.close()
-                }
-            }
-        }
-        background: Rectangle {
-            color: Tokens.Theme.surfaceElevated
-            radius: Tokens.Theme.radiusMd
-            border.color: Tokens.Theme.border
-        }
-    }
-}
+                        text: page.controller.detail.status === "WATCHED"
+                              ? "Yeniden izledim"
+                              : (i18n.revision, i18n.t("status.mark_watched"))

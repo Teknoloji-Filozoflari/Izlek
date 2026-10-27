@@ -7,7 +7,7 @@ import "../theme" as Tokens
 
 Rectangle {
     id: page
-    property string pageTitle: "Ana Sayfa"
+    property string pageTitle: (i18n.revision, i18n.t("page.home"))
     property var controller
     property var searchModelController
     readonly property var libraryActions: quickLibraryController
@@ -23,27 +23,37 @@ Rectangle {
     readonly property string resultsError: searching ? searchModelController.error : controller.error
     readonly property bool filterPopupOpen: mediaSelector.popup.visible
         || genreSelector.popup.visible || countrySelector.popup.visible
-    readonly property var movieGenres: [
-        { text: "Tüm türler", value: 0 }, { text: "Aksiyon", value: 28 },
-        { text: "Animasyon", value: 16 }, { text: "Bilim Kurgu", value: 878 },
-        { text: "Dram", value: 18 }, { text: "Gerilim", value: 53 },
-        { text: "Komedi", value: 35 }, { text: "Suç", value: 80 },
-        { text: "Korku", value: 27 }, { text: "Macera", value: 12 },
-        { text: "Romantik", value: 10749 }
-    ]
-    readonly property var tvGenres: [
-        { text: "Tüm türler", value: 0 }, { text: "Aksiyon & Macera", value: 10759 },
-        { text: "Bilim Kurgu & Fantastik", value: 10765 }, { text: "Dram", value: 18 },
-        { text: "Gerilim", value: 9648 }, { text: "Komedi", value: 35 },
-        { text: "Suç", value: 80 }, { text: "Belgesel", value: 99 },
-        { text: "Çocuk", value: 10762 }, { text: "Reality", value: 10764 }
-    ]
-    readonly property var countries: [
-        { text: "Tüm ülkeler", value: "" }, { text: "Türkiye", value: "TR" },
-        { text: "ABD", value: "US" }, { text: "Birleşik Krallık", value: "GB" },
-        { text: "Almanya", value: "DE" }, { text: "Fransa", value: "FR" },
-        { text: "Güney Kore", value: "KR" }, { text: "Japonya", value: "JP" }
-    ]
+    readonly property int _i18n: i18n.revision
+    readonly property var movieGenres: {
+        const _ = _i18n
+        return [
+            { text: i18n.t("discover.all_genres"), value: 0 }, { text: i18n.t("genre.action"), value: 28 },
+            { text: i18n.t("genre.animation"), value: 16 }, { text: i18n.t("genre.scifi"), value: 878 },
+            { text: i18n.t("genre.drama"), value: 18 }, { text: i18n.t("genre.thriller"), value: 53 },
+            { text: i18n.t("genre.comedy"), value: 35 }, { text: i18n.t("genre.crime"), value: 80 },
+            { text: i18n.t("genre.horror"), value: 27 }, { text: i18n.t("genre.adventure"), value: 12 },
+            { text: i18n.t("genre.romance"), value: 10749 }
+        ]
+    }
+    readonly property var tvGenres: {
+        const _ = _i18n
+        return [
+            { text: i18n.t("discover.all_genres"), value: 0 }, { text: i18n.t("genre.action_adventure"), value: 10759 },
+            { text: i18n.t("genre.scifi_fantasy"), value: 10765 }, { text: i18n.t("genre.drama"), value: 18 },
+            { text: i18n.t("genre.mystery"), value: 9648 }, { text: i18n.t("genre.comedy"), value: 35 },
+            { text: i18n.t("genre.crime"), value: 80 }, { text: i18n.t("genre.documentary"), value: 99 },
+            { text: i18n.t("genre.kids"), value: 10762 }, { text: i18n.t("genre.reality"), value: 10764 }
+        ]
+    }
+    readonly property var countries: {
+        const _ = _i18n
+        return [
+            { text: i18n.t("discover.all_countries"), value: "" }, { text: i18n.t("country.TR"), value: "TR" },
+            { text: i18n.t("country.US"), value: "US" }, { text: i18n.t("country.GB"), value: "GB" },
+            { text: i18n.t("country.DE"), value: "DE" }, { text: i18n.t("country.FR"), value: "FR" },
+            { text: i18n.t("country.KR"), value: "KR" }, { text: i18n.t("country.JP"), value: "JP" }
+        ]
+    }
     signal mediaSelected(string kind, int tmdbId)
     signal searchRequested()
     color: Tokens.Theme.background
@@ -124,17 +134,17 @@ Rectangle {
                 anchors.margins: Tokens.Theme.spaceMd
                 spacing: Tokens.Theme.spaceSm
                 Label {
-                    text: "Filtreler"
+                    text: (i18n.revision, i18n.t("discover.filters"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold
                 }
-                Label { text: "Medya"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("discover.media")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: mediaSelector
                     objectName: "discoverMedia"
                     Layout.fillWidth: true
-                    model: [ { text: "Film", value: "movie" }, { text: "Dizi", value: "tv" } ]
+                    model: [ { text: (i18n.revision, i18n.t("common.movie")), value: "movie" }, { text: (i18n.revision, i18n.t("common.show")), value: "tv" } ]
                     textRole: "text"
                     valueRole: "value"
                     onActivated: {
@@ -143,17 +153,17 @@ Rectangle {
                         page.applyFilters()
                     }
                 }
-                Label { text: "Yıl"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("discover.year")); color: Tokens.Theme.textSecondary }
                 FilterTextField {
                     id: yearInput
                     enabled: !page.personMode
                     objectName: "discoverYear"
                     Layout.fillWidth: true
-                    placeholderText: "Örn. 2024"
+                    placeholderText: (i18n.revision, i18n.t("discover.year_placeholder"))
                     color: Tokens.Theme.textPrimary
                     validator: IntValidator { bottom: 1888; top: 2100 }
                 }
-                Label { text: "Tür"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("discover.genre")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: genreSelector
                     enabled: !page.personMode
@@ -164,7 +174,7 @@ Rectangle {
                     textRole: "text"
                     valueRole: "value"
                 }
-                Label { text: "Ülke"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("discover.country")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: countrySelector
                     enabled: !page.personMode
@@ -219,14 +229,14 @@ Rectangle {
                 IzlekButton {
                     objectName: "applyDiscoverFilters"
                     Layout.fillWidth: true
-                    text: "Uygula"
+                    text: (i18n.revision, i18n.t("common.apply"))
                     enabled: !page.personMode && !controller.busy && minScore.value <= maxScore.value
                     onClicked: page.applyFilters()
                 }
                 IzlekButton {
                     objectName: "clearDiscoverFilters"
                     Layout.fillWidth: true
-                    text: "Temizle"
+                    text: (i18n.revision, i18n.t("common.clear"))
                     variant: "secondary"
                     enabled: !page.personMode && !controller.busy
                     onClicked: {
@@ -255,7 +265,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Label {
                         Layout.fillWidth: true
-                        text: "Ana Sayfa · Keşfet"
+                        text: (i18n.revision, i18n.t("page.discover"))
                         color: Tokens.Theme.textPrimary
                         font.pixelSize: Tokens.Theme.textHeading
                         font.weight: Tokens.Theme.weightDemiBold
@@ -317,7 +327,7 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "changeDirectorButton"
-                        text: "Değiştir"
+                        text: (i18n.revision, i18n.t("common.change"))
                         variant: "secondary"
                         onClicked: page.searchModelController.searchPeople(searchInput.text, page.searchMode)
                     }
@@ -370,7 +380,7 @@ Rectangle {
                                  && page.displayedItems.length === 0
                                  && (!page.choosingPerson || page.searchModelController.people.length === 0)
                                  && (!page.searching || !!page.searchModelController.selectedPerson.id || searchInput.text.trim().length >= 3)
-                        title: "Sonuç bulunamadı"
+                        title: (i18n.revision, i18n.t("discover.no_results"))
                         description: page.choosingPerson ? "Başka bir kişi adıyla tekrar arayın."
                             : page.personMode ? "Bu görünümde yapım bulunamadı. Tüm yapımları veya Film/Dizi seçimini değiştirebilirsin."
                             : page.searching ? "Kaydettiğin ve izlediğin içerikler gizlenir. Başka bir adla tekrar arayın." : "Filtreleri genişletip tekrar deneyin."
@@ -399,7 +409,7 @@ Rectangle {
                                     color: Tokens.Theme.textPrimary
                                     elide: Text.ElideRight
                                 }
-                                Label { text: "Yapımlarını göster →"; color: Tokens.Theme.textSecondary }
+                                Label { text: (i18n.revision, i18n.t("discover.show_credits")); color: Tokens.Theme.textSecondary }
                             }
                             background: Rectangle {
                                 radius: Tokens.Theme.radiusSm
@@ -428,7 +438,7 @@ Rectangle {
                     spacing: Tokens.Theme.spaceSm
                     IzlekButton {
                         objectName: "discoverPrevious"
-                        text: "← Önceki"
+                        text: (i18n.revision, i18n.t("discover.prev"))
                         variant: "secondary"
                         enabled: !controller.busy && controller.page > 1
                         onClicked: controller.goToPage(controller.page - 1)
@@ -439,7 +449,7 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "discoverNext"
-                        text: "Sonraki →"
+                        text: (i18n.revision, i18n.t("discover.next"))
                         variant: "secondary"
                         enabled: !controller.busy && controller.page < controller.totalPages
                         onClicked: controller.goToPage(controller.page + 1)

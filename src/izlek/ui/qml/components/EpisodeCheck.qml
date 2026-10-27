@@ -12,7 +12,7 @@ CheckBox {
     focusPolicy: Qt.StrongFocus
     Accessible.name: episodeName + (checked ? " · İzlendi, işareti kaldır" : " · İzlendi olarak işaretle")
     ToolTip.visible: hovered
-    ToolTip.text: checked ? "İzlendi işaretini kaldır" : "İzlendi olarak işaretle"
+    ToolTip.text: checked ? (i18n.revision, i18n.t("episode.unmark")) : (i18n.revision, i18n.t("episode.mark"))
     indicator: Rectangle {
         implicitWidth: 30
         implicitHeight: 30

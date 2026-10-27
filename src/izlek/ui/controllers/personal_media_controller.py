@@ -5,6 +5,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
 from izlek.services.personal_media import PersonalMediaService
 
 
@@ -144,7 +145,7 @@ class PersonalMediaController(QObject):
         if self._closed:
             return
         self._saving = False
-        self._feedback = error or "Kaydedildi."
+        self._feedback = error or t("personal.saved")
         if not error and self._identity == (kind, item_id):
             self._record = record
             self.recordLoaded.emit(kind, item_id)

@@ -50,6 +50,7 @@ izlek = [
     "resources/icons/*.svg",
     "resources/desktop/*.desktop",
     "resources/images/*.svg",
+    "i18n/locales/*.json",
 ]
 
 [tool.pytest.ini_options]

@@ -17,6 +17,7 @@ from izlek.ui.controllers.continue_watching_controller import ContinueWatchingCo
 from izlek.ui.controllers.custom_lists_controller import CustomListsController
 from izlek.ui.controllers.discover_controller import DiscoverController
 from izlek.ui.controllers.favorites_controller import FavoritesController
+from izlek.ui.controllers.locale_controller import LocaleController
 from izlek.ui.controllers.metadata_settings_controller import MetadataSettingsController
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
@@ -87,6 +88,10 @@ def create_application(
     if theme.parent() is None:
         theme.setParent(engine)
     engine.rootContext().setContextProperty("themeController", theme)
+    locale = locale_controller or LocaleController(parent=engine)
+    if locale.parent() is None:
+        locale.setParent(engine)
+    engine.rootContext().setContextProperty("i18n", locale)
     if not gallery:
         controller = token_controller or TokenController(parent=engine)
         if controller.parent() is None:

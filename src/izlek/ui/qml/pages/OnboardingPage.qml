@@ -34,15 +34,14 @@ Rectangle {
                     Layout.preferredHeight: 56
                 }
                 Label {
-                    text: "İzlek"
+                    text: (i18n.revision, i18n.t("app.name"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textStat
                     font.weight: Tokens.Theme.weightDemiBold
                 }
             }
             Label {
-                text: "Film ve dizilerini yerel olarak takip etmeye başla. "
-                      + "İçerik bilgileri için TMDb Read Access Token gerekiyor."
+                text: (i18n.revision, i18n.t("onboarding.blurb"))
                 color: Tokens.Theme.textSecondary
                 font.pixelSize: Tokens.Theme.textBody
                 wrapMode: Text.WordWrap
@@ -50,7 +49,7 @@ Rectangle {
             }
             TokenForm {
                 controller: page.controller
-                heading: "Başlamak için bağlan"
+                heading: (i18n.revision, i18n.t("onboarding.connect"))
                 Layout.fillWidth: true
             }
         }

@@ -11,7 +11,7 @@ ColumnLayout {
     Layout.fillWidth: true
     spacing: Tokens.Theme.spaceSm
 
-    SectionHeader { title: "Nerede İzlenir"; Layout.fillWidth: true }
+    SectionHeader { title: (i18n.revision, i18n.t("provider.title")); Layout.fillWidth: true }
     Repeater {
         model: [
             { key: "Abonelik", label: "Abonelik" },
@@ -55,12 +55,12 @@ ColumnLayout {
         visible: !section.hasProviders()
         Layout.fillWidth: true
         implicitHeight: 92
-        title: "Türkiye'de sağlayıcı bulunamadı"
+        title: (i18n.revision, i18n.t("provider.empty"))
         description: "Bu içerik için kayıtlı izleme seçeneği yok."
     }
     Label {
         Layout.fillWidth: true
-        text: "İzleme seçenekleri JustWatch tarafından sağlanır · Türkiye"
+        text: (i18n.revision, i18n.t("provider.attribution"))
         color: Tokens.Theme.textMuted
         font.pixelSize: Tokens.Theme.textSmall
         wrapMode: Text.WordWrap
@@ -68,7 +68,7 @@ ColumnLayout {
     IzlekButton {
         objectName: "providerLinkButton"
         visible: section.providerLink.length > 0
-        text: "TMDb'de izleme seçenekleri"
+        text: (i18n.revision, i18n.t("provider.tmdb_link"))
         variant: "secondary"
         onClicked: section.providerLinkRequested()
     }

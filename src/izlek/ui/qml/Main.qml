@@ -42,15 +42,23 @@ ApplicationWindow {
         }
     }
 
+    function isMovieDetail(item) {
+        return item && item.pageKind === "movie"
+    }
+
+    function isTvDetail(item) {
+        return item && item.pageKind === "tv"
+    }
+
     function navigate(index) {
         if (!tokenController.hasToken || index < 0
                 || index >= pageComponents.length
                 || (index === currentIndex && contentStack.depth === 1))
             return
         cancelSectionTasks(currentIndex)
-        if (contentStack.currentItem.pageTitle === "Film Detayı")
+        if (isMovieDetail(contentStack.currentItem))
             movieController.cancelPending()
-        else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
+        else if (isTvDetail(contentStack.currentItem))
             tvController.cancelPending()
         currentIndex = index
         contentStack.replace(null, pageComponents[index], StackView.Immediate)
@@ -60,15 +68,15 @@ ApplicationWindow {
         if (kind !== "movie" && kind !== "tv")
             return
         if (contentStack.currentItem.mediaId === itemId
-                && contentStack.currentItem.pageTitle === (kind === "movie" ? "Film Detayı" : "Dizi Detayı"))
+                && ((kind === "movie" && isMovieDetail(contentStack.currentItem))
+                    || (kind === "tv" && isTvDetail(contentStack.currentItem))))
             return
         globalSearch.close()
-        if (contentStack.currentItem.pageTitle === "Film Detayı")
+        if (isMovieDetail(contentStack.currentItem))
             movieController.cancelPending()
-        else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
+        else if (isTvDetail(contentStack.currentItem))
             tvController.cancelPending()
-        if (contentStack.currentItem.pageTitle !== "Film Detayı"
-                && contentStack.currentItem.pageTitle !== "Dizi Detayı")
+        if (!isMovieDetail(contentStack.currentItem) && !isTvDetail(contentStack.currentItem))
             cancelSectionTasks(currentIndex)
         if (kind === "movie") {
             contentStack.push(movieDetailPage, { mediaId: itemId }, StackView.Immediate)
@@ -88,14 +96,14 @@ ApplicationWindow {
         if (globalSearch.visible) {
             globalSearch.close()
         } else if (contentStack.depth > 1) {
-            if (contentStack.currentItem.pageTitle === "Film Detayı")
+            if (isMovieDetail(contentStack.currentItem))
                 movieController.cancelPending()
-            else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
+            else if (isTvDetail(contentStack.currentItem))
                 tvController.cancelPending()
             contentStack.pop(StackView.Immediate)
-            if (contentStack.currentItem.pageTitle === "Film Detayı")
+            if (isMovieDetail(contentStack.currentItem))
                 movieController.loadMovie(contentStack.currentItem.mediaId)
-            else if (contentStack.currentItem.pageTitle === "Dizi Detayı")
+            else if (isTvDetail(contentStack.currentItem))
                 tvController.loadTv(contentStack.currentItem.mediaId)
         }
     }
@@ -172,7 +180,7 @@ ApplicationWindow {
                     }
                     Label {
                         visible: !window.compactSidebar
-                        text: "İzlek"
+                        text: (i18n.revision, i18n.t("app.name"))
                         color: Tokens.Theme.textPrimary
                         font.pixelSize: Tokens.Theme.textBrand
                         font.weight: Tokens.Theme.weightDemiBold
@@ -183,7 +191,7 @@ ApplicationWindow {
                 NavItem {
                     objectName: "navHome"
                     Layout.fillWidth: true
-                    label: "Ana Sayfa"
+                    label: (i18n.revision, i18n.t("nav.home"))
                     iconSource: Qt.resolvedUrl("../../resources/icons/home.svg")
                     selected: window.currentIndex === 0
                     compact: window.compactSidebar
@@ -192,7 +200,7 @@ ApplicationWindow {
                 NavItem {
                     objectName: "navMovies"
                     Layout.fillWidth: true
-                    label: "Filmler"
+                    label: (i18n.revision, i18n.t("nav.movies"))
                     iconSource: Qt.resolvedUrl("../../resources/icons/movie.svg")
                     selected: window.currentIndex === 1
                     compact: window.compactSidebar
@@ -201,7 +209,7 @@ ApplicationWindow {
                 NavItem {
                     objectName: "navShows"
                     Layout.fillWidth: true
-                    label: "Diziler"
+                    label: (i18n.revision, i18n.t("nav.shows"))
                     iconSource: Qt.resolvedUrl("../../resources/icons/tv.svg")
                     selected: window.currentIndex === 2
                     compact: window.compactSidebar
@@ -210,7 +218,7 @@ ApplicationWindow {
                 NavItem {
                     objectName: "navLists"
                     Layout.fillWidth: true
-                    label: "Listeler"
+                    label: (i18n.revision, i18n.t("nav.lists"))
                     iconSource: Qt.resolvedUrl("../../resources/icons/list.svg")
                     selected: window.currentIndex === 3
                     compact: window.compactSidebar
@@ -219,7 +227,7 @@ ApplicationWindow {
                 NavItem {
                     objectName: "navStatistics"
                     Layout.fillWidth: true
-                    label: "İstatistikler"
+                    label: (i18n.revision, i18n.t("nav.statistics"))
                     iconSource: Qt.resolvedUrl("../../resources/icons/statistics.svg")
                     selected: window.currentIndex === 4
                     compact: window.compactSidebar
@@ -231,7 +239,7 @@ ApplicationWindow {
                 NavItem {
                     objectName: "navSettings"
                     Layout.fillWidth: true
-                    label: "Ayarlar"
+                    label: (i18n.revision, i18n.t("nav.settings"))
                     iconSource: Qt.resolvedUrl("../../resources/icons/settings.svg")
                     selected: window.currentIndex === 5
                     compact: window.compactSidebar

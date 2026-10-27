@@ -7,7 +7,7 @@ import "../theme" as Tokens
 Rectangle {
     id: page
     property var controller
-    property string pageTitle: "Medya Detayı"
+    property string pageTitle: (i18n.revision, i18n.t("page.media_detail"))
     signal backRequested()
     color: Tokens.Theme.background
 

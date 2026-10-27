@@ -10,7 +10,7 @@ from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.statistics import StatisticsService
 from izlek.tmdb.client import TmdbClient
-from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE
+from izlek.ui.controllers.messages import local_data_unavailable
 
 
 class StatisticsController(QObject):
@@ -64,7 +64,7 @@ class StatisticsController(QObject):
         try:
             stats = self._service.snapshot().as_dict()
         except (OSError, ValueError, SQLAlchemyError):
-            self._loaded.emit(generation, {}, LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, {}, local_data_unavailable())
         else:
             self._loaded.emit(generation, stats, "")
             if self._images is None and stats.get("top_shows"):
