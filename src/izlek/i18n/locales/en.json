@@ -146,7 +146,7 @@
     "cache_cleared": "Cache cleared ({count} files)."
   },
   "transfer": {
-    "need_file": "Choose a valid İzlek JSON file first.",
+    "need_file": "Select a valid İzlek/Trakt JSON or Letterboxd CSV first.",
     "validated": "File validated. Review the summary and import.",
     "imported": "Data imported.",
     "exported": "Data exported."

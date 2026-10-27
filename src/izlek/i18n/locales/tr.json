@@ -146,7 +146,7 @@
     "cache_cleared": "Cache temizlendi ({count} dosya)."
   },
   "transfer": {
-    "need_file": "Önce geçerli bir İzlek JSON dosyası seçin.",
+    "need_file": "Önce geçerli bir İzlek/Trakt JSON veya Letterboxd CSV seçin.",
     "validated": "Dosya doğrulandı. Özeti kontrol edip import edin.",
     "imported": "Veriler içe aktarıldı.",
     "exported": "Veriler dışa aktarıldı."
