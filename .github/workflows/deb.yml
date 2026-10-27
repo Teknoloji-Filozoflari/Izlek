@@ -5,7 +5,8 @@ on:
   workflow_call:
 
 concurrency:
-  group: package-${{ github.workflow }}-${{ github.ref }}
+  # Unique prefix: must not share a group with AppImage under Release.
+  group: deb-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
