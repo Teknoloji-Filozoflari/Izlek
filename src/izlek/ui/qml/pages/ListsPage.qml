@@ -47,9 +47,9 @@ Rectangle {
                     }
                 }
                 Label {
-                    visible: controller.lists.length === 0
+                    visible: !page.hasCustomLists()
                     Layout.fillWidth: true
-                    text: "Henüz listen yok. Yeni liste oluştur."
+                    text: "Akıllı listeler otomatik dolar. Özel liste için Yeni’ye bas."
                     color: Tokens.Theme.textSecondary
                     wrapMode: Text.WordWrap
                 }
@@ -78,13 +78,15 @@ Rectangle {
                             ReorderHandle {
                                 id: listHandle
                                 objectName: "listReorderHandle"
-                                enabled: !controller.busy
+                                visible: !modelData.smart
+                                enabled: !controller.busy && !modelData.smart
                                 label: modelData.name
                                 onDropped: function(position) {
                                     var point = listsView.mapFromItem(null, position.x, position.y)
                                     if (point.y < 0 || point.y >= listsView.height) return
                                     var target = listsView.indexAt(point.x + listsView.contentX, point.y + listsView.contentY)
-                                    if (target >= 0) controller.reorderList(modelData.id, controller.lists[target].id)
+                                    if (target >= 0 && !controller.lists[target].smart)
+                                        controller.reorderList(modelData.id, controller.lists[target].id)
                                 }
                                 ReorderAutoScroll {
                                     view: listsView
@@ -98,11 +100,18 @@ Rectangle {
                                 color: Tokens.Theme.textPrimary
                                 elide: Text.ElideRight
                             }
+                            Badge {
+                                visible: !!modelData.smart
+                                text: "Akıllı"
+                                tone: "accent"
+                                Accessible.name: modelData.name + " akıllı liste"
+                            }
                             IzlekButton {
                                 text: "↑"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
-                                enabled: index > 0 && !controller.busy
+                                visible: !modelData.smart
+                                enabled: page.canMoveCustom(index, -1) && !controller.busy
                                 Accessible.name: modelData.name + " yukarı taşı"
                                 onClicked: controller.moveList(modelData.id, -1)
                             }
@@ -110,8 +119,8 @@ Rectangle {
                                 text: "↓"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
-                                enabled: index < controller.lists.length - 1
-                                         && !controller.busy
+                                visible: !modelData.smart
+                                enabled: page.canMoveCustom(index, 1) && !controller.busy
                                 Accessible.name: modelData.name + " aşağı taşı"
                                 onClicked: controller.moveList(modelData.id, 1)
                             }
@@ -145,20 +154,28 @@ Rectangle {
                         objectName: "renameListButton"
                         text: "Yeniden Adlandır"
                         variant: "secondary"
-                        enabled: controller.selectedId > 0 && !controller.busy
+                        enabled: controller.selectedId > 0 && !controller.selectedIsSmart && !controller.busy
                         onClicked: page.openNameDialog(true)
                     }
                     IzlekButton {
                         objectName: "deleteListButton"
                         text: "Sil"
                         variant: "danger"
-                        enabled: controller.selectedId > 0 && !controller.busy
+                        enabled: controller.selectedId > 0 && !controller.selectedIsSmart && !controller.busy
                         onClicked: deleteDialog.open()
                     }
                 }
+                Label {
+                    objectName: "smartListDescription"
+                    visible: controller.selectedIsSmart && controller.selectedDescription.length > 0
+                    Layout.fillWidth: true
+                    text: controller.selectedDescription
+                    color: Tokens.Theme.textSecondary
+                    wrapMode: Text.WordWrap
+                }
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: controller.selectedId > 0
+                    visible: controller.selectedId > 0 && !controller.selectedIsSmart
                     IzlekButton {
                         objectName: "addMediaToListButton"
                         text: "+ İçerik Ekle"
@@ -183,13 +200,12 @@ Rectangle {
                     wrapMode: Text.WordWrap
                 }
                 EmptyState {
-                    visible: controller.lists.length === 0
-                             || (controller.selectedId > 0 && controller.items.length === 0)
+                    visible: controller.selectedId !== 0 && controller.items.length === 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: controller.lists.length === 0 ? "Liste oluştur" : "Liste boş"
-                    description: controller.lists.length === 0
-                                 ? "Filmlerini ve dizilerini kendi listelerinde düzenle."
+                    title: controller.selectedIsSmart ? "Akıllı liste boş" : "Liste boş"
+                    description: controller.selectedIsSmart
+                                 ? "Koşullara uyan içerik yok. Favori, durum veya etiket ekleyince dolar."
                                  : "Yerel medya ekle veya detay sayfasındaki Listeye Ekle düğmesini kullan."
                 }
                 ListView {
@@ -215,7 +231,8 @@ Rectangle {
                             ReorderHandle {
                                 id: mediaHandle
                                 objectName: "listMediaReorderHandle"
-                                enabled: !controller.busy
+                                visible: !controller.selectedIsSmart
+                                enabled: !controller.busy && !controller.selectedIsSmart
                                 label: modelData.title
                                 onDropped: function(position) {
                                     var point = mediaView.mapFromItem(null, position.x, position.y)
@@ -269,6 +286,7 @@ Rectangle {
                                 text: "↑"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
+                                visible: !controller.selectedIsSmart
                                 enabled: index > 0 && !controller.busy
                                 Accessible.name: modelData.title + " yukarı taşı"
                                 onClicked: controller.moveMedia(controller.selectedId,
@@ -279,6 +297,7 @@ Rectangle {
                                 text: "↓"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
+                                visible: !controller.selectedIsSmart
                                 enabled: index < controller.items.length - 1
                                          && !controller.busy
                                 Accessible.name: modelData.title + " aşağı taşı"
@@ -290,6 +309,7 @@ Rectangle {
                                 text: "Çıkar"
                                 variant: "danger"
                                 Layout.preferredWidth: 68
+                                visible: !controller.selectedIsSmart
                                 enabled: !controller.busy
                                 onClicked: controller.removeMedia(controller.selectedId,
                                                                   modelData.kind,
@@ -307,6 +327,16 @@ Rectangle {
         controller: page.controller
     }
 
+    function hasCustomLists() {
+        for (var i = 0; i < controller.lists.length; i++)
+            if (!controller.lists[i].smart) return true
+        return false
+    }
+    function canMoveCustom(index, direction) {
+        var next = index + direction
+        if (next < 0 || next >= controller.lists.length) return false
+        return !controller.lists[index].smart && !controller.lists[next].smart
+    }
     function selectedName() {
         for (var i = 0; i < controller.lists.length; i++)
             if (controller.lists[i].id === controller.selectedId)

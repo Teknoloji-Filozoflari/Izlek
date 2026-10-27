@@ -37,9 +37,24 @@ def test_custom_lists_crud_membership_and_order_survive_restart(tmp_path):
     service.add(first, "tv", 42)
     service.add(first, "movie", 42)
     service.add(second, "movie", 42)
-    assert service.snapshot(first)["lists"] == [
-        {"id": first, "name": "Hafta Sonu", "count": 2},
-        {"id": second, "name": "Arşiv", "count": 1},
+    custom = [item for item in service.snapshot(first)["lists"] if not item["smart"]]
+    assert custom == [
+        {
+            "id": first,
+            "name": "Hafta Sonu",
+            "count": 2,
+            "smart": False,
+            "key": f"custom:{first}",
+            "description": "",
+        },
+        {
+            "id": second,
+            "name": "Arşiv",
+            "count": 1,
+            "smart": False,
+            "key": f"custom:{second}",
+            "description": "",
+        },
     ]
     assert [
         (item["kind"], item["title"]) for item in service.snapshot(first)["items"]
@@ -52,10 +67,11 @@ def test_custom_lists_crud_membership_and_order_survive_restart(tmp_path):
 
     reopened_engine = initialize_database(path)
     reopened = CustomListsService(create_session_factory(reopened_engine))
-    assert [item["name"] for item in reopened.snapshot(first)["lists"]] == [
-        "Arşiv",
-        "İzlenecekler",
-    ]
+    assert [
+        item["name"]
+        for item in reopened.snapshot(first)["lists"]
+        if not item["smart"]
+    ] == ["Arşiv", "İzlenecekler"]
     assert [item["kind"] for item in reopened.snapshot(first)["items"]] == [
         "tv",
         "movie",
@@ -66,7 +82,9 @@ def test_custom_lists_crud_membership_and_order_survive_restart(tmp_path):
     assert [item["kind"] for item in reopened.snapshot(first)["items"]] == ["tv"]
     assert [item["kind"] for item in reopened.snapshot(second)["items"]] == ["movie"]
     reopened.delete(first)
-    assert [item["name"] for item in reopened.snapshot()["lists"]] == ["Arşiv"]
+    assert [
+        item["name"] for item in reopened.snapshot()["lists"] if not item["smart"]
+    ] == ["Arşiv"]
     with create_session_factory(reopened_engine)() as session:
         assert (
             UserMediaRepository(session).get(movie_id).status == TrackingStatus.PLANNED
@@ -86,12 +104,12 @@ def test_custom_list_validation_and_missing_records_are_safe(tmp_path):
             service.rename(404, "Yeni ad")
         with pytest.raises(LookupError, match="Medya"):
             service.add_by_name("movie", 404, "Yeni liste")
-        assert service.snapshot() == {
-            "lists": [],
-            "items": [],
-            "candidates": [],
-            "selected_id": 0,
-        }
+        snapshot = service.snapshot()
+        assert snapshot["items"] == []
+        assert snapshot["candidates"] == []
+        assert all(item["smart"] for item in snapshot["lists"])
+        assert snapshot["selected_id"] == snapshot["lists"][0]["id"]
+        assert snapshot["lists"][0]["key"] == "unwatched_favorites"
     finally:
         service.close()
         engine.dispose()
@@ -143,7 +161,8 @@ def test_lists_page_create_rename_add_remove_and_empty_state(tmp_path, monkeypat
             window.resize(width, height)
             application.processEvents()
             assert window.width() == width and window.height() == height
-        assert controller.lists == []
+        assert all(item["smart"] for item in controller.lists)
+        assert len(controller.lists) == 5
         create = window.findChild(QQuickItem, "createListButton")
         create.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_Space)
@@ -151,9 +170,13 @@ def test_lists_page_create_rename_add_remove_and_empty_state(tmp_path, monkeypat
         dialog.setProperty("text", "Deneme")
         QTest.keyClick(window, Qt.Key.Key_Return)
         _wait_for(
-            application, lambda: len(controller.lists) == 1 and not controller.busy
+            application,
+            lambda: len(controller.lists) == 6 and not controller.busy
+            and not controller.selectedIsSmart,
         )
-        assert controller.lists[0]["name"] == "Deneme"
+        custom = [item for item in controller.lists if not item["smart"]]
+        assert len(custom) == 1 and custom[0]["name"] == "Deneme"
+        assert controller.selectedId == custom[0]["id"]
         assert controller.items == []
         add_button = window.findChild(QQuickItem, "addMediaToListButton")
         add_button.forceActiveFocus()
@@ -216,7 +239,13 @@ def test_lists_page_create_rename_add_remove_and_empty_state(tmp_path, monkeypat
                   and labels(media_view, "customListStatus")[0].property("text")
                   == "İzlendi")
         controller.renameList(controller.selectedId, "Yeni Ad")
-        _wait_for(application, lambda: controller.lists[0]["name"] == "Yeni Ad")
+        _wait_for(
+            application,
+            lambda: any(
+                not item["smart"] and item["name"] == "Yeni Ad"
+                for item in controller.lists
+            ),
+        )
         controller.removeMedia(controller.selectedId, "movie", 17)
         _wait_for(application, lambda: not controller.items and not controller.busy)
         assert not warnings

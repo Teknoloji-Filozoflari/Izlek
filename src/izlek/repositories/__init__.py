@@ -6,6 +6,7 @@ from izlek.repositories.local import (
     MediaRepository,
     SeasonRepository,
     StatisticsRepository,
+    TagRepository,
     TransferRepository,
     UserMediaRepository,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "MediaRepository",
     "SeasonRepository",
     "StatisticsRepository",
+    "TagRepository",
     "TransferRepository",
     "UserMediaRepository",
 ]

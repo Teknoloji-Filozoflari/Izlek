@@ -123,7 +123,7 @@ açıkken sıralama kapalıdır. Alanın dışına bırakmak sırayı değiştir
 
 ## Özel listeler
 
-**Listeler** sayfasında liste oluşturabilir, yeniden adlandırabilir ve silebilirsin. Sol panelde listeleri, sağ panelde seçilen listenin film ve dizilerini görürsün. Yerel veritabanında bilinen medyayı ekleyebilir, çıkarabilir; ok düğmeleriyle liste ve medya sırasını değiştirebilirsin. Aynı medya birden fazla listede bulunabilir. Film ve dizi detayındaki **Listeye Ekle**, mevcut liste adıyla eşleşir veya yeni liste oluşturur. Bütün liste verileri SQLite'ta kalır; TMDb liste API'si kullanılmaz.
+**Listeler** sayfasında akıllı listeler ve özel listeler bir arada görünür. Akıllı listeler (ör. **İzlenmemiş favoriler**, **İzleniyor**, **Yüksek puanlı** ve etiket listeleri) yerel duruma göre otomatik dolar; üyelikleri elle düzenlenmez. Özel listeleri oluşturabilir, yeniden adlandırabilir ve silebilirsin. Sol panelde listeleri, sağ panelde seçilen listenin film ve dizilerini görürsün. Yerel veritabanında bilinen medyayı özel listelere ekleyebilir, çıkarabilir; ok düğmeleriyle liste ve medya sırasını değiştirebilirsin. Aynı medya birden fazla özel listede bulunabilir. Film ve dizi detayındaki **Listeye Ekle**, mevcut liste adıyla eşleşir veya yeni liste oluşturur. **Puan ve not** panelinden etiket ekleyip kaldırabilirsin; etiketler akıllı liste olarak Listeler'de görünür. Bütün liste ve etiket verileri SQLite'ta kalır; TMDb liste API'si kullanılmaz. Etiketler henüz JSON yedeğe dahil edilmez.
 
 **+ İçerik Ekle** afişli bir seçim penceresi açar. Yerelde bilinen film ve
 diziler arasında ara, birden çok içeriği işaretle ve **Seçilenleri Ekle**
@@ -139,5 +139,12 @@ kayıtlar İzlenmedi olarak gösterilir. Durumu detay ekranında değiştirdikte
 sonra listene döndüğünde etiket güncellenir.
 
 ## İçe ve dışa aktarma
+
+**Ayarlar → Görünüm** bölümünden koyu veya açık temayı seçebilirsin; tercih
+`window.ini` içinde saklanır.
+
+**Ayarlar → Cache** kartı mevcut görsel önbellek boyutunu gösterir; **Yenile**
+ölçümü günceller, **Cache Temizle** yeniden indirilebilir görselleri siler.
+Kütüphane görselleri ve kişisel takip verisi korunur.
 
 **Ayarlar → İçe / Dışa Aktarma** bölümünden tüm taşınabilir İzlek durumunu tek bir JSON dosyasına aktarabilirsin. Dosya film/dizi metadata'sını, takip durumlarını, bölüm ilerlemesini, favorileri ve özel listeleri içerir; TMDb tokenı ile indirilen görsel cache yollarını içermez. Import öncesinde şema doğrulanır ve medya/liste özeti gösterilir. Aynı TMDb kimliği ve medya türü birleştirilir; izlenmiş bölüm ilerlemesi ile mevcut liste üyelikleri kaybolmaz. Biçim ve sürüm stratejisi [İzlek JSON belgesinde](izlek-json.md) açıklanır.

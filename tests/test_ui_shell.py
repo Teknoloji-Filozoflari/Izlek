@@ -131,6 +131,7 @@ def test_sidebar_resets_detail_history_and_back_cancels_work(monkeypatch):
             "statisticsController",
             "transferController",
             "cacheController",
+            "tagsController",
         ):
             engine.rootContext().contextProperty(name).close()
         application.processEvents()

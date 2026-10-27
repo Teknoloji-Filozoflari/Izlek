@@ -174,8 +174,10 @@ def test_large_library_query_budgets_and_runtime(tmp_path):
 
     with query_count(engine) as count:
         lists = CustomListsService(factory).snapshot()
-    assert len(lists["lists"]) == 20
-    assert count[0] == 3
+    custom = [item for item in lists["lists"] if not item["smart"]]
+    assert len(custom) == 20
+    assert len(lists["lists"]) == 25
+    assert count[0] <= 6
 
     with query_count(engine) as count:
         movie_detail = MovieDetailService(OfflineTmdb(), factory).cached(10_000)

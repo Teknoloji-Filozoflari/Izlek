@@ -5,6 +5,14 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+- Listeler sayfasında akıllı listeler (izlenmemiş favoriler, favoriler, izleniyor,
+  izlenecek, yüksek puanlı) ve kullanıcı etiketleri; etiketler detaydaki puan/not
+  panelinden yönetilir ve sanal liste olarak görünür.
+- Ayarlar'da koyu/açık tema seçimi (`Theme.qml` ışık token'ları, `window.ini`).
+- SECURITY.md, v1.0.x kararlı destek hattı ve yanıt süreciyle hizalandı.
+- Ayarlar cache kartında ölçülen önbellek boyutu etiketi (`cacheSizeLabel`) ve
+  erişilebilir ad doğrulandı.
+
 - Windows 10/11 x64 için EXE kurulum paketi ve GitHub Actions üretim akışı;
   kurulum, açılış, kaldırma ve kişisel veri koruma kontrolleri. İlk gerçek
   Windows build'i henüz doğrulanmadı.

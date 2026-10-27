@@ -218,6 +218,7 @@ def test_mouse_drags_custom_list_members(ordered_factory):
     try:
         window.resize(1366, 768)
         window.navigate(3)
+        controller.selectList(list_id)
         wait_for(app, lambda: len(controller.items) == 3 and not controller.busy)
         view = window.findChild(QQuickItem, "customListMedia")
         handle = _visual(view, "listMediaReorderHandle")
@@ -315,6 +316,7 @@ def test_picker_selects_both_types_across_queries_and_adds_once(ordered_factory)
     )
     try:
         window.navigate(3)
+        controller.selectList(list_id)
         wait_for(app, lambda: not controller.busy and len(controller.candidates) == 6)
         window.findChild(QQuickItem, "addMediaToListButton").clicked.emit()
         picker = window.findChild(QObject, "mediaPickerDialog")

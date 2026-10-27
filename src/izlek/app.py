@@ -21,6 +21,8 @@ from izlek.ui.controllers.personal_media_controller import PersonalMediaControll
 from izlek.ui.controllers.quick_library_controller import QuickLibraryController
 from izlek.ui.controllers.search_controller import SearchController
 from izlek.ui.controllers.statistics_controller import StatisticsController
+from izlek.ui.controllers.tags_controller import TagsController
+from izlek.ui.controllers.theme_controller import ThemeController
 from izlek.ui.controllers.token_controller import TokenController
 from izlek.ui.controllers.transfer_controller import TransferController
 from izlek.ui.controllers.tv_detail_controller import TvDetailController
@@ -49,6 +51,8 @@ def create_application(
     cache_controller: CacheController | None = None,
     quick_library_controller: QuickLibraryController | None = None,
     personal_media_controller: PersonalMediaController | None = None,
+    theme_controller: ThemeController | None = None,
+    tags_controller: TagsController | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
@@ -73,6 +77,10 @@ def create_application(
         return settings.value(key, default, type=value_type)
 
     engine = QQmlApplicationEngine()
+    theme = theme_controller or ThemeController(settings=settings, parent=engine)
+    if theme.parent() is None:
+        theme.setParent(engine)
+    engine.rootContext().setContextProperty("themeController", theme)
     if not gallery:
         controller = token_controller or TokenController(parent=engine)
         if controller.parent() is None:
@@ -180,8 +188,16 @@ def create_application(
             personal.setParent(engine)
         engine.rootContext().setContextProperty("personalController", personal)
         application.aboutToQuit.connect(personal.close)
+        tags = tags_controller or TagsController(parent=engine)
+        if tags.parent() is None:
+            tags.setParent(engine)
+        engine.rootContext().setContextProperty("tagsController", tags)
+        application.aboutToQuit.connect(tags.close)
+        tags.refresh()
+        tags.dataChanged.connect(custom_lists.refresh)
         transfer.dataImported.connect(personal.refreshHidden)
         transfer.dataImported.connect(discover.refresh_preferences)
+        transfer.dataImported.connect(tags.refresh)
         personal.dataChanged.connect(search.refresh_visibility)
         personal.dataChanged.connect(discover.refresh_preferences)
         for target in (library, shows):

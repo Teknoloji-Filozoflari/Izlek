@@ -80,6 +80,20 @@ class CustomListsController(QObject):
         return self._selected_id
 
     @Property(bool, notify=changed)
+    def selectedIsSmart(self) -> bool:
+        return any(
+            item.get("id") == self._selected_id and item.get("smart")
+            for item in self._lists
+        )
+
+    @Property(str, notify=changed)
+    def selectedDescription(self) -> str:
+        for item in self._lists:
+            if item.get("id") == self._selected_id:
+                return str(item.get("description") or "")
+        return ""
+
+    @Property(bool, notify=changed)
     def busy(self) -> bool:
         return self._busy
 

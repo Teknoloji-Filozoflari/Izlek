@@ -50,6 +50,17 @@ Rectangle {
                 TokenForm { id: tokenForm; visible: page.editingToken; controller: page.controller; heading: "Yeni token"; description: "Tokenı test edip kaydedin."; Layout.fillWidth: true }
             }
 
+            Card { objectName: "appearanceSettingsCard"; title: "Görünüm"
+                Label { Layout.fillWidth: true; text: "Açık veya koyu tema seçimi yerel ayarlarda saklanır; token veya kütüphane verisine dokunmaz."; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
+                SegmentedControl {
+                    objectName: "themeModeControl"
+                    Layout.fillWidth: true
+                    options: ["Koyu", "Açık"]
+                    currentIndex: themeController.isLight ? 1 : 0
+                    onSelected: function(index) { themeController.setModeIndex(index) }
+                }
+            }
+
             Card { objectName: "dataSettingsCard"; title: "Veriler"
                 Label { Layout.fillWidth: true; text: "Metadata, takip, favoriler, bölüm ilerlemesi ve listeleri İzlek JSON olarak yönetin. Token ve cache yolları dışarıda tutulur."; color: Tokens.Theme.textSecondary; wrapMode: Text.WordWrap }
                 RowLayout { IzlekButton { objectName: "exportDataButton"; text: "Dışa Aktar"; enabled: !page.transferModelController.busy; onClicked: exportDialog.open() } IzlekButton { objectName: "selectImportButton"; text: "İçe Aktar"; variant: "secondary"; enabled: !page.transferModelController.busy; onClicked: importDialog.open() } }
@@ -61,8 +72,15 @@ Rectangle {
             }
 
             Card { objectName: "cacheSettingsCard"; title: "Cache"
-                Label { Layout.fillWidth: true; text: "Kütüphanedeki film ve dizilerin indirilen görselleri yerelde tutulur ve cache temizliğinde korunur. Diğer görseller ve film/dizi bilgileri 180 gün sonunda temizlenir. İzleme durumları, bölüm ilerlemeleri, favoriler ve listeler korunur."; color: Tokens.Theme.textMuted; wrapMode: Text.WordWrap }
-                Label { text: "Mevcut cache boyutu: " + cacheController.sizeLabel; color: Tokens.Theme.textSecondary }
+                Label { Layout.fillWidth: true; text: "Kütüphanedeki film ve dizilerin indirilen görselleri yerelde tutulur ve cache temizliğinde korunur. Diğer görseller ve film/dizi bilgileri 180 gün sonunda temizlenir. İzleme durumları, bölüm ilerlemeleri, favoriler, etiketler ve listeler korunur."; color: Tokens.Theme.textMuted; wrapMode: Text.WordWrap }
+                Label {
+                    objectName: "cacheSizeLabel"
+                    text: cacheController.busy && cacheController.sizeBytes === 0
+                          ? "Mevcut cache boyutu ölçülüyor…"
+                          : "Mevcut cache boyutu: " + cacheController.sizeLabel
+                    color: Tokens.Theme.textSecondary
+                    Accessible.name: "Mevcut cache boyutu " + cacheController.sizeLabel
+                }
                 RowLayout { IzlekButton { objectName: "refreshCacheButton"; text: "Yenile"; variant: "secondary"; enabled: !cacheController.busy; onClicked: cacheController.refresh() } IzlekButton { objectName: "clearCacheButton"; text: "Cache Temizle"; enabled: !cacheController.busy; onClicked: cacheController.clear() } }
                 Label { visible: cacheController.feedback.length > 0; text: cacheController.feedback; color: cacheController.feedbackKind === "danger" ? Tokens.Theme.danger : Tokens.Theme.success; wrapMode: Text.WordWrap }
             }
