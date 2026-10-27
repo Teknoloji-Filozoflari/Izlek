@@ -331,7 +331,7 @@ class MovieDetailService:
 
         Membership is list-only: collection movies are upserted locally without
         forcing library tracking status. Existing list members are kept; missing
-        parts are appended in TMDb part order.
+        parts are added and the list is ordered by release year, then title.
         """
         with self._sessions()() as session:
             item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)

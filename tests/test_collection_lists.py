@@ -96,9 +96,9 @@ def test_add_collection_movies_creates_list_without_forcing_library(tmp_path):
     again = service.add_collection_movies(
         "example collection",
         [
-            {"tmdb_id": 42, "title": "Original Film"},
-            {"tmdb_id": 43, "title": "Sequel Film"},
-            {"tmdb_id": 44, "title": "Third Film"},
+            {"tmdb_id": 42, "title": "Original Film", "release_date": "2024-02-03"},
+            {"tmdb_id": 43, "title": "Sequel Film", "release_date": "2025-03-04"},
+            {"tmdb_id": 44, "title": "Third Film", "release_date": "2026-01-01"},
         ],
     )
     assert again["created"] is False
@@ -112,6 +112,48 @@ def test_add_collection_movies_creates_list_without_forcing_library(tmp_path):
     assert [
         item["title"] for item in service.snapshot(summary["listId"])["items"]
     ] == ["Original Film", "Third Film"]
+    service.close()
+    engine.dispose()
+
+
+def test_add_collection_movies_orders_by_release_year_then_title(tmp_path):
+    engine = initialize_database(tmp_path / "collection-order.sqlite3")
+    factory = create_session_factory(engine)
+    service = CustomListsService(factory)
+    # TMDb part order is reverse-chronological and title-scrambled within a year.
+    summary = service.add_collection_movies(
+        "Franchise",
+        [
+            {"tmdb_id": 3, "title": "Zulu", "release_date": "2020-06-01"},
+            {"tmdb_id": 1, "title": "Beta", "release_date": "2018-01-01"},
+            {"tmdb_id": 2, "title": "Alpha", "release_date": "2018-05-01"},
+            {"tmdb_id": 4, "title": "No Date"},
+        ],
+    )
+    assert [
+        (item["title"], item["year"])
+        for item in service.snapshot(summary["listId"])["items"]
+    ] == [
+        ("Alpha", "2018"),
+        ("Beta", "2018"),
+        ("Zulu", "2020"),
+        ("No Date", ""),
+    ]
+    # Merge with a newly released part keeps chronological order for all members.
+    again = service.add_collection_movies(
+        "franchise",
+        [
+            {"tmdb_id": 5, "title": "Newest", "release_date": "2021-01-01"},
+            {"tmdb_id": 3, "title": "Zulu", "release_date": "2020-06-01"},
+            {"tmdb_id": 1, "title": "Beta", "release_date": "2018-01-01"},
+            {"tmdb_id": 2, "title": "Alpha", "release_date": "2018-05-01"},
+            {"tmdb_id": 4, "title": "No Date"},
+        ],
+    )
+    assert again["added"] == 1
+    assert [
+        item["title"] for item in service.snapshot(summary["listId"])["items"]
+    ] == ["Alpha", "Beta", "Zulu", "Newest", "No Date"]
     service.close()
     engine.dispose()
 
