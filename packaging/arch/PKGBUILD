@@ -4,7 +4,7 @@
 # arşivinin gerçek SHA-256 değeriyle değiştirin.
 
 pkgname=izlek
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc='Local-first film and TV tracking desktop application'
 arch=('any')

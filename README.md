@@ -71,46 +71,38 @@ gerçek kullanıcı verisi içermez. Görsellere tıklayarak tam boyutta açabil
 
 ## Kurulum ve indirme
 
-Yukarıdaki özellikler ve görseller güncel **kaynak kodu** anlatır.
-Linux indirmeleri **v1.0.1** paketleridir; bu geliştirmeler için yeni
-kurulum paketleri henüz yayımlanmadı. Yeni özellikleri denemek için
-[kaynak koddan çalıştırma](#kaynak-koddan-çalıştır) adımlarını kullan.
+Yukarıdaki özellikler ve görseller güncel **kaynak kodu** ve **v1.1.0**
+yayınıyla uyumludur. Hazır kurulum paketleri GitHub Releases'tedir.
 
-**[Linux v1.0.1 paketleri](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)** ·
-**[Windows EXE üretimi ve indirme](https://github.com/Teknoloji-Filozoflari/Izlek/actions/workflows/windows.yml)**
+**[v1.1.0 sürüm sayfası](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.1.0)**
 
-Windows 10/11 x64 için **Windows EXE** işleminin başarılı koşusundaki
-**Artifacts → izlek-windows-x64** arşivini indirip aç; içindeki
-`Izlek-<sürüm>-windows-x64-setup.exe` dosyasını çalıştır. Bu ilk Windows
-paketleme akışıdır; bu geliştirme oturumunda gerçek Windows build'i
-doğrulanmadı. Başarısız veya devam eden koşuda indirme dosyası oluşmaz.
-Yeni sürüm etiketiyle yayımlamada EXE, kontrolleri geçtikten sonra release'e
-de eklenir. Ayrıntılar: [Windows paketleme rehberi](packaging/windows/README.md).
+Tag yayını AppImage, DEB, Windows EXE ve kaynak arşivini release'e ekler.
+RPM ve Snap doğrulanmış build sonrası ayrıca yüklenebilir. Ayrıntılar:
+[Windows paketleme rehberi](packaging/windows/README.md),
+[release süreci](docs/releases.md).
 
 İndirdiğin biçimin kurulum komutunu aşağıdan seçebilirsin.
 
 | Biçim | Hedef | Kurulum |
 | --- | --- | --- |
-| **Windows EXE** | Windows 10/11 x64 | Yukarıdaki başarılı Windows EXE koşusundan kurulum dosyasını indir ve çalıştır. |
-| **AppImage** | x86_64 Linux, glibc 2.35+ | `chmod +x Izlek-1.0.1-x86_64.AppImage`, ardından dosyayı çalıştır. |
-| **DEB** | Ubuntu 22.04 / 24.04 amd64 | `sudo apt install ./izlek_1.0.1_amd64.deb` |
-| **RPM** | Fedora 43 x86_64 | `sudo dnf install ./izlek-1.0.1-1.fc43.x86_64.rpm` |
-| **Snap** | snapd bulunan amd64 Linux | `sudo snap install --dangerous ./izlek_1.0.1_amd64.snap` |
-| **Nix / NixOS** | x86_64 Linux | `nix run github:Teknoloji-Filozoflari/Izlek/v1.0.1` |
+| **Windows EXE** | Windows 10/11 x64 | `Izlek-1.1.0-windows-x64-setup.exe` dosyasını çalıştır. |
+| **AppImage** | x86_64 Linux, glibc 2.35+ | `chmod +x Izlek-1.1.0-x86_64.AppImage`, ardından dosyayı çalıştır. |
+| **DEB** | Ubuntu 22.04 / 24.04 amd64 | `sudo apt install ./izlek_1.1.0_amd64.deb` |
+| **RPM** | Fedora 43 x86_64 | `sudo dnf install ./izlek-1.1.0-1.fc43.x86_64.rpm` (asset varsa) |
+| **Snap** | snapd bulunan amd64 Linux | `sudo snap install --dangerous ./izlek_1.1.0_amd64.snap` (asset varsa) |
+| **Nix / NixOS** | x86_64 Linux | `nix run github:Teknoloji-Filozoflari/Izlek/v1.1.0` |
 | **Wheel / kaynak** | Python 3.11+ Linux | Release dosyaları; Python ve Qt sistem bağımlılıkları gerekir. |
 | **Arch / AUR** | Arch Linux | [PKGBUILD rehberi](packaging/arch/README.md); AUR yayını yapılmadı. |
 
-AppImage, DEB, RPM ve Snap kurulum/açılış kontrollerinden geçti; ayrıca
-sanal X11 masaüstünde pencere açmaları doğrulandı. Nix için build, 226 test
-ve kurulu paketin offscreen açılışı doğrulandı. ARM64 ve gerçek NixOS
-masaüstü doğrulaması henüz yok. Diğer Debian/RPM dağıtımları ayrıca
-test edilmelidir.
+AppImage, DEB ve Windows EXE tag akışındaki kontrollerden geçer. Nix için
+flake build ve paket smoke doğrulanır. ARM64 ve gerçek NixOS masaüstü
+doğrulaması henüz yok. Diğer Debian/RPM dağıtımları ayrıca test edilmelidir.
 
 Snap dosyası GitHub'dan kurulur; Snap Store yayını yoktur.
 Anahtarlık erişimi için `sudo snap connect izlek:password-manager-service`
 çalıştırılabilir. Snap kütüphanesi sistem kurulumundan ayrı tutulur.
 
-AppImage için FUSE yoksa `APPIMAGE_EXTRACT_AND_RUN=1 ./Izlek-1.0.1-x86_64.AppImage`
+AppImage için FUSE yoksa `APPIMAGE_EXTRACT_AND_RUN=1 ./Izlek-1.1.0-x86_64.AppImage`
 kullan. Ubuntu'da Qt sistem gereksinimleri gerektiğinde:
 
 ```bash

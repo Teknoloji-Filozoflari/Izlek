@@ -1,5 +1,5 @@
 # Binary bundle recipe: build the payload with scripts/build_rpm.py.
-%{!?izlek_version:%global izlek_version 1.0.1}
+%{!?izlek_version:%global izlek_version 1.1.0}
 %global debug_package %{nil}
 # Keep the already built Python/Qt bundle intact.
 %global __os_install_post %{nil}

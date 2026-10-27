@@ -18,7 +18,7 @@ python -m pip install --constraint packaging/constraints-appimage.txt -e '.[pack
 python scripts/build_deb.py \
   --homepage "$REPOSITORY_URL" \
   --maintainer "$DEBIAN_MAINTAINER"
-sudo apt install ./dist/izlek_1.0.1_amd64.deb
+sudo apt install ./dist/izlek_1.1.0_amd64.deb
 ```
 
 Build betiği `dpkg-deb` gerektirir ve `dist/` altında paketi üretir. Kurulumun
@@ -32,8 +32,7 @@ paket üretmez; tag workflow'u değerleri GitHub repository bağlamından geçir
 
 ## Hazır paket
 
-[v1.0.1 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)
-`izlek_1.0.1_amd64.deb` indirip `sudo apt install ./izlek_1.0.1_amd64.deb`
-ile kurabilirsiniz. Ubuntu 22.04 ve 24.04 üzerinde
-[build, temiz kurulum ve açılış](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213773457)
-kontrolleri başarılıdır. Diğer Debian türevleri ayrıca doğrulanmalıdır.
+[v1.1.0 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.1.0)
+`izlek_1.1.0_amd64.deb` indirip `sudo apt install ./izlek_1.1.0_amd64.deb`
+ile kurabilirsiniz. Tag akışındaki Debian package işi kurulum/açılış
+kontrollerini çalıştırır. Diğer Debian türevleri ayrıca doğrulanmalıdır.
