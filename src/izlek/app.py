@@ -59,6 +59,7 @@ def create_application(
     metadata_settings: MetadataSettings | None = None,
     theme_controller: ThemeController | None = None,
     tags_controller: TagsController | None = None,
+    locale_controller: LocaleController | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])

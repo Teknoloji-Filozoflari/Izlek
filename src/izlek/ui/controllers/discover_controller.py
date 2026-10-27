@@ -13,5 +13,324 @@ from izlek.services.discover import DiscoverService
 from izlek.services.image_service import ImageService
 from izlek.services.personal_media import PersonalMediaService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.tmdb.models import MovieSummary, TvSummary
 from izlek.ui.controllers.messages import network_unavailable
+
+
+def _local_url(path: Path) -> str:
+    return QUrl.fromLocalFile(str(path)).toString()
+
+
+class DiscoverController(QObject):
+    """Load popular Discover pages outside the UI thread."""
+
+    changed = Signal()
+    _loaded = Signal(int, object, int, int, str)
+    _poster_ready = Signal(int, int, str)
+    _hidden_ready = Signal(int, str, object, str)
+
+    def __init__(
+        self,
+        store: TokenStore | None = None,
+        client: TmdbClient | None = None,
+        images: ImageService | None = None,
+        parent: QObject | None = None,
+        preferences: PersonalMediaService | None = None,
+        service: DiscoverService | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._store = store or TokenStore()
+        self._preferences = preferences or PersonalMediaService()
+        self._service = service
+        self._closed = False
+        self._source_items: list[dict] = []
+        self._hidden_ids: dict[str, set[int]] = {}
+        self._client = client
+        self._images = images
+        self._retired_images: list[ImageService] = []
+        self._own_images = images is None
+        self._executor = ThreadPoolExecutor(max_workers=2)
+        self._future: Future | None = None
+        self._image_futures: set[Future] = set()
+        self._generation = 0
+        self._items: list[dict[str, Any]] = []
+        self._kind = "movie"
+        self._year = 0
+        self._genre_id = 0
+        self._country = ""
+        self._min_score = 0
+        self._max_score = 100
+        self._page = 1
+        self._total_pages = 1
+        self._busy = False
+        self._error = ""
+        self._loaded.connect(self._apply_loaded)
+        self._poster_ready.connect(self._apply_poster)
+        self._hidden_ready.connect(self._apply_hidden)
+        if client is None and service is None:
+            self.refresh_token()
+        elif service is None and client is not None:
+            self._service = DiscoverService(client, self._preferences)
+
+    @Property("QVariantList", notify=changed)
+    def items(self) -> list[dict[str, Any]]:
+        return self._items
+
+    @Property(str, notify=changed)
+    def mediaKind(self) -> str:
+        return self._kind
+
+    @Property(int, notify=changed)
+    def page(self) -> int:
+        return self._page
+
+    @Property(int, notify=changed)
+    def totalPages(self) -> int:
+        return self._total_pages
+
+    @Slot()
+    def refresh_preferences(self) -> None:
+        if not self._closed:
+            self._executor.submit(self._read_hidden, self._generation, self._kind)
+
+    def _read_hidden(self, generation: int, kind: str) -> None:
+        try:
+            ids = self._preferences.suppressed_ids(kind)
+        except (OSError, ValueError, SQLAlchemyError):
+            self._hidden_ready.emit(generation, kind, set(), "Tercihler okunamadı.")
+        else:
+            self._hidden_ready.emit(generation, kind, ids, "")
+
+    @Slot(int, str, object, str)
+    def _apply_hidden(
+        self, generation: int, kind: str, ids: set[int], error: str
+    ) -> None:
+        if self._closed or generation != self._generation:
+            return
+        if error:
+            self._error = error
+        else:
+            self._hidden_ids[kind] = ids
+            self._items = [item for item in self._source_items if item["id"] not in ids]
+        self.changed.emit()
+
+    @Property(bool, notify=changed)
+    def busy(self) -> bool:
+        return self._busy
+
+    @Property(str, notify=changed)
+    def error(self) -> str:
+        return self._error
+
+    def _bind_service(self, client: TmdbClient | None) -> None:
+        self._client = client
+        self._service = (
+            DiscoverService(client, self._preferences) if client is not None else None
+        )
+
+    @Slot()
+    def refresh_token(self) -> None:
+        """Use a recently stored TMDb token for later Discover requests."""
+        self.cancelPending()
+        try:
+            stored = self._store.load()
+        except (OSError, UnicodeError):
+            stored = None
+        if self._own_images and self._images is not None:
+            old_images = self._images
+            self._retired_images.append(old_images)
+            self._executor.submit(old_images.close)
+            self._images = None
+        self._bind_service(TmdbClient(token=stored.value) if stored else None)
+
+    @Slot(str, str, int, str, int, int)
+    def applyFilters(
+        self,
+        kind: str,
+        year: str,
+        genre_id: int,
+        country: str,
+        min_score: int,
+        max_score: int,
+    ) -> None:
+        """Replace filters and return to the first controlled results page."""
+        if kind not in {"movie", "tv"}:
+            return
+        try:
+            parsed_year = int(year) if year.strip() else 0
+        except ValueError:
+            return
+        if parsed_year and not 1888 <= parsed_year <= 2100:
+            return
+        self._kind = kind
+        self._year = parsed_year
+        self._genre_id = max(0, genre_id)
+        self._country = country.strip().upper()
+        self._min_score = max(0, min(min_score, 100))
+        self._max_score = max(self._min_score, min(max_score, 100))
+        self._load(1)
+
+    @Slot(int)
+    def goToPage(self, page: int) -> None:
+        """Load one explicit page instead of automatically scrolling forever."""
+        if self._busy:
+            return
+        self._load(max(1, min(page, self._total_pages)))
+
+    def _load(self, page: int) -> None:
+        self._generation += 1
+        if self._future is not None:
+            self._future.cancel()
+        for future in tuple(self._image_futures):
+            future.cancel()
+        self._image_futures.clear()
+        generation = self._generation
+        self._page = page
+        self._items = []
+        self._source_items = []
+        self._hidden_ids = {}
+        self._error = ""
+        self._busy = True
+        self.changed.emit()
+        if self._service is None:
+            self._busy = False
+            self._error = t("errors.token_missing")
+            self.changed.emit()
+            return
+        if self._images is None:
+            assert self._client is not None
+            self._images = ImageService(self._client)
+        self._future = self._executor.submit(
+            self._request_page,
+            generation,
+            self._service,
+            self._images,
+            self._kind,
+            page,
+            self._year,
+            self._genre_id,
+            self._country,
+            self._min_score,
+            self._max_score,
+        )
+
+    @Slot()
+    def cancelPending(self) -> None:
+        """Invalidate a Discover request after leaving the page."""
+        self._generation += 1
+        if self._future is not None:
+            self._future.cancel()
+            self._future = None
+        for future in tuple(self._image_futures):
+            future.cancel()
+        self._image_futures.clear()
+        self._busy = False
+        self.changed.emit()
+
+    def _request_page(
+        self,
+        generation: int,
+        service: DiscoverService,
+        images: ImageService,
+        kind: str,
+        page: int,
+        year: int,
+        genre_id: int,
+        country: str,
+        min_score: int,
+        max_score: int,
+    ) -> None:
+        try:
+            result = service.fetch_page(
+                kind,
+                page=page,
+                year=year,
+                genre_id=genre_id,
+                country=country,
+                min_score=min_score,
+                max_score=max_score,
+            )
+            items = [
+                {
+                    **item,
+                    "poster": _local_url(images.poster(None).result()),
+                }
+                for item in result.items
+            ]
+        except NetworkError:
+            self._loaded.emit(generation, [], page, 1, network_unavailable())
+        except TMDbError:
+            self._loaded.emit(
+                generation, [], page, 1, "Keşfet sonuçları yüklenemedi. Tekrar deneyin."
+            )
+        except (OSError, ValueError, SQLAlchemyError):
+            self._loaded.emit(generation, [], page, 1, "Yerel tercihler okunamadı.")
+        else:
+            self._loaded.emit(
+                generation, items, result.page, result.total_pages, ""
+            )
+
+    @Slot(int, object, int, int, str)
+    def _apply_loaded(
+        self,
+        generation: int,
+        items: list[dict[str, Any]],
+        page: int,
+        total_pages: int,
+        error: str,
+    ) -> None:
+        if generation != self._generation:
+            return
+        self._busy = False
+        self._error = error
+        self._page = page
+        self._total_pages = max(1, min(total_pages, 500))
+        self._source_items = items
+        hidden = self._hidden_ids.get(self._kind)
+        self._items = (
+            [item for item in items if item["id"] not in hidden]
+            if hidden is not None
+            else [item for item in items if not item.get("dismissed")]
+        )
+        self.changed.emit()
+        if error:
+            return
+        assert self._images is not None
+        for item in items:
+            future = self._images.poster(item["posterPath"])
+            self._image_futures.add(future)
+            future.add_done_callback(
+                lambda done, item_id=item["id"], generation=generation: (
+                    self._poster_done(done, generation, item_id)
+                )
+            )
+
+    def _poster_done(self, future: Future, generation: int, item_id: int) -> None:
+        self._image_futures.discard(future)
+        if future.cancelled():
+            return
+        try:
+            url = _local_url(future.result())
+        except (OSError, ValueError):
+            return
+        self._poster_ready.emit(generation, item_id, url)
+
+    @Slot(int, int, str)
+    def _apply_poster(self, generation: int, item_id: int, url: str) -> None:
+        if generation != self._generation:
+            return
+        for item in self._source_items:
+            if item["id"] == item_id:
+                item["poster"] = url
+                self.changed.emit()
+                return
+
+    def close(self) -> None:
+        self._closed = True
+        self.cancelPending()
+        self._executor.shutdown(wait=True, cancel_futures=True)
+        if self._own_images and self._images is not None:
+            self._images.close()
+        for images in self._retired_images:
+            images.close()
+        self._retired_images.clear()
+        self._preferences.close()

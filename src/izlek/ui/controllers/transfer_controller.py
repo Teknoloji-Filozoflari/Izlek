@@ -99,3 +99,55 @@ class TransferController(QObject):
     def importSelected(self) -> None:
         if self._import_path is None or not self._preview:
             self._feedback = t("transfer.need_file")
+            self._feedback_kind = "danger"
+            self.changed.emit()
+            return
+        self._submit("import", self._import_path)
+
+    def _work(self, generation: int, action: str, path: Path) -> None:
+        try:
+            if action == "export":
+                result = self._service.export_file(path)
+            elif action == "preview":
+                result = self._service.preview_file(path)
+            else:
+                result = self._service.import_file(path)
+        except TransferError as exc:
+            self._finished.emit(generation, action, {}, str(exc))
+        except (OSError, SQLAlchemyError, ValueError, KeyError, OverflowError):
+            self._finished.emit(generation, action, {}, file_operation_failed())
+        else:
+            self._finished.emit(generation, action, result, "")
+
+    @Slot(int, str, object, str)
+    def _apply_finished(
+        self, generation: int, action: str, result: dict, error: str
+    ) -> None:
+        if generation != self._generation:
+            return
+        self._busy = False
+        if error:
+            self._feedback = error
+            self._feedback_kind = "danger"
+            if action == "preview":
+                self._preview = {}
+                self._import_path = None
+            self.changed.emit()
+            return
+        if action == "preview":
+            self._preview = result
+            self._feedback = t("transfer.validated")
+        elif action == "export":
+            self._feedback = t("transfer.exported")
+        else:
+            self._feedback = t("transfer.imported")
+            self._preview = {}
+            self._import_path = None
+            self.dataImported.emit()
+        self._feedback_kind = "success"
+        self.changed.emit()
+
+    def close(self) -> None:
+        self._generation += 1
+        self._executor.shutdown(wait=True, cancel_futures=True)
+        self._service.close()

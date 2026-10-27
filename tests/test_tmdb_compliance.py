@@ -35,3 +35,45 @@ def test_about_screen_separates_tmdb_content_from_local_tracking_data():
         set_locale(code)
         assert t("settings.tmdb_notice") == NOTICE
     set_locale("tr")
+
+
+def test_detail_and_provider_views_keep_their_remote_sources_visible():
+    movie = (
+        PROJECT_ROOT / "src/izlek/ui/qml/pages/MovieDetailPage.qml"
+    ).read_text(encoding="utf-8")
+    television = (
+        PROJECT_ROOT / "src/izlek/ui/qml/pages/TvDetailPage.qml"
+    ).read_text(encoding="utf-8")
+    providers = (
+        PROJECT_ROOT / "src/izlek/ui/qml/components/ProviderSection.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "movieTmdbSourceLabel" in movie
+    assert "tvTmdbSourceLabel" in television
+    assert "provider.attribution" in providers
+    set_locale("tr")
+    assert "JustWatch" in t("provider.attribution")
+    set_locale("tr")
+
+
+def test_official_logo_loads_in_about_screen():
+    class Store:
+        def load(self):
+            return StoredToken("test-only", "keyring")
+
+    application, engine, window = create_application(
+        token_controller=TokenController(store=Store())
+    )
+    try:
+        window.navigate(5)
+        QTest.qWait(300)
+        logo = window.findChild(QQuickItem, "tmdbLogo")
+        assert logo is not None
+        status = QQmlExpression(engine.rootContext(), logo, "Number(status)")
+        assert status.evaluate()[0] == 1  # Image.Ready
+        assert logo.property("source").path().endswith("/images/tmdb.svg")
+        assert logo.width() == 116 and logo.height() == 16
+        assert window.findChild(QObject, "tmdbAttributionNotice") is not None
+    finally:
+        window.close()
+        application.processEvents()
