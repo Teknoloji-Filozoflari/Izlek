@@ -6,6 +6,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QColor, QGuiApplication, QImage
+from PySide6.QtQml import QQmlExpression
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
@@ -148,6 +149,41 @@ def test_movies_page_status_grid_and_compact_sections(tmp_path, monkeypatch):
         assert not tabs.isVisible()
         assert not window.findChild(QQuickItem, "showsContinueSection").isVisible()
         assert favorite_strip.property("count") == 3
+
+        def option_labels(item):
+            found = [item] if item.objectName() == "filterOptionLabel" else []
+            for child in item.childItems():
+                found.extend(option_labels(child))
+            return found
+
+        sort_box.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        _wait_for(
+            application,
+            lambda: QQmlExpression(
+                qml_engine.rootContext(), sort_box, "popup.opened"
+            ).evaluate()[0],
+        )
+        popup_content = QQmlExpression(
+            qml_engine.rootContext(), sort_box, "popup.contentItem"
+        ).evaluate()[0]
+        sort_options = option_labels(popup_content)
+        assert [label.property("text") for label in sort_options] == [
+            "Özel Sıram",
+            "Son Eklenen",
+            "Başlık",
+            "Yıl",
+            "TMDb Puanı",
+        ]
+        assert popup_content.property("implicitHeight") >= 5 * 42
+        QTest.keyClick(window, Qt.Key.Key_Escape)
+        _wait_for(
+            application,
+            lambda: not QQmlExpression(
+                qml_engine.rootContext(), sort_box, "popup.visible"
+            ).evaluate()[0],
+        )
+
         for width, height in ((800, 600), (1366, 768), (1920, 1080)):
             window.resize(width, height)
             application.processEvents()

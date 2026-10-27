@@ -8,12 +8,12 @@ QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `i
 | `SegmentedControl` | `options`, `currentIndex`; `selected(index)` |
 | `StatusSelector` | `status`: boş, `PLANNED`, `WATCHING`, `WATCHED`; `statusSelected(status)` |
 | `SearchField` | `text`, `placeholderText`; yerleşik temizleme butonu |
-| `FilterComboBox`, `FilterTextField` | Koyu tema filtre girişleri; standart `ComboBox`/`TextField` API'leri; combo QtQuick Templates tabanlıdır, KDE'nin gizli menu/repeater davranışından bağımsızdır; sıfır başlangıç konumu ve sabit satır yüksekliği kullanır |
+| `FilterComboBox`, `FilterTextField` | Koyu tema filtre girişleri; standart `ComboBox`/`TextField` API'leri; combo QtQuick Templates tabanlıdır, KDE'nin gizli menu/repeater davranışından bağımsızdır; sıfır başlangıç konumu ve sabit satır yüksekliği kullanır. Kütüphane **Sırala** da bunu kullanır (boş Controls popup yerine). |
 | `FilterSpinBox` | `value`, `from`, `to`, `stepSize`, `textFromValue`; oklar veya klavyeyle değişen puan, salt okunur etiket. Odak kaybında metin yeniden sayıya dönüştürülmez; `editable: false` |
 | `GlobalSearch` | `controller`: `SearchController`; `open()`/`close()`, `resultActivated(kind, itemId)`; giriş için 300 ms debounce; Film ve Dizi / Film / Dizi seçimi `mediaType` ve `setMediaType(kind)` üzerinden yalnız ilgili endpoint'i sorgular |
 | `SearchResultCard` | `media`: `{id, mediaType, title, year, poster}`; `activated(kind, itemId)` |
 | `LibraryPosterGrid` | `items`: yerel film/dizi nesneleri (`tmdb_id`, `title`, `year`, `poster`, `status`, isteğe bağlı `score`, `progress` ve `progress_text`); `compact` (varsayılan `false`, sabit rahat sunum); `mediaActivated(tmdbId)`, `favoriteToggled(tmdbId, favorite)` |
-| `ContinueWatchingCard` | `itemData`: dizi ve sıradaki bölüm verisi (`tmdb_id`, `title`, `poster`, `backdrop`, `episodeCode`, `episode_title`, `watched_count`, `aired_count`, `season_number`, `episode_number`); `busy`; `opened(tmdbId)`, `watched(tmdbId, seasonNumber, episodeNumber)` |
+| `ContinueWatchingCard` | Yatay şerit kartı: `itemData` dizi ve sıradaki bölüm verisi (`tmdb_id`, `title`, `poster`, `backdrop`, `episodeCode`, `episode_title`, `watched_count`, `aired_count`, `season_number`, `episode_number`); `busy`; bölüm rozeti (`S2B4`), alt ilerleme çubuğu; `opened(tmdbId)`, `watched(tmdbId, seasonNumber, episodeNumber)` |
 | `PosterCard` | `posterSource`, `posterLoading` (indirme sürerken skeleton), `mediaTitle`, `year`, `score` (negatifse gizli), `status`, isteğe bağlı `progress` (0–1) ve `progressText`; `favorite`, `favoriteEnabled`; `footerHeight` alt eylem alanı; `activated()`, `favoriteToggled(bool)` |
 | `EpisodeCheck` | `episodeName`, standart `checked`/`clicked`; yazısız yuvarlak tik, klavye odağı, erişilebilir ad ve tooltip |
 | `EpisodeProgressBar` | `watched`, `total`, salt okunur `fraction`; bölüm sayacı ve sarı ilerleme çubuğu |

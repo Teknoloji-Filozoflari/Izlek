@@ -10,6 +10,19 @@ Rectangle {
     property var controller: null
     property url posterSource: itemData.poster || ""
     property url backdropSource: itemData.backdrop || ""
+    readonly property real progressFraction: {
+        var total = Number(itemData.aired_count) || 0
+        if (total <= 0)
+            return 0
+        return Math.max(0, Math.min(1, (Number(itemData.watched_count) || 0) / total))
+    }
+    readonly property string episodeBadge: {
+        var season = Number(itemData.season_number) || 0
+        var episode = Number(itemData.episode_number) || 0
+        if (season <= 0 || episode <= 0)
+            return itemData.episodeCode || ""
+        return "S" + season + "B" + episode
+    }
     onItemDataChanged: {
         posterSource = itemData.poster || ""
         backdropSource = itemData.backdrop || ""
@@ -25,80 +38,117 @@ Rectangle {
     property bool busy: false
     signal opened(int tmdbId)
     signal watched(int tmdbId, int seasonNumber, int episodeNumber)
-    implicitWidth: 510
-    implicitHeight: 218
-    color: Tokens.Theme.surface
-    radius: Tokens.Theme.radiusLg
+    implicitWidth: 280
+    implicitHeight: 158
+    color: Tokens.Theme.surfaceElevated
+    radius: Tokens.Theme.radiusMd
     border.color: Tokens.Theme.border
     clip: true
+    activeFocusOnTab: true
+    Accessible.name: (itemData.title || "") + " " + episodeBadge
+    Accessible.role: Accessible.Button
+    Accessible.onPressAction: card.opened(card.itemData.tmdb_id)
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                || event.key === Qt.Key_Space) {
+            card.opened(card.itemData.tmdb_id)
+            event.accepted = true
+        }
+    }
 
     Image {
         anchors.fill: parent
-        source: card.backdropSource
+        source: card.backdropSource.toString() ? card.backdropSource : card.posterSource
         fillMode: Image.PreserveAspectCrop
-        opacity: 0.2
         sourceSize.width: Math.round(card.width * Screen.devicePixelRatio)
         sourceSize.height: Math.round(card.height * Screen.devicePixelRatio)
     }
-    RowLayout {
+    Rectangle {
         anchors.fill: parent
-        anchors.margins: Tokens.Theme.spaceMd
-        spacing: Tokens.Theme.spaceMd
-
-        Image {
-            Layout.preferredWidth: 122
-            Layout.fillHeight: true
-            source: card.posterSource
-            fillMode: Image.PreserveAspectCrop
-            sourceSize.width: Math.round(122 * Screen.devicePixelRatio)
-            sourceSize.height: Math.round(height * Screen.devicePixelRatio)
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#00101318" }
+            GradientStop { position: 0.45; color: "#66101318" }
+            GradientStop { position: 1.0; color: "#E6101318" }
         }
-        ColumnLayout {
+    }
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: card.opened(card.itemData.tmdb_id)
+    }
+    Rectangle {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: Tokens.Theme.spaceSm
+        width: badgeLabel.implicitWidth + Tokens.Theme.spaceSm
+        height: Tokens.Theme.controlHeight * 0.55
+        radius: Tokens.Theme.radiusSm
+        color: "#CC101318"
+        border.color: Tokens.Theme.border
+        Label {
+            id: badgeLabel
+            anchors.centerIn: parent
+            text: card.episodeBadge
+            color: Tokens.Theme.textPrimary
+            font.pixelSize: Tokens.Theme.textSmall
+            font.weight: Tokens.Theme.weightDemiBold
+        }
+    }
+    ColumnLayout {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: progressTrack.top
+        anchors.margins: Tokens.Theme.spaceSm
+        spacing: Tokens.Theme.spaceXs
+        Label {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: Tokens.Theme.spaceXs
+            text: card.itemData.title || ""
+            color: Tokens.Theme.textPrimary
+            font.pixelSize: Tokens.Theme.textBody
+            font.weight: Tokens.Theme.weightDemiBold
+            elide: Text.ElideRight
+            maximumLineCount: 1
+        }
+        RowLayout {
+            Layout.fillWidth: true
             Label {
                 Layout.fillWidth: true
-                text: card.itemData.title || ""
-                color: Tokens.Theme.textPrimary
-                font.pixelSize: Tokens.Theme.textEmpty
-                font.weight: Tokens.Theme.weightDemiBold
-                elide: Text.ElideRight
-            }
-            Label {
-                text: card.itemData.episodeCode || ""
-                color: Tokens.Theme.accent
-                font.pixelSize: Tokens.Theme.textBody
-            }
-            Label {
-                Layout.fillWidth: true
-                text: card.itemData.episode_title || "Bölüm adı yok"
+                text: card.itemData.episode_title || card.episodeBadge
                 color: Tokens.Theme.textSecondary
+                font.pixelSize: Tokens.Theme.textSmall
                 elide: Text.ElideRight
             }
-            Label {
-                text: (card.itemData.watched_count || 0) + " / "
-                    + (card.itemData.aired_count || 0) + " bölüm izlendi"
-                color: Tokens.Theme.textMuted
-                font.pixelSize: Tokens.Theme.textSmall
-            }
-            Item { Layout.fillHeight: true }
-            RowLayout {
-                Layout.fillWidth: true
-                IzlekButton {
-                    objectName: "continueWatchedButton"
-                    text: (i18n.revision, i18n.t("episode.watched"))
-                    enabled: !card.busy
-                    onClicked: card.watched(card.itemData.tmdb_id,
-                                            card.itemData.season_number,
-                                            card.itemData.episode_number)
-                }
-                IzlekButton {
-                    text: "Detay"
-                    variant: "secondary"
-                    onClicked: card.opened(card.itemData.tmdb_id)
-                }
+            IzlekButton {
+                objectName: "continueWatchedButton"
+                text: (i18n.revision, i18n.t("episode.watched"))
+                variant: "secondary"
+                enabled: !card.busy
+                implicitHeight: Tokens.Theme.controlHeight * 0.7
+                onClicked: card.watched(card.itemData.tmdb_id,
+                                        card.itemData.season_number,
+                                        card.itemData.episode_number)
             }
         }
+    }
+    Rectangle {
+        id: progressTrack
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 4
+        color: Tokens.Theme.border
+        Rectangle {
+            width: parent.width * card.progressFraction
+            height: parent.height
+            color: Tokens.Theme.danger
+        }
+    }
+    Rectangle {
+        anchors.fill: parent
+        radius: parent.radius
+        color: "transparent"
+        border.color: card.activeFocus ? Tokens.Theme.accent : "transparent"
+        border.width: 2
     }
 }

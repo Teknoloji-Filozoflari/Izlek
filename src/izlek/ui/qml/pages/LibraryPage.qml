@@ -162,11 +162,11 @@ Rectangle {
                 text: (i18n.revision, i18n.t("library.sort"))
                 color: Tokens.Theme.textSecondary
             }
-            ComboBox {
+            FilterComboBox {
                 id: sortBox
                 objectName: page.kind === "movie" ? "movieSort" : "tvSort"
                 Layout.preferredWidth: 168
-                Layout.preferredHeight: Tokens.Theme.controlHeight
+                Accessible.name: (i18n.revision, i18n.t("library.sort"))
                 model: [
                     { text: (i18n.revision, i18n.t("library.sort_custom")), value: "custom" },
                     { text: (i18n.revision, i18n.t("library.sort_recent")), value: "recent" },
@@ -178,46 +178,76 @@ Rectangle {
                 valueRole: "value"
                 currentIndex: ["custom", "recent", "title", "year", "score"].indexOf(controller.sortBy)
                 onActivated: controller.setSort(currentValue)
-                contentItem: Label {
-                    text: sortBox.displayText
-                    color: Tokens.Theme.textPrimary
-                    verticalAlignment: Text.AlignVCenter
-                    leftPadding: Tokens.Theme.spaceSm
-                }
-                background: Rectangle {
-                    color: Tokens.Theme.surface
-                    radius: Tokens.Theme.radiusSm
-                    border.color: sortBox.activeFocus ? Tokens.Theme.accent
-                                                      : Tokens.Theme.border
-                    border.width: sortBox.activeFocus ? 2 : 1
-                }
-                delegate: ItemDelegate {
-                    width: sortBox.width
-                    text: modelData.text
-                    contentItem: Label {
-                        text: parent.text
-                        color: Tokens.Theme.textPrimary
-                        verticalAlignment: Text.AlignVCenter
+            }
+        }
+
+        ColumnLayout {
+            id: continueSection
+            objectName: "showsContinueSection"
+            visible: page.kind === "tv" && !!page.continueModelController
+                     && (page.continueModelController.busy
+                         || page.continueModelController.items.length > 0
+                         || !!page.continueModelController.error)
+            width: parent.width
+            spacing: Tokens.Theme.spaceSm
+            SectionHeader {
+                Layout.fillWidth: true
+                title: (i18n.revision, i18n.t("library.continue"))
+                subtitle: (i18n.revision, i18n.t("library.continue_subtitle"))
+                actionText: page.continueModelController && page.continueModelController.error
+                            ? (i18n.revision, i18n.t("library.continue_refresh"))
+                            : ""
+                onActionTriggered: page.continueModelController.refresh()
+            }
+            BusyIndicator {
+                visible: !!page.continueModelController && page.continueModelController.busy
+                         && page.continueModelController.items.length === 0
+                running: visible
+                Layout.alignment: Qt.AlignHCenter
+            }
+            ListView {
+                id: continueStrip
+                objectName: "showsContinueStrip"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 158
+                visible: !!page.continueModelController
+                         && page.continueModelController.items.length > 0
+                orientation: ListView.Horizontal
+                spacing: Tokens.Theme.spaceMd
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: page.continueModelController ? page.continueModelController.items : []
+                delegate: ContinueWatchingCard {
+                    required property var modelData
+                    width: Math.min(280, continueStrip.width)
+                    height: continueStrip.height
+                    itemData: modelData
+                    controller: page.continueModelController
+                    busy: page.continueModelController.busy
+                    onOpened: function(tmdbId) { page.mediaSelected(tmdbId) }
+                    onWatched: function(tmdbId, seasonNumber, episodeNumber) {
+                        page.continueModelController.markWatched(
+                            tmdbId, seasonNumber, episodeNumber)
                     }
-                    background: Rectangle {
-                        color: parent.hovered ? Tokens.Theme.hoverSurface
-                                              : Tokens.Theme.surfaceElevated
+                }
+                ScrollBar.horizontal: ScrollBar {
+                    policy: continueStrip.contentWidth > continueStrip.width
+                            ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                    contentItem: Rectangle {
+                        implicitHeight: 5
+                        radius: 2
+                        color: Tokens.Theme.border
                     }
                 }
-                popup: Popup {
-                    y: sortBox.height
-                    width: sortBox.width
-                    padding: 0
-                    contentItem: ListView {
-                        implicitHeight: contentHeight
-                        model: sortBox.popup.visible ? sortBox.delegateModel : null
-                    }
-                    background: Rectangle {
-                        color: Tokens.Theme.surfaceElevated
-                        border.color: Tokens.Theme.border
-                        radius: Tokens.Theme.radiusSm
-                    }
-                }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: !!page.continueModelController && !page.continueModelController.busy
+                         && page.continueModelController.items.length === 0
+                         && !!page.continueModelController.error
+                text: page.continueModelController ? page.continueModelController.error : ""
+                color: Tokens.Theme.textMuted
+                wrapMode: Text.WordWrap
             }
         }
 
@@ -381,52 +411,6 @@ Rectangle {
             }
         }
 
-        ColumnLayout {
-            objectName: "showsContinueSection"
-            visible: page.kind === "tv" && !!page.continueModelController
-            width: parent.width
-            spacing: Tokens.Theme.spaceMd
-            SectionHeader { title: (i18n.revision, i18n.t("library.continue")); Layout.fillWidth: true }
-            BusyIndicator {
-                visible: !!page.continueModelController && page.continueModelController.busy
-                running: visible
-            }
-            Flow {
-                Layout.fillWidth: true
-                Layout.preferredHeight: implicitHeight
-                spacing: Tokens.Theme.spaceMd
-                Repeater {
-                    model: page.continueModelController ? page.continueModelController.items : []
-                    ContinueWatchingCard {
-                        width: Math.min(510, parent.width)
-                        itemData: modelData
-                        controller: page.continueModelController
-                        busy: page.continueModelController.busy
-                        onOpened: function(tmdbId) { page.mediaSelected(tmdbId) }
-                        onWatched: function(tmdbId, seasonNumber, episodeNumber) {
-                            page.continueModelController.markWatched(tmdbId, seasonNumber, episodeNumber)
-                        }
-                    }
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: !!page.continueModelController && !page.continueModelController.busy
-                         && page.continueModelController.items.length === 0
-                text: page.continueModelController ? page.continueModelController.error
-                      || "İzlemeye devam edebileceğin dizi yok." : ""
-                color: Tokens.Theme.textMuted
-            }
-            IzlekButton {
-                visible: !!page.continueModelController
-                         && !!page.continueModelController.error
-                enabled: !!page.continueModelController
-                         && !page.continueModelController.busy
-                text: (i18n.revision, i18n.t("library.continue_refresh"))
-                variant: "secondary"
-                onClicked: page.continueModelController.refresh()
-            }
-        }
     }
     }
     LibraryBulkDialog {

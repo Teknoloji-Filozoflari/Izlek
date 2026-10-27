@@ -206,6 +206,7 @@
     "noun_movie": "movies",
     "noun_show": "shows",
     "continue": "Continue Watching",
+    "continue_subtitle": "Continue from shows you were watching",
     "continue_refresh": "Refresh Continue Watching",
     "sort": "Sort",
     "sort_custom": "My Order",
