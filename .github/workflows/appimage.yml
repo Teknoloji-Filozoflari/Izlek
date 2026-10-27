@@ -5,7 +5,9 @@ on:
   workflow_call:
 
 concurrency:
-  group: package-${{ github.workflow }}-${{ github.ref }}
+  # Unique prefix: Release calls AppImage + DEB together; a shared
+  # package-${{ github.workflow }} group cancels one of them.
+  group: appimage-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
