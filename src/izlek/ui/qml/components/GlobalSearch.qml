@@ -41,7 +41,7 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             Label {
-                text: "Global Arama"
+                text: (i18n.revision, i18n.t("search.global"))
                 color: Tokens.Theme.textPrimary
                 font.pixelSize: Tokens.Theme.textHeading
                 font.weight: Tokens.Theme.weightDemiBold
@@ -72,7 +72,7 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             Label {
-                text: "Arama türü"
+                text: (i18n.revision, i18n.t("search.type"))
                 color: Tokens.Theme.textSecondary
             }
             ComboBox {
@@ -102,7 +102,7 @@ Popup {
                 Label {
                     visible: searchInput.text.trim().length < 3
                     Layout.fillWidth: true
-                    text: "Aramak için en az 3 karakter yazın."
+                    text: (i18n.revision, i18n.t("search.min_chars"))
                     color: Tokens.Theme.textSecondary
                 }
                 BusyIndicator {
@@ -117,21 +117,21 @@ Popup {
                              && overlay.controller.movies.length === 0
                              && overlay.controller.shows.length === 0
                     Layout.fillWidth: true
-                    title: "Sonuç bulunamadı"
+                    title: (i18n.revision, i18n.t("search.no_results"))
                     description: "Kaydettiğin ve izlediğin içerikler gizlenir. Başka bir adla tekrar arayın."
                 }
                 EmptyState {
                     visible: !!overlay.controller.error
                              && !overlay.controller.busy
                     Layout.fillWidth: true
-                    title: "Arama tamamlanamadı"
+                    title: (i18n.revision, i18n.t("search.failed"))
                     description: overlay.controller.error
                     actionText: "Tekrar Dene"
                     onActionRequested: overlay.controller.search(searchInput.text)
                 }
                 Label {
                     visible: overlay.controller.movies.length > 0
-                    text: "Filmler"
+                    text: (i18n.revision, i18n.t("common.movies"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold
@@ -149,7 +149,7 @@ Popup {
                 }
                 Label {
                     visible: overlay.controller.shows.length > 0
-                    text: "Diziler"
+                    text: (i18n.revision, i18n.t("common.shows"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold

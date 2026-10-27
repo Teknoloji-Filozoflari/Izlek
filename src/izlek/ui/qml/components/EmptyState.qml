@@ -5,7 +5,7 @@ import "../theme" as Tokens
 
 Item {
     id: state
-    property string title: "Henüz içerik yok"
+    property string title: (i18n.revision, i18n.t("errors.empty"))
     property string description: ""
     property string actionText: ""
     signal actionRequested()

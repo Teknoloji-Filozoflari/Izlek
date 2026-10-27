@@ -98,10 +98,31 @@ class PersonTvCredits(ApiModel):
     cast: list[TvSummary] = Field(default_factory=list)
 
 
+class CollectionMembership(ApiModel):
+    """TMDb franchise/collection summary attached to a movie detail."""
+
+    id: int
+    name: str
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+
+
+class CollectionDetail(ApiModel):
+    """TMDb collection endpoint payload with ordered movie parts."""
+
+    id: int
+    name: str
+    overview: str = ""
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+    parts: list[MovieSummary] = Field(default_factory=list)
+
+
 class MovieDetail(MovieSummary):
     runtime: int | None = None
     genres: list[Genre] = Field(default_factory=list)
     original_language: str | None = None
+    belongs_to_collection: CollectionMembership | None = None
     production_companies: list["ProductionCompany"] = Field(default_factory=list)
     production_countries: list["ProductionCountry"] = Field(default_factory=list)
 
@@ -167,6 +188,21 @@ class WatchProviderRegion(ApiModel):
 class MovieWatchProviders(ApiModel):
     id: int
     results: dict[str, WatchProviderRegion] = Field(default_factory=dict)
+
+
+class ExternalIds(ApiModel):
+    """Cross-service ids from TMDb external_ids endpoints."""
+
+    id: int | None = None
+    imdb_id: str | None = None
+    freebase_mid: str | None = None
+    freebase_id: str | None = None
+    tvdb_id: int | None = None
+    tvrage_id: int | None = None
+    wikidata_id: str | None = None
+    facebook_id: str | None = None
+    instagram_id: str | None = None
+    twitter_id: str | None = None
 
 
 class SeasonSummary(ApiModel):

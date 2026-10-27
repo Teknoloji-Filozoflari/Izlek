@@ -155,7 +155,7 @@ def test_export_import_round_trip_preserves_equivalent_user_state(tmp_path):
             "favorites",
             "lists",
         }
-        assert payload["schema_version"] == 3
+        assert payload["schema_version"] == 4
         assert "export-edilmemeli" not in raw
         assert "/tmp/private-cache" not in raw
         assert report["media"] == 2
@@ -173,6 +173,7 @@ def test_export_import_round_trip_preserves_equivalent_user_state(tmp_path):
             "lists_merged": 0,
             "list_items_added": 3,
             "list_items_existing": 0,
+            "skipped": 0,
         }
         assert _portable_sections(actual) == _portable_sections(expected)
     finally:
@@ -280,7 +281,7 @@ def test_export_adds_json_suffix_and_uses_private_permissions(tmp_path):
     ("content", "message"),
     [
         ("not-json", "geçerli JSON değil"),
-        ("[]", "JSON object"),
+        ("[]", "JSON object veya Trakt"),
         ('{"schema_version": false}', "schema_version"),
         ('{"schema_version": 0}', "migration"),
     ],

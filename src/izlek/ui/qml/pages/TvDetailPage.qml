@@ -7,7 +7,8 @@ import "../theme" as Tokens
 Rectangle {
     id: page
     property var controller
-    property string pageTitle: "Dizi Detayı"
+    readonly property string pageKind: "tv"
+    property string pageTitle: (i18n.revision, i18n.t("page.tv_detail"))
     property int mediaId: 0
     readonly property bool filterPopupOpen: seasonSelector.popup.visible || personalReview.filterPopupOpen
     property string bulkScope: ""
@@ -39,7 +40,7 @@ Rectangle {
             IzlekButton {
                 Layout.leftMargin: Tokens.Theme.spaceXl
                 Layout.topMargin: Tokens.Theme.spaceLg
-                text: "← Geri"
+                text: (i18n.revision, i18n.t("common.back"))
                 variant: "secondary"
                 onClicked: page.backRequested()
             }
@@ -51,7 +52,7 @@ Rectangle {
             EmptyState {
                 visible: !!page.controller.error
                 Layout.fillWidth: true
-                title: "Dizi yüklenemedi"
+                title: (i18n.revision, i18n.t("detail.tv_load_failed"))
                 description: page.controller.error
             }
             ColumnLayout {
@@ -116,8 +117,26 @@ Rectangle {
                                 color: Tokens.Theme.accent
                             }
                             Label {
+                                objectName: "tvImdbRating"
+                                visible: !!(page.controller.detail.imdbRating)
+                                text: "IMDb: " + (page.controller.detail.imdbRating || "")
+                                      + (page.controller.detail.imdbVotes
+                                         ? " (" + page.controller.detail.imdbVotes + ")" : "")
+                                color: Tokens.Theme.textSecondary
+                            }
+                            Label {
+                                objectName: "tvTraktRating"
+                                visible: page.controller.detail.traktRating !== undefined
+                                         && page.controller.detail.traktRating !== null
+                                         && page.controller.detail.traktRating !== ""
+                                text: "Trakt: " + (page.controller.detail.traktRating || 0)
+                                      + (page.controller.detail.traktVotes
+                                         ? " (" + page.controller.detail.traktVotes + ")" : "")
+                                color: Tokens.Theme.textSecondary
+                            }
+                            Label {
                                 objectName: "tvTmdbSourceLabel"
-                                text: "Dizi bilgileri ve görseller TMDB tarafından sağlanır"
+                                text: (i18n.revision, i18n.t("detail.tv_attribution"))
                                 color: Tokens.Theme.textSecondary
                                 font.pixelSize: Tokens.Theme.textSmall
                             }
@@ -133,7 +152,7 @@ Rectangle {
                         objectName: "addTvToLibrary"
                         visible: !page.controller.detail.status
                         enabled: !page.controller.saving
-                        text: "Kütüphaneye Ekle"
+                        text: (i18n.revision, i18n.t("detail.add_library"))
                         onClicked: page.controller.setStatus("WATCHING")
                     }
                     FavoriteButton {
@@ -146,7 +165,7 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "tvListOpen"
-                        text: "Listeye Ekle"
+                        text: (i18n.revision, i18n.t("detail.add_list"))
                         variant: "secondary"
                         enabled: !page.controller.saving
                         onClicked: listDialog.open()
@@ -163,7 +182,7 @@ Rectangle {
                         objectName: "removeTvFromLibrary"
                         visible: !!page.controller.detail.status
                         enabled: !page.controller.saving && !page.controller.seasonBusy
-                        text: "Kütüphaneden Kaldır"
+                        text: (i18n.revision, i18n.t("detail.remove_library"))
                         variant: "danger"
                         onClicked: page.controller.removeFromLibrary()
                     }
@@ -209,7 +228,7 @@ Rectangle {
                     Layout.leftMargin: Tokens.Theme.spaceXl
                     Layout.rightMargin: Tokens.Theme.spaceXl
                     Layout.fillWidth: true
-                    text: "Yeni bölüm bilgisi var. Ayrıntı için sezonu açın."
+                    text: (i18n.revision, i18n.t("detail.new_episodes"))
                     color: Tokens.Theme.textSecondary
                     wrapMode: Text.WordWrap
                 }
@@ -218,14 +237,14 @@ Rectangle {
                     Layout.leftMargin: Tokens.Theme.spaceXl
                     Layout.rightMargin: Tokens.Theme.spaceXl
                     spacing: Tokens.Theme.spaceLg
-                    SectionHeader { title: "Açıklama"; Layout.fillWidth: true }
+                    SectionHeader { title: (i18n.revision, i18n.t("detail.overview")); Layout.fillWidth: true }
                     Label {
                         Layout.fillWidth: true
                         text: page.controller.detail.overview || "Açıklama bulunmuyor."
                         color: Tokens.Theme.textSecondary
                         wrapMode: Text.WordWrap
                     }
-                    SectionHeader { title: "Sezonlar ve Bölümler"; Layout.fillWidth: true }
+                    SectionHeader { title: (i18n.revision, i18n.t("detail.seasons")); Layout.fillWidth: true }
                     FilterComboBox {
                         id: seasonSelector
                         objectName: "tvSeasonSelector"
@@ -262,14 +281,14 @@ Rectangle {
                         anchors.margins: Tokens.Theme.spaceSm
                         spacing: Tokens.Theme.spaceSm
                         Label {
-                            text: "Sezon"
+                            text: (i18n.revision, i18n.t("common.season"))
                             color: Tokens.Theme.textMuted
                         }
                         IzlekButton {
                             objectName: "seasonWatched"
                             Layout.fillWidth: true
-                            text: "✓ İzlendi"
-                            Accessible.name: "Sezonu izlendi yap"
+                            text: (i18n.revision, i18n.t("status.mark_watched"))
+                            Accessible.name: (i18n.revision, i18n.t("detail.season_watched_a11y"))
                             variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
                             onClicked: page.controller.setSeasonWatched(true)
@@ -277,8 +296,8 @@ Rectangle {
                         IzlekButton {
                             objectName: "seasonUnwatched"
                             Layout.fillWidth: true
-                            text: "↺ İzlenmedi"
-                            Accessible.name: "Sezonu izlenmedi yap"
+                            text: (i18n.revision, i18n.t("status.mark_unwatched"))
+                            Accessible.name: (i18n.revision, i18n.t("detail.season_unwatched_a11y"))
                             variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
                             onClicked: page.controller.setSeasonWatched(false)
@@ -289,14 +308,14 @@ Rectangle {
                             color: Tokens.Theme.border
                         }
                         Label {
-                            text: "Dizi"
+                            text: (i18n.revision, i18n.t("common.show"))
                             color: Tokens.Theme.textMuted
                         }
                         IzlekButton {
                             objectName: "seriesWatched"
                             Layout.fillWidth: true
-                            text: "✓ İzlendi"
-                            Accessible.name: "Diziyi izlendi yap"
+                            text: (i18n.revision, i18n.t("status.mark_watched"))
+                            Accessible.name: (i18n.revision, i18n.t("detail.show_watched_a11y"))
                             variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
                             onClicked: page.confirmBulk("series", true)
@@ -304,8 +323,8 @@ Rectangle {
                         IzlekButton {
                             objectName: "seriesUnwatched"
                             Layout.fillWidth: true
-                            text: "↺ İzlenmedi"
-                            Accessible.name: "Diziyi izlenmedi yap"
+                            text: (i18n.revision, i18n.t("status.mark_unwatched"))
+                            Accessible.name: (i18n.revision, i18n.t("detail.show_unwatched_a11y"))
                             variant: "secondary"
                             enabled: !page.controller.saving && !page.controller.seasonBusy
                             onClicked: page.confirmBulk("series", false)
@@ -383,10 +402,10 @@ Rectangle {
                         visible: !page.controller.seasonBusy
                                  && page.controller.episodes.length === 0
                                  && !page.controller.seasonError
-                        text: "Bu sezonda bölüm bulunmuyor."
+                        text: (i18n.revision, i18n.t("detail.no_episodes"))
                         color: Tokens.Theme.textMuted
                     }
-                    SectionHeader { title: "Oyuncular"; Layout.fillWidth: true }
+                    SectionHeader { title: (i18n.revision, i18n.t("detail.cast")); Layout.fillWidth: true }
                     CastGrid {
                         objectName: "tvCastGrid"
                         Layout.fillWidth: true
@@ -396,7 +415,7 @@ Rectangle {
                     }
                     Label {
                         visible: (page.controller.detail.cast || []).length === 0
-                        text: "Oyuncu bilgisi bulunmuyor."
+                        text: (i18n.revision, i18n.t("detail.cast_empty"))
                         color: Tokens.Theme.textMuted
                     }
                     GridLayout {
@@ -407,9 +426,9 @@ Rectangle {
                         rowSpacing: Tokens.Theme.spaceMd
                         Repeater {
                             model: [
-                                {title: "Yaratıcılar", values: page.controller.detail.creators || []},
-                                {title: "Yapım Şirketleri", values: page.controller.detail.companies || []},
-                                {title: "Yapım Ülkeleri", values: page.controller.detail.countries || []}
+                                {title: (i18n.revision, i18n.t("detail.creators")), values: page.controller.detail.creators || []},
+                                {title: (i18n.revision, i18n.t("detail.companies")), values: page.controller.detail.companies || []},
+                                {title: (i18n.revision, i18n.t("detail.countries")), values: page.controller.detail.countries || []}
                             ]
                             ColumnLayout {
                                 required property var modelData
@@ -447,9 +466,9 @@ Rectangle {
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.alignment: Qt.AlignTop
-                            SectionHeader { title: "Fragman"; Layout.fillWidth: true }
+                            SectionHeader { title: (i18n.revision, i18n.t("detail.trailer")); Layout.fillWidth: true }
                             IzlekButton {
-                                text: "Fragmanı İzle"
+                                text: (i18n.revision, i18n.t("detail.watch_trailer"))
                                 enabled: !!page.controller.detail.trailerUrl
                                 onClicked: page.controller.openTrailer()
                             }
@@ -458,7 +477,7 @@ Rectangle {
                     ColumnLayout {
                         objectName: "tvRelatedGrid"
                         Layout.fillWidth: true
-                        SectionHeader { title: "Önerilen Diziler"; Layout.fillWidth: true }
+                        SectionHeader { title: (i18n.revision, i18n.t("detail.similar_shows")); Layout.fillWidth: true }
                         HorizontalMediaStrip {
                             objectName: "tvRelatedStrip"
                             Layout.fillWidth: true
@@ -468,7 +487,7 @@ Rectangle {
                         }
                         Label {
                             visible: (page.controller.detail.recommendations || []).length === 0
-                            text: "Önerilen dizi bulunmuyor."
+                            text: (i18n.revision, i18n.t("detail.similar_shows_empty"))
                             color: Tokens.Theme.textMuted
                         }
                     }
@@ -495,7 +514,7 @@ Rectangle {
         objectName: "tvListDialog"
         modal: true
         focus: true
-        title: "Listeye Ekle"
+        title: (i18n.revision, i18n.t("lists.add_to_list"))
         width: Math.min(420, page.width - 2 * Tokens.Theme.spaceLg)
         x: (page.width - width) / 2
         y: (page.height - height) / 2
@@ -505,7 +524,7 @@ Rectangle {
             spacing: Tokens.Theme.spaceMd
             Label {
                 Layout.fillWidth: true
-                text: "Mevcut liste adını yazın veya yeni liste oluşturun."
+                text: (i18n.revision, i18n.t("lists.add_hint"))
                 color: Tokens.Theme.textSecondary
                 wrapMode: Text.WordWrap
             }
@@ -513,7 +532,7 @@ Rectangle {
                 id: listName
                 objectName: "tvListName"
                 Layout.fillWidth: true
-                placeholderText: "Liste adı"
+                placeholderText: (i18n.revision, i18n.t("lists.name_ph"))
                 color: Tokens.Theme.textPrimary
                 maximumLength: 200
                 onAccepted: {
@@ -533,7 +552,7 @@ Rectangle {
             }
             IzlekButton {
                 objectName: "tvListAdd"
-                text: "Ekle"
+                text: (i18n.revision, i18n.t("common.add"))
                 enabled: listName.text.trim().length > 0
                 onClicked: {
                     page.controller.addToList(listName.text)

@@ -7,13 +7,14 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
 from izlek.security.token_store import TokenStore
 from izlek.services.content_visibility import ContentVisibilityService
 from izlek.services.director_search import DirectorSearchService
 from izlek.services.image_service import ImageService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
 from izlek.tmdb.models import MovieSummary, TvSummary
-from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE, NETWORK_UNAVAILABLE
+from izlek.ui.controllers.messages import local_data_unavailable, network_unavailable
 
 
 def _local_url(path: Path) -> str:
@@ -202,7 +203,7 @@ class SearchController(QObject):
         if len(query) < 3:
             return
         if self._client is None:
-            self._error = "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin."
+            self._error = t("errors.token_missing")
             self.stateChanged.emit()
             return
         if self._images is None:
@@ -236,7 +237,7 @@ class SearchController(QObject):
         if len(query.strip()) < 3:
             return
         if self._client is None:
-            self._error = "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin."
+            self._error = t("errors.token_missing")
             self.stateChanged.emit()
             return
         self._pending = {"person"}
@@ -252,7 +253,7 @@ class SearchController(QObject):
         try:
             people = DirectorSearchService(client).search(query, role)
         except NetworkError:
-            self._directorsReady.emit(generation, [], NETWORK_UNAVAILABLE)
+            self._directorsReady.emit(generation, [], network_unavailable())
         except (TMDbError, OSError, ValueError):
             self._directorsReady.emit(
                 generation, [], "Kişi araması tamamlanamadı. Tekrar deneyin."
@@ -312,7 +313,7 @@ class SearchController(QObject):
             return
         self.search("")
         if self._client is None:
-            self._error = "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin."
+            self._error = t("errors.token_missing")
             self.stateChanged.emit()
             return
         self._directors = [{"id": person_id, "name": name.strip()}]
@@ -333,14 +334,14 @@ class SearchController(QObject):
                 ),
             } for item in works]
         except NetworkError:
-            self._searchFinished.emit(generation, kind, [], NETWORK_UNAVAILABLE)
+            self._searchFinished.emit(generation, kind, [], network_unavailable())
         except TMDbError:
             self._searchFinished.emit(
                 generation, kind, [],
                 "Kişinin yapımları yüklenemedi. Tekrar deneyin."
             )
         except (OSError, ValueError, SQLAlchemyError):
-            self._searchFinished.emit(generation, kind, [], LOCAL_DATA_UNAVAILABLE)
+            self._searchFinished.emit(generation, kind, [], local_data_unavailable())
         else:
             self._searchFinished.emit(generation, kind, items, "")
 
@@ -374,14 +375,14 @@ class SearchController(QObject):
                 generation,
                 kind,
                 [],
-                NETWORK_UNAVAILABLE,
+                network_unavailable(),
             )
         except TMDbError:
             self._searchFinished.emit(
                 generation, kind, [], "TMDb araması tamamlanamadı. Tekrar deneyin."
             )
         except (OSError, ValueError, SQLAlchemyError):
-            self._searchFinished.emit(generation, kind, [], LOCAL_DATA_UNAVAILABLE)
+            self._searchFinished.emit(generation, kind, [], local_data_unavailable())
         else:
             self._searchFinished.emit(generation, kind, items, "")
 
@@ -460,7 +461,7 @@ class SearchController(QObject):
                 excluded = {kind: self._visibility.excluded_ids(kind)
                             for kind in ("movie", "tv")}
         except (OSError, ValueError, SQLAlchemyError):
-            self._visibilityReady.emit(generation, {}, {}, LOCAL_DATA_UNAVAILABLE)
+            self._visibilityReady.emit(generation, {}, {}, local_data_unavailable())
         else:
             self._visibilityReady.emit(generation, excluded, statuses, "")
 
@@ -577,7 +578,7 @@ class SearchController(QObject):
             }
         except NetworkError:
             self._detailFinished.emit(
-                generation, {}, NETWORK_UNAVAILABLE
+                generation, {}, network_unavailable()
             )
         except TMDbError:
             self._detailFinished.emit(generation, {}, "Medya detayı yüklenemedi.")

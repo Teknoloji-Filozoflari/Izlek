@@ -9,31 +9,59 @@ ColumnLayout {
     property string providerLink: ""
     signal providerLinkRequested()
     Layout.fillWidth: true
-    spacing: Tokens.Theme.spaceSm
+    spacing: Tokens.Theme.spaceMd
 
-    SectionHeader { title: "Nerede İzlenir"; Layout.fillWidth: true }
+    readonly property var groupOrder: [
+        { key: "Abonelik", labelKey: "provider.group_subscription", hintKey: "provider.hint_subscription" },
+        { key: "Ücretsiz", labelKey: "provider.group_free", hintKey: "provider.hint_free" },
+        { key: "Reklamlı", labelKey: "provider.group_ads", hintKey: "provider.hint_ads" },
+        { key: "Kiralama", labelKey: "provider.group_rent", hintKey: "provider.hint_rent" },
+        { key: "Satın Alma", labelKey: "provider.group_buy", hintKey: "provider.hint_buy" }
+    ]
+
+    SectionHeader { title: (i18n.revision, i18n.t("provider.title")); Layout.fillWidth: true }
+    Label {
+        Layout.fillWidth: true
+        text: (i18n.revision, i18n.t("provider.help"))
+        color: Tokens.Theme.textMuted
+        font.pixelSize: Tokens.Theme.textSmall
+        wrapMode: Text.WordWrap
+    }
+
     Repeater {
-        model: [
-            { key: "Abonelik", label: "Abonelik" },
-            { key: "Kiralama", label: "Kiralama" },
-            { key: "Satın Alma", label: "Satın Alma" }
-        ]
-        RowLayout {
+        model: section.groupOrder
+        delegate: ColumnLayout {
+            id: groupBlock
             required property var modelData
-            visible: (section.groups[modelData.key] || []).length > 0
+            readonly property var names: section.groups[modelData.key] || []
+            visible: names.length > 0
             Layout.fillWidth: true
-            spacing: Tokens.Theme.spaceSm
-            Label {
-                text: modelData.label + ":"
-                color: Tokens.Theme.textSecondary
-                Layout.preferredWidth: 92
+            spacing: Tokens.Theme.spaceXs
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.Theme.spaceSm
+                Label {
+                    text: (i18n.revision, i18n.t(modelData.labelKey))
+                    color: Tokens.Theme.textPrimary
+                    font.pixelSize: Tokens.Theme.textBody
+                    font.weight: Tokens.Theme.weightDemiBold
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: (i18n.revision, i18n.t(modelData.hintKey))
+                    color: Tokens.Theme.textMuted
+                    font.pixelSize: Tokens.Theme.textSmall
+                    elide: Text.ElideRight
+                }
             }
             Flow {
                 Layout.fillWidth: true
                 spacing: Tokens.Theme.spaceXs
                 Repeater {
-                    model: section.groups[modelData.key] || []
+                    model: groupBlock.names
                     delegate: Rectangle {
+                        required property var modelData
                         width: providerName.implicitWidth + 2 * Tokens.Theme.spaceSm
                         height: 30
                         radius: Tokens.Theme.radiusSm
@@ -51,16 +79,17 @@ ColumnLayout {
             }
         }
     }
+
     EmptyState {
         visible: !section.hasProviders()
         Layout.fillWidth: true
         implicitHeight: 92
-        title: "Türkiye'de sağlayıcı bulunamadı"
-        description: "Bu içerik için kayıtlı izleme seçeneği yok."
+        title: (i18n.revision, i18n.t("provider.empty"))
+        description: (i18n.revision, i18n.t("provider.empty_help"))
     }
     Label {
         Layout.fillWidth: true
-        text: "İzleme seçenekleri JustWatch tarafından sağlanır · Türkiye"
+        text: (i18n.revision, i18n.t("provider.attribution"))
         color: Tokens.Theme.textMuted
         font.pixelSize: Tokens.Theme.textSmall
         wrapMode: Text.WordWrap
@@ -68,14 +97,14 @@ ColumnLayout {
     IzlekButton {
         objectName: "providerLinkButton"
         visible: section.providerLink.length > 0
-        text: "TMDb'de izleme seçenekleri"
+        text: (i18n.revision, i18n.t("provider.tmdb_link"))
         variant: "secondary"
         onClicked: section.providerLinkRequested()
     }
 
     function hasProviders() {
-        return ["Abonelik", "Kiralama", "Satın Alma"].some(function(key) {
-            return (section.groups[key] || []).length > 0
+        return section.groupOrder.some(function(item) {
+            return (section.groups[item.key] || []).length > 0
         })
     }
 }

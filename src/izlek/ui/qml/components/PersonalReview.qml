@@ -24,10 +24,13 @@ ColumnLayout {
         note.text = backend.current.note || ""
         syncing = false
     }
-    Component.onCompleted: { ready = true; load() }
+    Component.onCompleted: { ready = true; load(); loadTags() }
     onVisibleChanged: if (visible && !matching) load()
-    onMediaIdChanged: { expanded = false; dirty = false; load() }
-    onKindChanged: { expanded = false; dirty = false; load() }
+    onMediaIdChanged: { expanded = false; dirty = false; load(); loadTags() }
+    onKindChanged: { expanded = false; dirty = false; load(); loadTags() }
+    function loadTags() {
+        if (ready && mediaId > 0) tagsController.loadForMedia(kind, mediaId)
+    }
     Connections {
         target: editor.backend
         function onRecordLoaded(kind, itemId) {
@@ -38,6 +41,13 @@ ColumnLayout {
             if (kind !== editor.kind || itemId !== editor.mediaId || !editor.matching) return
             editor.dirty = false
             editor.syncDraft()
+        }
+    }
+    Connections {
+        target: tagsController
+        function onMediaTagsChanged(kind, itemId) {
+            if (kind !== editor.kind || itemId !== editor.mediaId) return
+            tagInput.text = ""
         }
     }
     Rectangle {
@@ -51,10 +61,10 @@ ColumnLayout {
             anchors.fill: parent
             anchors.margins: Tokens.Theme.spaceMd
             spacing: Tokens.Theme.spaceSm
-            Label { text: "Puanım ve notum"; color: Tokens.Theme.textPrimary; font.pixelSize: Tokens.Theme.textEmpty }
+            Label { text: (i18n.revision, i18n.t("review.title")); color: Tokens.Theme.textPrimary; font.pixelSize: Tokens.Theme.textEmpty }
             RowLayout {
                 Layout.fillWidth: true
-                Label { text: "Puanım"; color: Tokens.Theme.textSecondary }
+                Label { text: (i18n.revision, i18n.t("review.rating")); color: Tokens.Theme.textSecondary }
                 FilterComboBox {
                     id: rating
                     objectName: "personalRatingInput"
@@ -64,7 +74,7 @@ ColumnLayout {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "TMDb puanından ayrı, yalnız sana ait."
+                    text: (i18n.revision, i18n.t("review.rating_help"))
                     color: Tokens.Theme.textMuted
                     wrapMode: Text.WordWrap
                 }
@@ -76,7 +86,7 @@ ColumnLayout {
                 TextArea {
                     id: note
                     objectName: "personalNoteInput"
-                    placeholderText: "İçerik hakkında kısa bir not…"
+                    placeholderText: (i18n.revision, i18n.t("review.note_ph"))
                     color: Tokens.Theme.textPrimary
                     placeholderTextColor: Tokens.Theme.textMuted
                     wrapMode: TextEdit.Wrap
@@ -98,7 +108,7 @@ ColumnLayout {
                 Item { Layout.fillWidth: true }
                 IzlekButton {
                     objectName: "savePersonalReviewButton"
-                    text: "Kaydet"
+                    text: (i18n.revision, i18n.t("common.save"))
                     enabled: editor.matching && !editor.backend.busy && editor.mediaTitle.length > 0 && note.text.length <= 2000
                     onClicked: {
                         editor.backend.saveReview(editor.kind, editor.mediaId, rating.currentIndex, note.text)
@@ -119,6 +129,75 @@ ColumnLayout {
                 color: Tokens.Theme.textSecondary
                 wrapMode: Text.WordWrap
             }
+            Label {
+                text: "Etiketler"
+                color: Tokens.Theme.textPrimary
+                font.pixelSize: Tokens.Theme.textEmpty
+            }
+            Label {
+                Layout.fillWidth: true
+                text: "Etiketler akıllı listelerde görünür; JSON yedeğe henüz dahil edilmez."
+                color: Tokens.Theme.textMuted
+                wrapMode: Text.WordWrap
+            }
+            Flow {
+                objectName: "mediaTagsFlow"
+                Layout.fillWidth: true
+                spacing: Tokens.Theme.spaceXs
+                Repeater {
+                    model: tagsController.current
+                    delegate: RowLayout {
+                        required property var modelData
+                        spacing: 2
+                        Badge { text: modelData; tone: "accent" }
+                        IzlekButton {
+                            objectName: "removeMediaTagButton"
+                            text: "×"
+                            variant: "ghost"
+                            Layout.preferredWidth: 28
+                            enabled: !tagsController.busy && editor.mediaId > 0
+                            Accessible.name: modelData + " etiketini kaldır"
+                            onClicked: tagsController.removeTag(editor.kind, editor.mediaId, modelData)
+                        }
+                    }
+                }
+                Label {
+                    visible: tagsController.current.length === 0
+                    text: "Etiket yok"
+                    color: Tokens.Theme.textMuted
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                FilterTextField {
+                    id: tagInput
+                    objectName: "mediaTagInput"
+                    Layout.fillWidth: true
+                    placeholderText: "Yeni etiket"
+                    maximumLength: 80
+                    enabled: editor.mediaId > 0 && !!editor.mediaTitle
+                    onAccepted: editor.commitTag()
+                }
+                IzlekButton {
+                    objectName: "addMediaTagButton"
+                    text: "Ekle"
+                    enabled: tagInput.text.trim().length > 0 && !tagsController.busy && editor.mediaId > 0
+                    onClicked: editor.commitTag()
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: !!tagsController.feedback
+                text: tagsController.feedback
+                color: Tokens.Theme.textSecondary
+                wrapMode: Text.WordWrap
+            }
         }
+    }
+    function commitTag() {
+        var name = tagInput.text.trim()
+        if (!name.length || editor.mediaId <= 0) return
+        tagsController.addTag(editor.kind, editor.mediaId, name)
+        tagInput.text = ""
     }
 }

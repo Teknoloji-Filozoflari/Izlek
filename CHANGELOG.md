@@ -5,6 +5,21 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+- Film detayında TMDb koleksiyon/seri → özel liste: `belongs_to_collection`
+  ve koleksiyon uç noktasıyla filmler oluşturulur/güncellenir (liste-only;
+  kütüphane durumu elle kalır).
+- Keşfet / Filmler / Diziler'deki Rahat–Sıkı kart yoğunluğu seçici kaldırıldı;
+  sunum sabit rahat (`compact: false`) düzene kilitlendi.
+- Film/dizi `watched_at` ve `rewatch_count`; JSON şema v4; istatistiklerde film
+  aktivitesi, son 12 ay grafiği ve son izlemeler günlüğü.
+- Listeler sayfasında akıllı listeler (izlenmemiş favoriler, favoriler, izleniyor,
+  izlenecek, yüksek puanlı) ve kullanıcı etiketleri; etiketler detaydaki puan/not
+  panelinden yönetilir ve sanal liste olarak görünür.
+- Ayarlar'da koyu/açık tema seçimi (`Theme.qml` ışık token'ları, `window.ini`).
+- SECURITY.md, v1.0.x kararlı destek hattı ve yanıt süreciyle hizalandı.
+- Ayarlar cache kartında ölçülen önbellek boyutu etiketi (`cacheSizeLabel`) ve
+  erişilebilir ad doğrulandı.
+
 - Windows 10/11 x64 için EXE kurulum paketi ve GitHub Actions üretim akışı;
   kurulum, açılış, kaldırma ve kişisel veri koruma kontrolleri. İlk gerçek
   Windows build'i henüz doğrulanmadı.

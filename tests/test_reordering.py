@@ -117,7 +117,7 @@ def test_old_backup_migrates_and_keeps_existing_manual_order(ordered_factory, tm
     path = tmp_path / "old.json"
     path.write_text(json.dumps(payload))
     LibraryOrderService(ordered_factory).move(MediaType.MOVIE, 1, 3, [1, 2, 3])
-    assert transfer.read_file(path).schema_version == 3
+    assert transfer.read_file(path).schema_version == 4
     transfer.import_file(path)
     assert [
         row.tmdb_id
@@ -218,6 +218,7 @@ def test_mouse_drags_custom_list_members(ordered_factory):
     try:
         window.resize(1366, 768)
         window.navigate(3)
+        controller.selectList(list_id)
         wait_for(app, lambda: len(controller.items) == 3 and not controller.busy)
         view = window.findChild(QQuickItem, "customListMedia")
         handle = _visual(view, "listMediaReorderHandle")
@@ -315,6 +316,7 @@ def test_picker_selects_both_types_across_queries_and_adds_once(ordered_factory)
     )
     try:
         window.navigate(3)
+        controller.selectList(list_id)
         wait_for(app, lambda: not controller.busy and len(controller.candidates) == 6)
         window.findChild(QQuickItem, "addMediaToListButton").clicked.emit()
         picker = window.findChild(QObject, "mediaPickerDialog")

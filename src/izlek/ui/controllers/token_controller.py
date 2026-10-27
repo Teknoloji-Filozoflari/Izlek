@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Property, QObject, QThreadPool, Signal, Slot
 
+from izlek.i18n import t
 from izlek.security.token_store import TokenStore
 from izlek.tmdb.client import TmdbClient, TokenValidationError
 
@@ -39,7 +40,7 @@ class TokenController(QObject):
         try:
             stored = self._store.load()
         except (OSError, UnicodeError):
-            self._set_feedback("TMDb tokenı güvenli biçimde okunamadı.", "danger")
+            self._set_feedback(t("token.read_failed"), "danger")
         else:
             if stored is not None:
                 self._has_token = True
@@ -84,13 +85,13 @@ class TokenController(QObject):
             return
         candidate = token.strip()
         if not candidate:
-            self._set_feedback("TMDb Read Access Token girin.", "danger")
+            self._set_feedback(t("token.enter"), "danger")
             return
         self._request_id += 1
         request_id = self._request_id
         self._busy = True
         self.busyChanged.emit()
-        self._set_feedback("Token doğrulanıyor…", "neutral")
+        self._set_feedback(t("token.validating_long"), "neutral")
 
         def work() -> None:
             try:
@@ -99,11 +100,9 @@ class TokenController(QObject):
             except TokenValidationError as exc:
                 self._finished.emit(request_id, False, "", str(exc))
             except OSError:
-                self._finished.emit(
-                    request_id, False, "", "Token güvenli biçimde kaydedilemedi."
-                )
+                self._finished.emit(request_id, False, "", t("token.save_failed"))
             except Exception:
-                self._finished.emit(request_id, False, "", "İşlem tamamlanamadı.")
+                self._finished.emit(request_id, False, "", t("token.failed"))
             else:
                 self._finished.emit(request_id, True, location, "")
 
@@ -124,20 +123,15 @@ class TokenController(QObject):
             self._storage = location
             self.storageChanged.emit()
             if location == "file":
-                self._set_feedback(
-                    "Token kaydedildi. Sistem anahtarlığı kullanılamadı; token "
-                    "yalnızca hesabınızın okuyabildiği yerel dosyada düz metin "
-                    "olarak saklanıyor.",
-                    "warning",
-                )
+                self._set_feedback(t("token.saved_file_warning"), "warning")
             else:
-                self._set_feedback("Token kaydedildi.", "success")
+                self._set_feedback(t("token.saved"), "success")
             if not self._has_token:
                 self._has_token = True
                 self.hasTokenChanged.emit()
             self.tokenSaved.emit()
         else:
-            self._set_feedback("Token geçerli.", "success")
+            self._set_feedback(t("token.valid"), "success")
 
     def close(self) -> None:
         """Finish token storage before destroying the controller on shutdown."""

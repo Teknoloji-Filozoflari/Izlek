@@ -1,6 +1,6 @@
 # QML Bileşenleri
 
-QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `import "components"` ile ayrı kullanılabilir. Renkler, boşluklar, yazı boyutları, süreler ve kart ölçüleri `theme/Theme.qml` içinden alınır. Galeriyi yerel örnek veriyle `python -m izlek --gallery` komutuyla açın; bu komut ana pencerenin kayıtlı boyutunu değiştirmez.
+QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `import "components"` ile ayrı kullanılabilir. Renkler, boşluklar, yazı boyutları, süreler ve kart ölçüleri `theme/Theme.qml` içinden alınır; `mode` (`dark` / `light`) Ayarlar'daki görünüm tercihine bağlanır. Galeriyi yerel örnek veriyle `python -m izlek --gallery` komutuyla açın; bu komut ana pencerenin kayıtlı boyutunu değiştirmez.
 
 | Bileşen | Temel özellikler ve olay |
 | --- | --- |
@@ -12,12 +12,12 @@ QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `i
 | `FilterSpinBox` | `value`, `from`, `to`, `stepSize`, `textFromValue`; oklar veya klavyeyle değişen puan, salt okunur etiket. Odak kaybında metin yeniden sayıya dönüştürülmez; `editable: false` |
 | `GlobalSearch` | `controller`: `SearchController`; `open()`/`close()`, `resultActivated(kind, itemId)`; giriş için 300 ms debounce; Film ve Dizi / Film / Dizi seçimi `mediaType` ve `setMediaType(kind)` üzerinden yalnız ilgili endpoint'i sorgular |
 | `SearchResultCard` | `media`: `{id, mediaType, title, year, poster}`; `activated(kind, itemId)` |
-| `LibraryPosterGrid` | `items`: yerel film/dizi nesneleri (`tmdb_id`, `title`, `year`, `poster`, `status`, isteğe bağlı `score`, `progress` ve `progress_text`); `compact` (varsayılan `true`); `mediaActivated(tmdbId)`, `favoriteToggled(tmdbId, favorite)` |
+| `LibraryPosterGrid` | `items`: yerel film/dizi nesneleri (`tmdb_id`, `title`, `year`, `poster`, `status`, isteğe bağlı `score`, `progress` ve `progress_text`); `compact` (varsayılan `false`, sabit rahat sunum); `mediaActivated(tmdbId)`, `favoriteToggled(tmdbId, favorite)` |
 | `ContinueWatchingCard` | `itemData`: dizi ve sıradaki bölüm verisi (`tmdb_id`, `title`, `poster`, `backdrop`, `episodeCode`, `episode_title`, `watched_count`, `aired_count`, `season_number`, `episode_number`); `busy`; `opened(tmdbId)`, `watched(tmdbId, seasonNumber, episodeNumber)` |
 | `PosterCard` | `posterSource`, `posterLoading` (indirme sürerken skeleton), `mediaTitle`, `year`, `score` (negatifse gizli), `status`, isteğe bağlı `progress` (0–1) ve `progressText`; `favorite`, `favoriteEnabled`; `footerHeight` alt eylem alanı; `activated()`, `favoriteToggled(bool)` |
 | `EpisodeCheck` | `episodeName`, standart `checked`/`clicked`; yazısız yuvarlak tik, klavye odağı, erişilebilir ad ve tooltip |
 | `EpisodeProgressBar` | `watched`, `total`, salt okunur `fraction`; bölüm sayacı ve sarı ilerleme çubuğu |
-| `StatisticsPanel` | `stats`: yerel istatistik snapshot'ı; toplam/film/bölüm süre kartları, sayaçlar, adet/yüzde etiketli tür halkası ve bölüm/süre etiketli ilk beş dizi. 900 piksel altında süre kartları ve grafikler tek sütuna geçer. |
+| `StatisticsPanel` | `stats`: yerel istatistik snapshot'ı; toplam/film/bölüm süre kartları, sayaçlar (yeniden izleme dahil), son 12 ay aktivite çubukları, adet/yüzde etiketli tür halkası, bölüm/süre etiketli ilk beş dizi ve son izlemeler günlüğü. 900 piksel altında süre kartları ve grafikler tek sütuna geçer. |
 | `MediaGrid`, `HorizontalMediaStrip` | `items` medya nesneleri dizisi; `mediaActivated(media)`. `MediaGrid.compact` varsayılan `false`; sık görünüm kart genişliğini ve grid satır yüksekliğini birlikte değiştirir. |
 | `SectionHeader` | `title`, `subtitle`, `actionText`; `actionTriggered()` |
 | `CastGrid` | `cast`: `{id, name, character, profilePath, poster}` dizisi; `actorActivated(personId, name)`; `photoObjectName`: görsel test adı. Fotoğraflı ad/rol kartları fare ve klavye ile etkinleştirilir; kimliği olmayan eski kayıtlar tıklanamaz. |
@@ -50,8 +50,8 @@ yıl ve ilerleme metni aynı satıra hizalanır. TMDb puanı afişin sol üstün
 durum sol altında ve favori düğmesi sağ üstünde gösterilir. Uzun başlığın
 tamamı tooltip ve erişilebilir adda bulunur. `Theme.cardWidth` (164),
 `cardCompactWidth` (142), `cardTitleHeight` (40) ve `cardInfoHeight` (90)
-ölçüleri Keşfet ve kütüphane tarafından paylaşılır. Sayfalardaki Rahat/Sıkı
-seçimi yalnız kart sunumunu değiştirir; filtre, sıralama ve kişisel veri yazmaz.
+ölçüleri Keşfet ve kütüphane tarafından paylaşılır. Kart sunumu sabit rahat
+(`compact: false`) düzendir; filtre, sıralama ve kişisel veri yazmaz.
 
 ```qml
 MediaGrid {

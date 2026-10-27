@@ -8,10 +8,12 @@ from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
 from izlek.app import create_application
+from izlek.i18n import AVAILABLE_LOCALES, set_locale, t
 from izlek.security.token_store import StoredToken
 from izlek.ui.controllers.token_controller import TokenController
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+NOTICE = "This product uses the TMDB API but is not endorsed or certified by TMDB."
 
 
 def test_about_screen_separates_tmdb_content_from_local_tracking_data():
@@ -20,10 +22,19 @@ def test_about_screen_separates_tmdb_content_from_local_tracking_data():
     ).read_text(encoding="utf-8")
 
     assert "tmdbAttributionNotice" in settings
-    notice = "This product uses the TMDB API but is not endorsed or certified by TMDB."
-    assert notice in settings
-    assert "yalnızca İzlek'in yerel verisidir" in settings
+    assert "settings.tmdb_notice" in settings
+    assert "settings.tmdb_data" in settings
     assert "justWatchAttributionLabel" in settings
+    assert "watchRegionSettingsCard" in settings
+    assert "metadataSourcesSettingsCard" in settings
+    assert "omdbNonCommercialCheck" in settings
+    set_locale("tr")
+    assert t("settings.tmdb_notice") == NOTICE
+    assert "yalnızca İzlek'in yerel verisidir" in t("settings.tmdb_data")
+    for code in AVAILABLE_LOCALES:
+        set_locale(code)
+        assert t("settings.tmdb_notice") == NOTICE
+    set_locale("tr")
 
 
 def test_detail_and_provider_views_keep_their_remote_sources_visible():
@@ -39,7 +50,10 @@ def test_detail_and_provider_views_keep_their_remote_sources_visible():
 
     assert "movieTmdbSourceLabel" in movie
     assert "tvTmdbSourceLabel" in television
-    assert "İzleme seçenekleri JustWatch tarafından sağlanır" in providers
+    assert "provider.attribution" in providers
+    set_locale("tr")
+    assert "JustWatch" in t("provider.attribution")
+    set_locale("tr")
 
 
 def test_official_logo_loads_in_about_screen():

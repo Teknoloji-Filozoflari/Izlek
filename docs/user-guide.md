@@ -8,7 +8,7 @@ Ana penceredeki her sayfadan **Ctrl+K** ile arama açılır, **Esc** ile kapanı
 
 ## Keşfet
 
-**Keşfet**, TMDb'nin yalnızca Discover Movie ve Discover TV uçlarını kullanır. Film veya dizi, yıl, tür, ülke ve puan aralığı seçilebilir. Sonuçlar popülerliğe (`popularity.desc`) göre sıralanır; en az oy eşiği 100'dür. Puan aralığı ve ülke filtreleri korunur. Kartlar Rahat/Sıkı görünümle gösterilir ve önceki/sonraki düğmeleriyle sayfalanır.
+**Keşfet**, TMDb'nin yalnızca Discover Movie ve Discover TV uçlarını kullanır. Film veya dizi, yıl, tür, ülke ve puan aralığı seçilebilir. Sonuçlar popülerliğe (`popularity.desc`) göre sıralanır; en az oy eşiği 100'dür. Puan aralığı ve ülke filtreleri korunur. Kartlar rahat görünümle gösterilir ve önceki/sonraki düğmeleriyle sayfalanır.
 
 Ana sayfadaki aramada ve global aramada kütüphanene kaydettiğin, favoriye
 aldığın, özel listene eklediğin veya izlediğin içerikler gizlenir. Yalnızca
@@ -51,11 +51,11 @@ film/dizi **cast** kayıtları kullanılır; ekip görevleri dahil edilmez.
 
 ## Film detayı ve yerel takip
 
-Film arama sonucundan açılan ekran; TMDb detay, oyuncu/yönetmen, video, öneri ve Türkiye izleme sağlayıcısı verilerini arka planda yükler. Poster ve backdrop görsel servisini kullanır. **Kütüphaneye Ekle** filmi `PLANNED` durumuyla yerel kütüphaneye ekler; takip durumu, favori ve özel liste üyeliği SQLite'ta kalıcıdır. Film metadata'sı aynı veritabanında kişisel durumdan ayrı saklanır. Detay açıldığında kayıtlı metadata hemen gösterilir; son başarılı sync 24 saatten eskiyse arka planda yenilenir. Offline, timeout veya TMDb'de silinmiş kayıt durumunda yerel kopya korunur. **Fragmanı İzle**, uygun YouTube fragmanını sistem tarayıcısında açar. İzleme sağlayıcısı verisi [TMDb'nin JustWatch ortaklığı](https://developer.themoviedb.org/reference/movie-watch-providers) kaynaklıdır.
+Film arama sonucundan açılan ekran; TMDb detay, oyuncu/yönetmen, video, öneri ve seçilen bölgenin izleme sağlayıcısı verilerini arka planda yükler. Poster ve backdrop görsel servisini kullanır. **Kütüphaneye Ekle** filmi `PLANNED` durumuyla yerel kütüphaneye ekler; takip durumu, favori ve özel liste üyeliği SQLite'ta kalıcıdır. Film metadata'sı aynı veritabanında kişisel durumdan ayrı saklanır. Detay açıldığında kayıtlı metadata hemen gösterilir; son başarılı sync 24 saatten eskiyse arka planda yenilenir. Offline, timeout veya TMDb'de silinmiş kayıt durumunda yerel kopya korunur. **Fragmanı İzle**, uygun YouTube fragmanını sistem tarayıcısında açar. İzleme sağlayıcısı verisi [TMDb'nin JustWatch ortaklığı](https://developer.themoviedb.org/reference/movie-watch-providers) kaynaklıdır.
 
 Dizi detayında orijinal ad, yayın tarihleri, yaratıcılar, oyuncular, yapım bilgileri, Türkiye izleme sağlayıcıları, fragman ve öneriler gösterilir. Sezon seçimi bölüm listesini açar; her bölüm ayrı işaretlenebilir. Sezonun veya dizinin tüm bölümlerini izlendi/izlenmedi yapmak için onay gerekir. Dizi detayı ve her sezonun bölüm metadata'sı kendi son başarılı sync zamanına göre 24 saatlik freshness uygular. Bölüm ilerlemesi yalnızca yerel veritabanındadır ve metadata yenilemesiyle silinmez. Daha önce indirilen metadata çevrimdışı kullanılabilir. Diziler için durum ve favori de kalıcıdır.
 
-Film ve dizi detaylarındaki **Nerede İzlenir** bölümü varsayılan olarak TR bölgesinin TMDb watch-provider yanıtını gösterir. Abonelik, kiralama ve satın alma grupları boşsa Türkiye için açıklayıcı bir empty state görünür; geçerli TMDb bağlantısı varsa sağlayıcı seçenekleri sistem tarayıcısında açılır. Provider metadata'sı cache'lenir ve takip durumunun parçası değildir. Bölümde JustWatch attribution'ı görünür.
+Film ve dizi detaylarındaki **Nerede İzlenir** bölümü Ayarlar'daki izleme bölgesinin (varsayılan TR) TMDb watch-provider yanıtını gösterir. Abonelik, kiralama ve satın alma grupları boşsa seçilen bölge için açıklayıcı bir empty state görünür; geçerli TMDb bağlantısı varsa sağlayıcı seçenekleri sistem tarayıcısında açılır. Provider metadata'sı cache'lenir ve takip durumunun parçası değildir. Bölümde JustWatch attribution'ı görünür.
 
 İlk izlenen bölüm otomatik olarak `WATCHING`, bütün bilinen yayınlanmış bölümler izlendiğinde durum `WATCHED` olur. Manuel status seçimi korunur; sonradan gelen yeni bölüm `WATCHED` durumunu sessizce değiştirmez. Ayrıntılar [durum otomasyonu kurallarında](status-automation.md).
 
@@ -123,7 +123,7 @@ açıkken sıralama kapalıdır. Alanın dışına bırakmak sırayı değiştir
 
 ## Özel listeler
 
-**Listeler** sayfasında liste oluşturabilir, yeniden adlandırabilir ve silebilirsin. Sol panelde listeleri, sağ panelde seçilen listenin film ve dizilerini görürsün. Yerel veritabanında bilinen medyayı ekleyebilir, çıkarabilir; ok düğmeleriyle liste ve medya sırasını değiştirebilirsin. Aynı medya birden fazla listede bulunabilir. Film ve dizi detayındaki **Listeye Ekle**, mevcut liste adıyla eşleşir veya yeni liste oluşturur. Bütün liste verileri SQLite'ta kalır; TMDb liste API'si kullanılmaz.
+**Listeler** sayfasında akıllı listeler ve özel listeler bir arada görünür. Akıllı listeler (ör. **İzlenmemiş favoriler**, **İzleniyor**, **Yüksek puanlı** ve etiket listeleri) yerel duruma göre otomatik dolar; üyelikleri elle düzenlenmez. Özel listeleri oluşturabilir, yeniden adlandırabilir ve silebilirsin. Sol panelde listeleri, sağ panelde seçilen listenin film ve dizilerini görürsün. Yerel veritabanında bilinen medyayı özel listelere ekleyebilir, çıkarabilir; ok düğmeleriyle liste ve medya sırasını değiştirebilirsin. Aynı medya birden fazla özel listede bulunabilir. Film ve dizi detayındaki **Listeye Ekle**, mevcut liste adıyla eşleşir veya yeni liste oluşturur. Film bir TMDb koleksiyonuna/seriye bağlıysa **Seriyi / koleksiyonu listeye ekle**, koleksiyon adıyla özel liste oluşturur veya günceller ve parçaları (liste-only; otomatik izleme durumu yazmaz) ekler; sonradan elle çıkarabilir veya ekleyebilirsin. **Puan ve not** panelinden etiket ekleyip kaldırabilirsin; etiketler akıllı liste olarak Listeler'de görünür. Bütün liste ve etiket verileri SQLite'ta kalır; TMDb liste API'si kullanılmaz. Etiketler henüz JSON yedeğe dahil edilmez.
 
 **+ İçerik Ekle** afişli bir seçim penceresi açar. Yerelde bilinen film ve
 diziler arasında ara, birden çok içeriği işaretle ve **Seçilenleri Ekle**
@@ -140,4 +140,15 @@ sonra listene döndüğünde etiket güncellenir.
 
 ## İçe ve dışa aktarma
 
-**Ayarlar → İçe / Dışa Aktarma** bölümünden tüm taşınabilir İzlek durumunu tek bir JSON dosyasına aktarabilirsin. Dosya film/dizi metadata'sını, takip durumlarını, bölüm ilerlemesini, favorileri ve özel listeleri içerir; TMDb tokenı ile indirilen görsel cache yollarını içermez. Import öncesinde şema doğrulanır ve medya/liste özeti gösterilir. Aynı TMDb kimliği ve medya türü birleştirilir; izlenmiş bölüm ilerlemesi ile mevcut liste üyelikleri kaybolmaz. Biçim ve sürüm stratejisi [İzlek JSON belgesinde](izlek-json.md) açıklanır.
+**Ayarlar → Görünüm** bölümünden koyu veya açık temayı seçebilirsin; tercih
+`window.ini` içinde saklanır.
+
+**Ayarlar → Cache** kartı mevcut görsel önbellek boyutunu gösterir; **Yenile**
+ölçümü günceller, **Cache Temizle** yeniden indirilebilir görselleri siler.
+Kütüphane görselleri ve kişisel takip verisi korunur.
+
+**Ayarlar → İçe / Dışa Aktarma** bölümünden tüm taşınabilir İzlek durumunu tek bir JSON dosyasına aktarabilirsin. Dosya film/dizi metadata'sını, takip durumlarını, bölüm ilerlemesini, favorileri ve özel listeleri içerir; TMDb tokenı ile indirilen görsel cache yollarını içermez. Aynı ekrandan **Trakt** dışa aktarma JSON dizileri (izlenen film/dizi, geçmiş, puan, izleme listesi) ve **Letterboxd** CSV dosyaları da içe aktarılabilir; Letterboxd satırlarında çevrimdışı eşleşme için `tmdbID` / `tmdb_id` sütunu gerekir. Import öncesinde dosya doğrulanır ve medya/liste özeti gösterilir. Aynı TMDb kimliği ve medya türü birleştirilir; izlenmiş bölüm ilerlemesi ile mevcut liste üyelikleri kaybolmaz. İzlek biçimi ve sürüm stratejisi [İzlek JSON belgesinde](izlek-json.md) açıklanır.
+
+## Meta veri kaynakları ve izleme bölgesi
+
+**Ayarlar → İzleme bölgesi** Nerede İzlenir verisinin ülke kodunu seçer (varsayılan Türkiye). **Ayarlar → Meta veri kaynakları** TMDb'yi varsayılan katalog olarak tutar; Trakt, TVmaze ve OMDb isteğe bağlıdır. Her kaynakta yalnız uygulamanın ihtiyaç duyduğu yetenekler (arama, keşfet, detay, sezon, kişi, görsel, fragman, sağlayıcı, başlık zenginleştirme) açılıp kapatılabilir. OMDb yalnızca kişisel / ticari olmayan kullanım onayıyla etkinleştirilir. Ayrıntılar [METADATA_SOURCES.md](METADATA_SOURCES.md) belgesindedir.

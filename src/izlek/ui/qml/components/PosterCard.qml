@@ -22,10 +22,10 @@ Button {
     property var reorderView: null
     readonly property bool reorderDragging: directDrag.dragging
     readonly property bool posterReady: poster.status === Image.Ready
-    readonly property string statusLabel: status === "PLANNED" ? "İzlenecek"
-                                          : status === "WATCHING" ? "İzleniyor"
-                                          : status === "WATCHED" ? "İzlendi"
-                                          : status === "SAVED" ? "Kayıtlı" : ""
+    readonly property string statusLabel: status === "PLANNED" ? (i18n.revision, i18n.t("status.planned"))
+                                          : status === "WATCHING" ? (i18n.revision, i18n.t("status.watching"))
+                                          : status === "WATCHED" ? (i18n.revision, i18n.t("status.watched"))
+                                          : status === "SAVED" ? (i18n.revision, i18n.t("status.saved")) : ""
     signal activated()
     signal favoriteToggled(bool favorite)
     signal reorderDropped(point scenePosition)

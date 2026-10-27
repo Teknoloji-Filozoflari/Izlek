@@ -6,8 +6,8 @@ import "../theme" as Tokens
 ColumnLayout {
     id: form
     property var controller
-    property string heading: "TMDb bağlantısı"
-    property string description: "TMDb API ayarlarındaki Read Access Token değerini girin."
+    property string heading: (i18n.revision, i18n.t("token.heading"))
+    property string description: (i18n.revision, i18n.t("token.description"))
     function clearInput() { tokenField.clear() }
     spacing: Tokens.Theme.spaceMd
 
@@ -27,7 +27,7 @@ ColumnLayout {
     }
 
     Label {
-        text: "TMDb Read Access Token"
+        text: (i18n.revision, i18n.t("token.label"))
         color: Tokens.Theme.textPrimary
         font.pixelSize: Tokens.Theme.textBody
         Layout.topMargin: Tokens.Theme.spaceSm
@@ -38,7 +38,7 @@ ColumnLayout {
         readonly property bool passwordMasked: echoMode === TextInput.Password
         Layout.fillWidth: true
         implicitHeight: Tokens.Theme.controlHeight + 6
-        placeholderText: "Tokenı buraya yapıştırın"
+        placeholderText: (i18n.revision, i18n.t("token.placeholder"))
         echoMode: TextInput.Password
         inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
         color: Tokens.Theme.textPrimary
@@ -47,7 +47,7 @@ ColumnLayout {
         selectedTextColor: Tokens.Theme.textPrimary
         font.pixelSize: Tokens.Theme.textBody
         enabled: !form.controller.busy
-        Accessible.name: "TMDb Read Access Token"
+        Accessible.name: (i18n.revision, i18n.t("token.label"))
         onAccepted: if (text.trim().length > 0) form.controller.testToken(text)
         background: Rectangle {
             color: Tokens.Theme.surfaceElevated
@@ -62,14 +62,16 @@ ColumnLayout {
         spacing: Tokens.Theme.spaceSm
         IzlekButton {
             objectName: "testTokenButton"
-            text: "Tokenı Test Et"
+            text: (i18n.revision, i18n.t("token.test"))
             variant: "secondary"
             enabled: !form.controller.busy && tokenField.text.trim().length > 0
             onClicked: form.controller.testToken(tokenField.text)
         }
         IzlekButton {
             objectName: "saveTokenButton"
-            text: form.controller.busy ? "Doğrulanıyor…" : "Kaydet"
+            text: form.controller.busy
+                  ? (i18n.revision, i18n.t("token.validating"))
+                  : (i18n.revision, i18n.t("token.save"))
             enabled: !form.controller.busy && tokenField.text.trim().length > 0
             onClicked: form.controller.saveToken(tokenField.text)
         }
@@ -89,8 +91,7 @@ ColumnLayout {
         Accessible.name: text
     }
     Label {
-        text: "Sistem anahtarlığı kullanılamazsa token, yalnızca hesabınızın "
-              + "okuyabildiği yerel bir dosyada düz metin olarak saklanır."
+        text: (i18n.revision, i18n.t("token.fallback_note"))
         color: Tokens.Theme.textMuted
         font.pixelSize: Tokens.Theme.textSmall
         wrapMode: Text.WordWrap

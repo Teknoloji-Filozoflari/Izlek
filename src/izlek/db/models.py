@@ -107,6 +107,10 @@ class UserMedia(Base):
     dismissed: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("0"), nullable=False
     )
+    watched_at: Mapped[datetime | None] = mapped_column(DateTime)
+    rewatch_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
     added_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=utc_now,
@@ -208,6 +212,40 @@ class CustomListItem(Base):
         ForeignKey("media_item.id", ondelete="CASCADE"), primary_key=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+        server_default=text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )
+
+
+class Tag(Base):
+    """A user-defined label that can be attached to local media."""
+
+    __tablename__ = "tag"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+        server_default=text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )
+
+
+class MediaTag(Base):
+    """Many-to-many link between a tag and a media item."""
+
+    __tablename__ = "media_tag"
+
+    tag_id: Mapped[int] = mapped_column(
+        ForeignKey("tag.id", ondelete="CASCADE"), primary_key=True
+    )
+    media_id: Mapped[int] = mapped_column(
+        ForeignKey("media_item.id", ondelete="CASCADE"), primary_key=True
+    )
     added_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=utc_now,

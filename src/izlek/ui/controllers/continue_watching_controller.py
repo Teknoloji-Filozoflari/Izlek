@@ -11,7 +11,7 @@ from izlek.services.continue_watching import ContinueWatchingService
 from izlek.services.image_service import ImageService
 from izlek.services.tv_detail import TvDetailService
 from izlek.tmdb.client import TmdbClient
-from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE
+from izlek.ui.controllers.messages import local_data_unavailable
 
 
 class ContinueWatchingController(QObject):
@@ -118,7 +118,7 @@ class ContinueWatchingController(QObject):
             if items and self._images is None:
                 self._reset_images()
         except (OSError, ValueError, SQLAlchemyError):
-            self._loaded.emit(generation, [], LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, [], local_data_unavailable())
         else:
             self._loaded.emit(generation, items, "")
 
@@ -235,7 +235,7 @@ class ContinueWatchingController(QObject):
         except LookupError:
             self._load(generation)
         except (OSError, ValueError, SQLAlchemyError):
-            self._loaded.emit(generation, [], LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, [], local_data_unavailable())
         else:
             self._loaded.emit(generation, items, "")
             self._progress_saved.emit(generation)

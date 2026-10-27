@@ -10,17 +10,23 @@ from PySide6.QtQml import QQmlApplicationEngine
 from izlek import __version__
 from izlek.core.paths import app_paths
 from izlek.db.engine import initialize_database
+from izlek.metadata.registry import MetadataClientRegistry
+from izlek.metadata.settings import MetadataSettings
 from izlek.ui.controllers.cache_controller import CacheController
 from izlek.ui.controllers.continue_watching_controller import ContinueWatchingController
 from izlek.ui.controllers.custom_lists_controller import CustomListsController
 from izlek.ui.controllers.discover_controller import DiscoverController
 from izlek.ui.controllers.favorites_controller import FavoritesController
+from izlek.ui.controllers.locale_controller import LocaleController
+from izlek.ui.controllers.metadata_settings_controller import MetadataSettingsController
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
 from izlek.ui.controllers.personal_media_controller import PersonalMediaController
 from izlek.ui.controllers.quick_library_controller import QuickLibraryController
 from izlek.ui.controllers.search_controller import SearchController
 from izlek.ui.controllers.statistics_controller import StatisticsController
+from izlek.ui.controllers.tags_controller import TagsController
+from izlek.ui.controllers.theme_controller import ThemeController
 from izlek.ui.controllers.token_controller import TokenController
 from izlek.ui.controllers.transfer_controller import TransferController
 from izlek.ui.controllers.tv_detail_controller import TvDetailController
@@ -49,6 +55,11 @@ def create_application(
     cache_controller: CacheController | None = None,
     quick_library_controller: QuickLibraryController | None = None,
     personal_media_controller: PersonalMediaController | None = None,
+    metadata_settings_controller: MetadataSettingsController | None = None,
+    metadata_settings: MetadataSettings | None = None,
+    theme_controller: ThemeController | None = None,
+    tags_controller: TagsController | None = None,
+    locale_controller: LocaleController | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
@@ -56,6 +67,7 @@ def create_application(
     application.setDesktopFileName("izlek")
     application.setWindowIcon(QIcon(str(_APP_ICON)))
 
+    shared_metadata = metadata_settings or MetadataSettings()
     settings_path = app_paths().config / "window.ini"
     if gallery:
         settings = None
@@ -73,6 +85,14 @@ def create_application(
         return settings.value(key, default, type=value_type)
 
     engine = QQmlApplicationEngine()
+    theme = theme_controller or ThemeController(settings=settings, parent=engine)
+    if theme.parent() is None:
+        theme.setParent(engine)
+    engine.rootContext().setContextProperty("themeController", theme)
+    locale = locale_controller or LocaleController(parent=engine)
+    if locale.parent() is None:
+        locale.setParent(engine)
+    engine.rootContext().setContextProperty("i18n", locale)
     if not gallery:
         controller = token_controller or TokenController(parent=engine)
         if controller.parent() is None:
@@ -85,18 +105,35 @@ def create_application(
         engine.rootContext().setContextProperty("searchController", search)
         controller.tokenSaved.connect(search.refresh_token)
         application.aboutToQuit.connect(search.close)
-        movie = movie_controller or MovieDetailController(parent=engine)
+        metadata_registry = MetadataClientRegistry(shared_metadata)
+        movie = movie_controller or MovieDetailController(
+            metadata_settings=shared_metadata,
+            metadata_registry=metadata_registry,
+            parent=engine,
+        )
         if movie.parent() is None:
             movie.setParent(engine)
         engine.rootContext().setContextProperty("movieController", movie)
         controller.tokenSaved.connect(movie.refresh_token)
         application.aboutToQuit.connect(movie.close)
-        tv = tv_controller or TvDetailController(parent=engine)
+        tv = tv_controller or TvDetailController(
+            metadata_settings=shared_metadata,
+            metadata_registry=metadata_registry,
+            parent=engine,
+        )
         if tv.parent() is None:
             tv.setParent(engine)
         engine.rootContext().setContextProperty("tvController", tv)
         controller.tokenSaved.connect(tv.refresh_token)
         application.aboutToQuit.connect(tv.close)
+        metadata = metadata_settings_controller or MetadataSettingsController(
+            settings=shared_metadata,
+            registry=metadata_registry,
+            parent=engine,
+        )
+        if metadata.parent() is None:
+            metadata.setParent(engine)
+        engine.rootContext().setContextProperty("metadataSettingsController", metadata)
         continuing = continue_controller or ContinueWatchingController(parent=engine)
         if continuing.parent() is None:
             continuing.setParent(engine)
@@ -180,8 +217,16 @@ def create_application(
             personal.setParent(engine)
         engine.rootContext().setContextProperty("personalController", personal)
         application.aboutToQuit.connect(personal.close)
+        tags = tags_controller or TagsController(parent=engine)
+        if tags.parent() is None:
+            tags.setParent(engine)
+        engine.rootContext().setContextProperty("tagsController", tags)
+        application.aboutToQuit.connect(tags.close)
+        tags.refresh()
+        tags.dataChanged.connect(custom_lists.refresh)
         transfer.dataImported.connect(personal.refreshHidden)
         transfer.dataImported.connect(discover.refresh_preferences)
+        transfer.dataImported.connect(tags.refresh)
         personal.dataChanged.connect(search.refresh_visibility)
         personal.dataChanged.connect(discover.refresh_preferences)
         for target in (library, shows):

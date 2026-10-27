@@ -152,9 +152,10 @@ def test_movies_page_status_grid_and_compact_sections(tmp_path, monkeypatch):
             window.resize(width, height)
             application.processEvents()
             assert grid.width() > 0 and grid.height() > 150
-            assert grid.height() < 330
+            # Comfortable (non-compact) cards are taller; allow one poster row + chrome.
+            assert grid.height() < 420
             assert favorite_strip.height() < 120
-            assert grid.property("columns") >= (4 if width == 800 else 6)
+            assert grid.property("columns") >= (3 if width == 800 else 5)
         QTest.qWait(300)
         application.processEvents()
         sort_box.forceActiveFocus()

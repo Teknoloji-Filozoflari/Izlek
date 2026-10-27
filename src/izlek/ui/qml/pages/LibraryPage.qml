@@ -7,7 +7,7 @@ import "../theme" as Tokens
 Rectangle {
     id: page
     property string kind: "movie"
-    property string pageTitle: kind === "movie" ? "Filmler" : "Diziler"
+    property string pageTitle: kind === "movie" ? (i18n.revision, i18n.t("page.movies")) : (i18n.revision, i18n.t("page.shows"))
     property var controller
     property var continueModelController: null
     property bool pageReady: false
@@ -17,7 +17,7 @@ Rectangle {
     property string feedback: ""
     readonly property bool filterPopupOpen: bulkDialog.visible || filterPanel.filterPopupOpen || sortBox.popup.visible
     readonly property string emptyTitle:
-        kind === "tv" ? "Henüz dizi eklemedin" : "Henüz film eklemedin"
+        kind === "tv" ? (i18n.revision, i18n.t("library.empty_shows")) : (i18n.revision, i18n.t("library.empty_movies"))
     readonly property string mediaNoun: kind === "movie" ? "film" : "dizi"
     signal mediaSelected(int tmdbId)
     color: Tokens.Theme.background
@@ -121,16 +121,16 @@ Rectangle {
             Label { text: page.selectedIds.length + " seçili"; color: Tokens.Theme.textPrimary }
             IzlekButton {
                 objectName: "selectVisibleLibraryButton"
-                text: "Görünenlerin tümü"
+                text: (i18n.revision, i18n.t("library.select_visible"))
                 variant: "secondary"
                 enabled: !page.controller.batchBusy
                 onClicked: page.selectedIds = page.controller.items.map(function(item) { return item.tmdb_id })
             }
-            IzlekButton { text: "Temizle"; variant: "ghost"; enabled: !page.controller.batchBusy; onClicked: page.selectedIds = [] }
+            IzlekButton { text: (i18n.revision, i18n.t("common.clear")); variant: "ghost"; enabled: !page.controller.batchBusy; onClicked: page.selectedIds = [] }
             Item { Layout.fillWidth: true }
             IzlekButton {
                 objectName: "openLibraryBatchButton"
-                text: "Toplu işlem"
+                text: (i18n.revision, i18n.t("library.bulk"))
                 enabled: page.selectedIds.length > 0 && !page.controller.busy && !page.controller.batchBusy
                 onClicked: { bulkDialog.selectedIds = page.selectedIds.slice(); bulkDialog.open() }
             }
@@ -157,15 +157,9 @@ Rectangle {
                     controller.setStatus(["PLANNED", "WATCHING", "WATCHED"][index])
                 }
             }
-            SegmentedControl {
-                objectName: page.kind === "movie" ? "movieCardDensity" : "tvCardDensity"
-                options: ["Rahat", "Sıkı"]
-                currentIndex: movieGrid.compact ? 1 : 0
-                onSelected: function(index) { movieGrid.compact = index === 1 }
-            }
             Item { Layout.fillWidth: true }
             Label {
-                text: "Sırala"
+                text: (i18n.revision, i18n.t("library.sort"))
                 color: Tokens.Theme.textSecondary
             }
             ComboBox {
@@ -174,11 +168,11 @@ Rectangle {
                 Layout.preferredWidth: 168
                 Layout.preferredHeight: Tokens.Theme.controlHeight
                 model: [
-                    { text: "Özel Sıram", value: "custom" },
-                    { text: "Son Eklenen", value: "recent" },
-                    { text: "Başlık", value: "title" },
-                    { text: "Yıl", value: "year" },
-                    { text: "TMDb Puanı", value: "score" }
+                    { text: (i18n.revision, i18n.t("library.sort_custom")), value: "custom" },
+                    { text: (i18n.revision, i18n.t("library.sort_recent")), value: "recent" },
+                    { text: (i18n.revision, i18n.t("library.sort_title")), value: "title" },
+                    { text: (i18n.revision, i18n.t("library.sort_year")), value: "year" },
+                    { text: (i18n.revision, i18n.t("library.sort_score")), value: "score" }
                 ]
                 textRole: "text"
                 valueRole: "value"
@@ -247,6 +241,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: Tokens.Theme.spaceSm
                 visible: controller.items.length > 0
+                compact: false
                 items: controller.items
                 controller: page.controller
                 selectionMode: page.selecting
@@ -391,7 +386,7 @@ Rectangle {
             visible: page.kind === "tv" && !!page.continueModelController
             width: parent.width
             spacing: Tokens.Theme.spaceMd
-            SectionHeader { title: "Devam Et"; Layout.fillWidth: true }
+            SectionHeader { title: (i18n.revision, i18n.t("library.continue")); Layout.fillWidth: true }
             BusyIndicator {
                 visible: !!page.continueModelController && page.continueModelController.busy
                 running: visible
@@ -427,7 +422,7 @@ Rectangle {
                          && !!page.continueModelController.error
                 enabled: !!page.continueModelController
                          && !page.continueModelController.busy
-                text: "Devam Et'i Yenile"
+                text: (i18n.revision, i18n.t("library.continue_refresh"))
                 variant: "secondary"
                 onClicked: page.continueModelController.refresh()
             }

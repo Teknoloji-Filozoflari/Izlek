@@ -1,7 +1,7 @@
 import QtQuick
 
 EmptyState {
-    title: "Bir sorun oluştu"
-    description: "İşlem tamamlanamadı. Lütfen tekrar deneyin."
-    actionText: "Tekrar Dene"
+    title: (i18n.revision, i18n.t("errors.generic"))
+    description: (i18n.revision, i18n.t("errors.generic_detail"))
+    actionText: (i18n.revision, i18n.t("common.retry"))
 }

@@ -24,12 +24,22 @@ from izlek.repositories.local import (
     TransferRepository,
     UserMediaRepository,
 )
+from izlek.services.import_adapters import (
+    ExternalImport,
+    ExternalImportError,
+    detect_trakt_payload,
+    letterboxd_to_export,
+    load_json_payload,
+    trakt_to_export,
+)
 from izlek.services.transfer_schema import SCHEMA_VERSION, IzlekExport
 
 _MAX_IMPORT_BYTES = 64 * 1024 * 1024
+_CSV_SUFFIXES = {".csv"}
 _SCHEMA_MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: lambda payload: dict(payload),  # v1 has no personal card order.
     2: lambda payload: dict(payload),  # v2 has no personal reviews/dismissals.
+    3: lambda payload: dict(payload),  # v3 has no watched_at / rewatch_count.
 }
 _BLOCKED_METADATA_KEYS = {
     "access_token",
@@ -113,6 +123,12 @@ def _prefer_imported(imported_at: datetime | None, local_at: datetime | None) ->
     if local is None:
         return True
     return imported is not None and imported >= local
+
+
+def _validation_message(exc: ValidationError) -> str:
+    first = exc.errors(include_url=False)[0]
+    location = ".".join(str(part) for part in first["loc"])
+    return f"Şema doğrulanamadı: {location or 'root'} — {first['msg']}"
 
 
 class TransferService:
@@ -217,6 +233,8 @@ class TransferService:
                         "personal_rating": state.personal_rating,
                         "personal_note": state.personal_note,
                         "dismissed": state.dismissed,
+                        "watched_at": _aware(state.watched_at),
+                        "rewatch_count": state.rewatch_count or 0,
                         "added_at": _aware(state.added_at),
                         "updated_at": _aware(state.updated_at),
                     }
@@ -299,7 +317,7 @@ class TransferService:
                 temporary.unlink(missing_ok=True)
         return {**self.summary(document), "bytes": len(content.encode("utf-8"))}
 
-    def read_file(self, path: Path) -> IzlekExport:
+    def _read_bytes(self, path: Path) -> bytes:
         try:
             if path.stat().st_size > _MAX_IMPORT_BYTES:
                 raise TransferError("Import dosyası 64 MiB sınırını aşıyor")
@@ -307,31 +325,65 @@ class TransferService:
                 content = stream.read(_MAX_IMPORT_BYTES + 1)
             if len(content) > _MAX_IMPORT_BYTES:
                 raise TransferError("Import dosyası 64 MiB sınırını aşıyor")
-            raw = json.loads(content)
+            return content
         except FileNotFoundError:
             raise TransferError("Import dosyası bulunamadı") from None
-        except (OSError, UnicodeError):
+        except OSError:
             raise TransferError("Import dosyası okunamadı") from None
-        except (json.JSONDecodeError, RecursionError):
-            raise TransferError("Dosya geçerli JSON değil") from None
-        if not isinstance(raw, dict):
-            raise TransferError("İzlek export kökü JSON object olmalı")
+
+    def parse_import(self, path: Path) -> ExternalImport:
+        """Detect İzlek JSON, Trakt JSON, or Letterboxd CSV and normalize."""
+        content = self._read_bytes(path)
+        suffix = path.suffix.casefold()
+        if suffix in _CSV_SUFFIXES:
+            try:
+                return letterboxd_to_export(path, content)
+            except ExternalImportError as exc:
+                raise TransferError(str(exc)) from None
+            except ValidationError as exc:
+                raise TransferError(_validation_message(exc)) from None
         try:
-            return IzlekExport.model_validate(_migrate_schema(raw))
-        except ValidationError as exc:
-            first = exc.errors(include_url=False)[0]
-            location = ".".join(str(part) for part in first["loc"])
+            raw = load_json_payload(content)
+        except ExternalImportError as exc:
+            raise TransferError(str(exc)) from None
+        except UnicodeError:
+            raise TransferError("Import dosyası okunamadı") from None
+        if detect_trakt_payload(raw):
+            try:
+                return trakt_to_export(raw)
+            except ExternalImportError as exc:
+                raise TransferError(str(exc)) from None
+            except ValidationError as exc:
+                raise TransferError(_validation_message(exc)) from None
+        if not isinstance(raw, dict):
             raise TransferError(
-                f"Şema doğrulanamadı: {location or 'root'} — {first['msg']}"
-            ) from None
+                "İzlek export JSON object veya Trakt export dizisi olmalı"
+            )
+        try:
+            document = IzlekExport.model_validate(_migrate_schema(raw))
+        except TransferError:
+            raise
+        except ValidationError as exc:
+            raise TransferError(_validation_message(exc)) from None
+        return ExternalImport(document=document, source="izlek", skipped=0)
+
+    def read_file(self, path: Path) -> IzlekExport:
+        return self.parse_import(path).document
 
     @staticmethod
-    def summary(document: IzlekExport) -> dict[str, int | str]:
+    def summary(
+        document: IzlekExport,
+        *,
+        source: str = "izlek",
+        skipped: int = 0,
+    ) -> dict[str, int | str]:
         media_keys = {(item.media_type, item.tmdb_id) for item in document.media}
         list_names = {item.name.casefold() for item in document.lists}
         return {
             "schema_version": document.schema_version,
             "app_version": document.app_version,
+            "source": source,
+            "skipped": skipped,
             "media": len(media_keys),
             "movies": sum(kind == "MOVIE" for kind, _ in media_keys),
             "shows": sum(kind == "TV" for kind, _ in media_keys),
@@ -345,10 +397,13 @@ class TransferService:
         }
 
     def preview_file(self, path: Path) -> dict[str, int | str]:
-        return self.summary(self.read_file(path))
+        parsed = self.parse_import(path)
+        return self.summary(
+            parsed.document, source=parsed.source, skipped=parsed.skipped
+        )
 
     def import_file(self, path: Path) -> dict[str, int]:
-        document = self.read_file(path)
+        parsed = self.parse_import(path)
         report = {
             "media_created": 0,
             "media_merged": 0,
@@ -358,10 +413,11 @@ class TransferService:
             "lists_merged": 0,
             "list_items_added": 0,
             "list_items_existing": 0,
+            "skipped": parsed.skipped,
         }
         with self._sessions().begin() as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
-            self._import_document(session, document, report)
+            self._import_document(session, parsed.document, report)
         return report
 
     def _import_document(
@@ -491,6 +547,10 @@ class TransferService:
                     state.personal_note = record.personal_note
                 if record.dismissed is not None:
                     state.dismissed = record.dismissed
+                if "watched_at" in record.model_fields_set:
+                    state.watched_at = _naive(record.watched_at)
+                if "rewatch_count" in record.model_fields_set:
+                    state.rewatch_count = record.rewatch_count
                 state.added_at = min(
                     state.added_at, _naive(record.added_at) or state.added_at
                 )

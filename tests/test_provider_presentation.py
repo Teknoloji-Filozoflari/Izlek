@@ -15,6 +15,8 @@ def test_provider_groups_keep_supported_watch_modes_and_tmdb_link():
 
     assert groups == {
         "Abonelik": ["Stream"],
+        "Ücretsiz": ["Free"],
+        "Reklamlı": ["Ads"],
         "Kiralama": ["Rent"],
         "Satın Alma": ["Buy"],
     }
@@ -26,5 +28,11 @@ def test_provider_presentation_hides_unsafe_link_and_handles_empty_region():
         {"link": "https://example.invalid/watch", "rent": [{"provider_name": ""}]}
     )
 
-    assert groups == {"Abonelik": [], "Kiralama": [], "Satın Alma": []}
+    assert groups == {
+        "Abonelik": [],
+        "Ücretsiz": [],
+        "Reklamlı": [],
+        "Kiralama": [],
+        "Satın Alma": [],
+    }
     assert link == ""

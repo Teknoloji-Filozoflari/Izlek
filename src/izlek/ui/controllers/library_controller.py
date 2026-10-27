@@ -17,7 +17,7 @@ from izlek.services.movie_library import MovieLibraryService
 from izlek.services.personal_media import PersonalMediaService
 from izlek.services.tv_library import TvLibraryService
 from izlek.tmdb.client import TmdbClient
-from izlek.ui.controllers.messages import LOCAL_DATA_UNAVAILABLE
+from izlek.ui.controllers.messages import local_data_unavailable
 
 
 class LibraryController(QObject):
@@ -127,7 +127,7 @@ class LibraryController(QObject):
             message = (
                 str(exc)
                 if isinstance(exc, (ValueError, LookupError))
-                else LOCAL_DATA_UNAVAILABLE
+                else local_data_unavailable()
             )
             self._batch_saved.emit(0, message)
         else:
@@ -180,7 +180,7 @@ class LibraryController(QObject):
                 kind, source, target, displayed
             )
         except (OSError, ValueError, LookupError, SQLAlchemyError):
-            self._order_saved.emit(LOCAL_DATA_UNAVAILABLE)
+            self._order_saved.emit(local_data_unavailable())
         else:
             self._order_saved.emit("")
 
@@ -269,7 +269,7 @@ class LibraryController(QObject):
                 kind, tmdb_id, favorite
             )
         except (OSError, ValueError, LookupError, SQLAlchemyError):
-            self._favorite_saved.emit(tmdb_id, LOCAL_DATA_UNAVAILABLE)
+            self._favorite_saved.emit(tmdb_id, local_data_unavailable())
         else:
             self._favorite_saved.emit(tmdb_id, "")
 
@@ -297,7 +297,7 @@ class LibraryController(QObject):
                 "lists": PersonalMediaService(self._service._sessions()).lists(),
             }
         except (OSError, ValueError, SQLAlchemyError):
-            self._loaded.emit(generation, [], [], {}, {}, LOCAL_DATA_UNAVAILABLE)
+            self._loaded.emit(generation, [], [], {}, {}, local_data_unavailable())
         else:
             self._loaded.emit(
                 generation,

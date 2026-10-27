@@ -6,7 +6,7 @@ import "../theme" as Tokens
 
 Rectangle {
     id: page
-    property string pageTitle: "İstatistikler"
+    property string pageTitle: (i18n.revision, i18n.t("page.statistics"))
     property var statisticsModelController
     color: Tokens.Theme.background
     function refreshDashboard() {
@@ -22,7 +22,7 @@ Rectangle {
         ColumnLayout {
             width: parent.width
             spacing: Tokens.Theme.spaceLg
-            Label { text: "İstatistikler"; color: Tokens.Theme.textPrimary; font.pixelSize: Tokens.Theme.textHeading; font.weight: Tokens.Theme.weightDemiBold }
+            Label { text: page.pageTitle; color: Tokens.Theme.textPrimary; font.pixelSize: Tokens.Theme.textHeading; font.weight: Tokens.Theme.weightDemiBold }
             BusyIndicator { visible: statisticsModelController.busy; running: visible }
             Label { visible: !!statisticsModelController.error; text: statisticsModelController.error; color: Tokens.Theme.textSecondary }
             StatisticsPanel {

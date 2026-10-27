@@ -6,7 +6,7 @@ import "../theme" as Tokens
 
 Rectangle {
     id: page
-    property string pageTitle: "Listeler"
+    property string pageTitle: (i18n.revision, i18n.t("page.lists"))
     property var controller
     readonly property bool filterPopupOpen: mediaPicker.visible
     signal mediaSelected(string kind, int tmdbId)
@@ -33,7 +33,7 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Label {
-                        text: "Listeler"
+                        text: page.pageTitle
                         color: Tokens.Theme.textPrimary
                         font.pixelSize: Tokens.Theme.textHeading
                         font.weight: Tokens.Theme.weightDemiBold
@@ -41,15 +41,15 @@ Rectangle {
                     Item { Layout.fillWidth: true }
                     IzlekButton {
                         objectName: "createListButton"
-                        text: "+ Yeni"
+                        text: (i18n.revision, i18n.t("lists.new"))
                         enabled: !controller.busy
                         onClicked: page.openNameDialog(false)
                     }
                 }
                 Label {
-                    visible: controller.lists.length === 0
+                    visible: !page.hasCustomLists()
                     Layout.fillWidth: true
-                    text: "Henüz listen yok. Yeni liste oluştur."
+                    text: (i18n.revision, i18n.t("lists.empty"))
                     color: Tokens.Theme.textSecondary
                     wrapMode: Text.WordWrap
                 }
@@ -78,13 +78,15 @@ Rectangle {
                             ReorderHandle {
                                 id: listHandle
                                 objectName: "listReorderHandle"
-                                enabled: !controller.busy
+                                visible: !modelData.smart
+                                enabled: !controller.busy && !modelData.smart
                                 label: modelData.name
                                 onDropped: function(position) {
                                     var point = listsView.mapFromItem(null, position.x, position.y)
                                     if (point.y < 0 || point.y >= listsView.height) return
                                     var target = listsView.indexAt(point.x + listsView.contentX, point.y + listsView.contentY)
-                                    if (target >= 0) controller.reorderList(modelData.id, controller.lists[target].id)
+                                    if (target >= 0 && !controller.lists[target].smart)
+                                        controller.reorderList(modelData.id, controller.lists[target].id)
                                 }
                                 ReorderAutoScroll {
                                     view: listsView
@@ -98,11 +100,18 @@ Rectangle {
                                 color: Tokens.Theme.textPrimary
                                 elide: Text.ElideRight
                             }
+                            Badge {
+                                visible: !!modelData.smart
+                                text: "Akıllı"
+                                tone: "accent"
+                                Accessible.name: modelData.name + " akıllı liste"
+                            }
                             IzlekButton {
                                 text: "↑"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
-                                enabled: index > 0 && !controller.busy
+                                visible: !modelData.smart
+                                enabled: page.canMoveCustom(index, -1) && !controller.busy
                                 Accessible.name: modelData.name + " yukarı taşı"
                                 onClicked: controller.moveList(modelData.id, -1)
                             }
@@ -110,8 +119,8 @@ Rectangle {
                                 text: "↓"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
-                                enabled: index < controller.lists.length - 1
-                                         && !controller.busy
+                                visible: !modelData.smart
+                                enabled: page.canMoveCustom(index, 1) && !controller.busy
                                 Accessible.name: modelData.name + " aşağı taşı"
                                 onClicked: controller.moveList(modelData.id, 1)
                             }
@@ -143,25 +152,33 @@ Rectangle {
                     }
                     IzlekButton {
                         objectName: "renameListButton"
-                        text: "Yeniden Adlandır"
+                        text: (i18n.revision, i18n.t("lists.rename"))
                         variant: "secondary"
-                        enabled: controller.selectedId > 0 && !controller.busy
+                        enabled: controller.selectedId > 0 && !controller.selectedIsSmart && !controller.busy
                         onClicked: page.openNameDialog(true)
                     }
                     IzlekButton {
                         objectName: "deleteListButton"
-                        text: "Sil"
+                        text: (i18n.revision, i18n.t("common.delete"))
                         variant: "danger"
-                        enabled: controller.selectedId > 0 && !controller.busy
+                        enabled: controller.selectedId > 0 && !controller.selectedIsSmart && !controller.busy
                         onClicked: deleteDialog.open()
                     }
                 }
+                Label {
+                    objectName: "smartListDescription"
+                    visible: controller.selectedIsSmart && controller.selectedDescription.length > 0
+                    Layout.fillWidth: true
+                    text: controller.selectedDescription
+                    color: Tokens.Theme.textSecondary
+                    wrapMode: Text.WordWrap
+                }
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: controller.selectedId > 0
+                    visible: controller.selectedId > 0 && !controller.selectedIsSmart
                     IzlekButton {
                         objectName: "addMediaToListButton"
-                        text: "+ İçerik Ekle"
+                        text: (i18n.revision, i18n.t("lists.add_items"))
                         enabled: !controller.busy
                         onClicked: {
                             mediaPicker.listId = controller.selectedId
@@ -170,7 +187,7 @@ Rectangle {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: "Tutamaçları sürükleyerek sırala"
+                        text: (i18n.revision, i18n.t("lists.reorder_hint"))
                         color: Tokens.Theme.textMuted
                         elide: Text.ElideRight
                     }
@@ -183,13 +200,12 @@ Rectangle {
                     wrapMode: Text.WordWrap
                 }
                 EmptyState {
-                    visible: controller.lists.length === 0
-                             || (controller.selectedId > 0 && controller.items.length === 0)
+                    visible: controller.selectedId !== 0 && controller.items.length === 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: controller.lists.length === 0 ? "Liste oluştur" : "Liste boş"
-                    description: controller.lists.length === 0
-                                 ? "Filmlerini ve dizilerini kendi listelerinde düzenle."
+                    title: controller.selectedIsSmart ? "Akıllı liste boş" : "Liste boş"
+                    description: controller.selectedIsSmart
+                                 ? "Koşullara uyan içerik yok. Favori, durum veya etiket ekleyince dolar."
                                  : "Yerel medya ekle veya detay sayfasındaki Listeye Ekle düğmesini kullan."
                 }
                 ListView {
@@ -215,7 +231,8 @@ Rectangle {
                             ReorderHandle {
                                 id: mediaHandle
                                 objectName: "listMediaReorderHandle"
-                                enabled: !controller.busy
+                                visible: !controller.selectedIsSmart
+                                enabled: !controller.busy && !controller.selectedIsSmart
                                 label: modelData.title
                                 onDropped: function(position) {
                                     var point = mediaView.mapFromItem(null, position.x, position.y)
@@ -269,6 +286,7 @@ Rectangle {
                                 text: "↑"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
+                                visible: !controller.selectedIsSmart
                                 enabled: index > 0 && !controller.busy
                                 Accessible.name: modelData.title + " yukarı taşı"
                                 onClicked: controller.moveMedia(controller.selectedId,
@@ -279,6 +297,7 @@ Rectangle {
                                 text: "↓"
                                 variant: "ghost"
                                 Layout.preferredWidth: 34
+                                visible: !controller.selectedIsSmart
                                 enabled: index < controller.items.length - 1
                                          && !controller.busy
                                 Accessible.name: modelData.title + " aşağı taşı"
@@ -287,9 +306,10 @@ Rectangle {
                                                                 modelData.tmdb_id, 1)
                             }
                             IzlekButton {
-                                text: "Çıkar"
+                                text: (i18n.revision, i18n.t("lists.remove"))
                                 variant: "danger"
                                 Layout.preferredWidth: 68
+                                visible: !controller.selectedIsSmart
                                 enabled: !controller.busy
                                 onClicked: controller.removeMedia(controller.selectedId,
                                                                   modelData.kind,
@@ -307,6 +327,16 @@ Rectangle {
         controller: page.controller
     }
 
+    function hasCustomLists() {
+        for (var i = 0; i < controller.lists.length; i++)
+            if (!controller.lists[i].smart) return true
+        return false
+    }
+    function canMoveCustom(index, direction) {
+        var next = index + direction
+        if (next < 0 || next >= controller.lists.length) return false
+        return !controller.lists[index].smart && !controller.lists[next].smart
+    }
     function selectedName() {
         for (var i = 0; i < controller.lists.length; i++)
             if (controller.lists[i].id === controller.selectedId)
@@ -337,7 +367,7 @@ Rectangle {
                 id: nameInput
                 objectName: "listNameInput"
                 Layout.fillWidth: true
-                placeholderText: "Liste adı"
+                placeholderText: (i18n.revision, i18n.t("lists.name_ph"))
                 maximumLength: 200
                 onAccepted: nameDialog.save()
             }
@@ -362,7 +392,7 @@ Rectangle {
     IzlekDialog {
         id: deleteDialog
         objectName: "deleteListDialog"
-        title: "Listeyi Sil"
+        title: (i18n.revision, i18n.t("lists.delete_title"))
         message: "Bu liste ve üyelikleri silinsin mi? Medyalar kütüphanede kalır."
         confirmText: "Sil"
         onConfirmed: controller.deleteList(controller.selectedId)

@@ -268,7 +268,12 @@ def test_movie_sections_save_metadata_and_personal_state_survives_restart(tmp_pa
         assert service.set_favorite(42, True)["status"] == ""
         assert service.set_status(42, "PLANNED")["status"] == "PLANNED"
         assert service.set_status(42, "WATCHING")["status"] == "WATCHING"
-        assert service.set_status(42, "WATCHED")["status"] == "WATCHED"
+        watched = service.set_status(42, "WATCHED")
+        assert watched["status"] == "WATCHED"
+        assert watched["rewatchCount"] == 0
+        assert watched["watchedAt"]
+        rewatched = service.set_status(42, "WATCHED")
+        assert rewatched["rewatchCount"] == 1
         assert service.cached(42)["favorite"] is True
         assert service.add_to_list(42, "Hafta Sonu")["lists"] == ["Hafta Sonu"]
         assert service.add_to_list(42, "hafta sonu")["lists"] == ["Hafta Sonu"]

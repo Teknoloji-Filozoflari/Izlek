@@ -1,5 +1,6 @@
 """Movie metadata and local tracking transactions."""
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from threading import Lock
@@ -10,12 +11,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from izlek.db.engine import create_session_factory, initialize_database
 from izlek.db.models import MediaType, TrackingStatus, utc_now
+from izlek.metadata.catalog import normalize_watch_region
+from izlek.metadata.registry import MetadataClientRegistry
 from izlek.repositories.local import (
     CustomListRepository,
     MediaRepository,
     UserMediaRepository,
 )
 from izlek.services.custom_lists import CustomListsService
+from izlek.services.metadata_enrichment import enrich_detail
 from izlek.services.metadata_freshness import metadata_is_fresh
 from izlek.services.metadata_retention import merge_remote_metadata
 from izlek.services.provider_presentation import present_providers
@@ -59,11 +63,23 @@ class MovieDetailService:
         self,
         client: TmdbClient,
         session_factory: sessionmaker[Session] | None = None,
+        *,
+        watch_region: str | Callable[[], str] = "TR",
+        metadata_registry: MetadataClientRegistry | None = None,
     ) -> None:
         self.client = client
         self._factory = session_factory
         self._owned_engine: Engine | None = None
         self._session_lock = Lock()
+        self._watch_region = watch_region
+        self.metadata_registry = metadata_registry
+
+    def watch_provider_region(self) -> str:
+        if callable(self._watch_region):
+            value = self._watch_region()
+        else:
+            value = self._watch_region
+        return normalize_watch_region(value)
 
     def _sessions(self) -> sessionmaker[Session]:
         with self._session_lock:
@@ -118,7 +134,33 @@ class MovieDetailService:
                 metadata_json=blob,
                 last_synced_at=synced_at,
             )
-        return self.cached(movie_id) or {}
+        presented = self.cached(movie_id) or {}
+        enriched = enrich_detail(
+            presented,
+            media_type="movie",
+            tmdb_id=movie_id,
+            client=self.client,
+            registry=self.metadata_registry,
+            title=presented.get("title") or "",
+            year=presented.get("year") or "",
+        )
+        enrichment = {
+            key: enriched[key]
+            for key in (
+                "imdbId", "imdbRating", "imdbVotes", "traktRating", "traktVotes",
+            )
+            if enriched.get(key) not in (None, "")
+        }
+        if enrichment:
+            with sessions.begin() as session:
+                item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
+                if item is not None:
+                    blob = dict(item.metadata_json or {})
+                    blob["enrichment"] = enrichment
+                    item.metadata_json = blob
+            for key, value in enrichment.items():
+                enriched[key] = value
+        return enriched
 
     def needs_refresh(self, movie_id: int, *, now: datetime | None = None) -> bool:
         """Check the saved timestamp without making a network request."""
@@ -142,6 +184,12 @@ class MovieDetailService:
             state = {
                 "status": user.status.value if user and user.status else "",
                 "favorite": bool(user.favorite) if user else False,
+                "watchedAt": (
+                    user.watched_at.replace(microsecond=0).isoformat() + "Z"
+                    if user and user.watched_at
+                    else ""
+                ),
+                "rewatchCount": int(user.rewatch_count or 0) if user else 0,
                 "lists": selected,
                 "availableLists": [entry.name for entry in lists],
             }
@@ -152,7 +200,16 @@ class MovieDetailService:
                 if any(item.metadata_json.get(key)
                        for key in ("similar", "recommendations")) else set()
             )
-            return self._presentation(item.metadata_json, state, excluded)
+            presented = self._presentation(item.metadata_json, state, excluded)
+            enrichment = (item.metadata_json or {}).get("enrichment") or {}
+            if isinstance(enrichment, dict):
+                for key in (
+                    "imdbId", "imdbRating", "imdbVotes", "traktRating", "traktVotes",
+                ):
+                    value = enrichment.get(key)
+                    if value not in (None, ""):
+                        presented[key] = value
+            return presented
 
     def _presentation(
         self, blob: dict[str, Any], state: dict[str, Any],
@@ -168,7 +225,10 @@ class MovieDetailService:
             if blob.get("videos")
             else None
         )
-        region = (blob.get("providers") or {}).get("results", {}).get("TR", {})
+        region_code = self.watch_provider_region()
+        region = (
+            (blob.get("providers") or {}).get("results", {}).get(region_code, {})
+        )
         groups, provider_link = present_providers(region)
         def related(key: str) -> list[dict[str, Any]]:
             data = blob.get(key)
@@ -195,6 +255,7 @@ class MovieDetailService:
             member["name"] for member in credits.get("crew", [])
             if member.get("job") == "Director"
         ]
+        collection = detail.belongs_to_collection
         return {
             "id": detail.id,
             "title": detail.original_title,
@@ -207,6 +268,8 @@ class MovieDetailService:
             "backdropPath": detail.backdrop_path or "",
             "poster": "",
             "backdrop": "",
+            "collectionId": collection.id if collection else 0,
+            "collectionName": collection.name if collection else "",
             "cast": [
                 {
                     "id": member.get("id", 0),
@@ -228,13 +291,23 @@ class MovieDetailService:
         }
 
     def set_status(self, movie_id: int, status: str | None) -> dict[str, Any]:
-        """Set tracking status; None removes library membership only."""
+        """Set tracking status; None removes library membership only.
+
+        Selecting WATCHED again records a rewatch for diary and statistics.
+        """
         selected = TrackingStatus(status) if status is not None else None
         with self._sessions().begin() as session:
             media = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
             if media is None:
                 raise LookupError("Film yerel veritabanında yok")
-            UserMediaRepository(session).set_status(media.id, selected)
+            users = UserMediaRepository(session)
+            current = users.get(media.id)
+            rewatch = (
+                selected == TrackingStatus.WATCHED
+                and current is not None
+                and current.status == TrackingStatus.WATCHED
+            )
+            users.set_status(media.id, selected, rewatch=rewatch)
         return self.cached(movie_id) or {}
 
     def set_favorite(self, movie_id: int, favorite: bool) -> dict[str, Any]:
@@ -250,3 +323,40 @@ class MovieDetailService:
         """Add a movie to a named list, creating the list when needed."""
         CustomListsService(self._sessions()).add_by_name("movie", movie_id, name)
         return self.cached(movie_id) or {}
+
+    def add_collection_to_list(
+        self, movie_id: int
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Fetch the movie's TMDb collection and merge parts into a custom list.
+
+        Membership is list-only: collection movies are upserted locally without
+        forcing library tracking status. Existing list members are kept; missing
+        parts are appended in TMDb part order.
+        """
+        with self._sessions()() as session:
+            item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
+            if item is None:
+                raise LookupError("Film yerel veritabanında yok")
+            detail_blob = (item.metadata_json or {}).get("detail") or {}
+            membership = detail_blob.get("belongs_to_collection")
+            if not isinstance(membership, dict) or not membership.get("id"):
+                raise LookupError("Bu film bir koleksiyona bağlı değil")
+            collection_id = int(membership["id"])
+            fallback_name = str(membership.get("name") or "").strip()
+
+        remote = self.client.collection(collection_id)
+        list_name = (remote.name or fallback_name or "Koleksiyon").strip()
+        movies = [
+            {
+                "tmdb_id": part.id,
+                "title": part.original_title,
+                "poster_path": part.poster_path,
+                "overview": part.overview,
+                "release_date": part.release_date,
+            }
+            for part in remote.parts
+        ]
+        summary = CustomListsService(self._sessions()).add_collection_movies(
+            list_name, movies
+        )
+        return self.cached(movie_id) or {}, summary

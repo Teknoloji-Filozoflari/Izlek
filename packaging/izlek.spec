@@ -13,6 +13,7 @@ datas = copy_metadata("izlek")
 datas += [
     (str(PACKAGE_ROOT / "ui/qml"), "izlek/ui/qml"),
     (str(PACKAGE_ROOT / "resources"), "izlek/resources"),
+    (str(PACKAGE_ROOT / "i18n/locales"), "izlek/i18n/locales"),
 ]
 for migration in (PACKAGE_ROOT / "db/migrations").rglob("*.py"):
     destination = migration.parent.relative_to(SOURCE_ROOT)

@@ -8,6 +8,8 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
+from izlek.ui.controllers.locale_controller import LocaleController
+
 
 def _visual_children(item, name):
     found = [item] if item.objectName() == name else []
@@ -26,6 +28,8 @@ def test_long_card_titles_and_quick_actions_in_both_densities():
 
     previous = qInstallMessageHandler(collect)
     engine = QQmlApplicationEngine()
+    locale = LocaleController(parent=engine)
+    engine.rootContext().setContextProperty("i18n", locale)
     qml = Path(__file__).resolve().parents[1] / "src/izlek/ui/qml/LayoutTest.qml"
     engine.loadData(br'''
 import QtQuick

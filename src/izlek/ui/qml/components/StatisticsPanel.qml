@@ -8,6 +8,14 @@ ColumnLayout {
     property var stats: ({})
     readonly property var genres: stats.genre_distribution || []
     readonly property var shows: stats.top_shows || []
+    readonly property var months: stats.monthly_activity || []
+    readonly property var history: stats.recent_history || []
+    readonly property int maxMonthMinutes: {
+        var peak = 0
+        for (var i = 0; i < months.length; i++)
+            peak = Math.max(peak, months[i].minutes || 0)
+        return peak
+    }
     readonly property var chartColors: [Tokens.Theme.accent, Tokens.Theme.chartBlue,
         Tokens.Theme.success, Tokens.Theme.warning, Tokens.Theme.danger]
     spacing: Tokens.Theme.spaceMd
@@ -17,6 +25,11 @@ ColumnLayout {
         var days = Math.floor(minutes / 1440)
         var hours = Math.floor((minutes % 1440) / 60)
         return (days > 0 ? days + " gün " : "") + (hours > 0 ? hours + " sa " : "") + minutes % 60 + " dk"
+    }
+
+    function historyDate(value) {
+        if (!value) return ""
+        return String(value).slice(0, 10)
     }
 
     GridLayout {
@@ -65,13 +78,15 @@ ColumnLayout {
     }
     GridLayout {
         Layout.fillWidth: true
-        columns: 3
+        columns: panel.width >= 900 ? 4 : 2
         columnSpacing: Tokens.Theme.spaceSm
+        rowSpacing: Tokens.Theme.spaceSm
         Repeater {
             model: [
-                {label: "İzlenen bölüm", value: panel.stats.watched_episodes || 0},
-                {label: "İzlenen film", value: panel.stats.watched_movies || 0},
-                {label: "Tamamlanan dizi", value: panel.stats.completed_tv || 0}
+                {label: (i18n.revision, i18n.t("stats.watched_episodes")), value: panel.stats.watched_episodes || 0},
+                {label: (i18n.revision, i18n.t("stats.watched_movies")), value: panel.stats.watched_movies || 0},
+                {label: "Tamamlanan dizi", value: panel.stats.completed_tv || 0},
+                {label: "Film yeniden izleme", value: panel.stats.movie_rewatch_count || 0}
             ]
             StatCard {
                 required property var modelData
@@ -80,6 +95,90 @@ ColumnLayout {
                 implicitHeight: 96
                 label: modelData.label
                 value: String(modelData.value)
+            }
+        }
+    }
+    Rectangle {
+        objectName: "monthlyStatistics"
+        Layout.fillWidth: true
+        implicitHeight: monthColumn.implicitHeight + 2 * Tokens.Theme.spaceMd
+        color: Tokens.Theme.surface
+        radius: Tokens.Theme.radiusLg
+        border.color: Tokens.Theme.border
+        ColumnLayout {
+            id: monthColumn
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Tokens.Theme.spaceMd
+            spacing: Tokens.Theme.spaceMd
+            Label {
+                Layout.fillWidth: true
+                text: "Son 12 ay izleme aktivitesi"
+                color: Tokens.Theme.textPrimary
+                font.pixelSize: Tokens.Theme.textEmpty
+                font.weight: Tokens.Theme.weightDemiBold
+                wrapMode: Text.WordWrap
+            }
+            Label {
+                Layout.fillWidth: true
+                text: "Film ve bölüm izlenme tarihlerine göre. Süresi bilinmeyen içerikler dakikaya katılmaz."
+                color: Tokens.Theme.textMuted
+                font.pixelSize: Tokens.Theme.textSmall
+                wrapMode: Text.WordWrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 140
+                spacing: Tokens.Theme.spaceXs
+                Repeater {
+                    model: panel.months
+                    ColumnLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: Tokens.Theme.spaceXs
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: parent.height * (
+                                    panel.maxMonthMinutes > 0
+                                        ? (modelData.minutes || 0) / panel.maxMonthMinutes
+                                        : 0)
+                                radius: Tokens.Theme.radiusSm
+                                color: Tokens.Theme.accent
+                                opacity: (modelData.minutes || 0) > 0 ? 1 : 0.18
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            text: modelData.label
+                            color: Tokens.Theme.textSecondary
+                            font.pixelSize: Tokens.Theme.textSmall
+                        }
+                    }
+                }
+            }
+            Label {
+                objectName: "monthlyActivitySummary"
+                Layout.fillWidth: true
+                text: {
+                    var movies = 0
+                    var episodes = 0
+                    for (var i = 0; i < panel.months.length; i++) {
+                        movies += panel.months[i].movies || 0
+                        episodes += panel.months[i].episodes || 0
+                    }
+                    return "12 ayda " + movies + " film · " + episodes + " bölüm"
+                }
+                color: Tokens.Theme.textSecondary
+                font.pixelSize: Tokens.Theme.textSmall
+                wrapMode: Text.WordWrap
             }
         }
     }
@@ -106,7 +205,7 @@ ColumnLayout {
                 anchors.margins: Tokens.Theme.spaceMd
                 spacing: Tokens.Theme.spaceMd
                 Label {
-                    text: "İzlediğin türler"
+                    text: (i18n.revision, i18n.t("stats.genres_title"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold
@@ -144,7 +243,7 @@ ColumnLayout {
                         }
                         Label {
                             anchors.centerIn: parent
-                            text: "Türler"
+                            text: (i18n.revision, i18n.t("stats.genres"))
                             color: Tokens.Theme.textSecondary
                             font.pixelSize: Tokens.Theme.textSmall
                         }
@@ -155,7 +254,7 @@ ColumnLayout {
                         Label {
                             visible: panel.genres.length === 0
                             Layout.fillWidth: true
-                            text: "Henüz tür verisi yok."
+                            text: (i18n.revision, i18n.t("stats.genres_empty"))
                             color: Tokens.Theme.textMuted
                             wrapMode: Text.WordWrap
                         }
@@ -190,7 +289,7 @@ ColumnLayout {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "Bir içerik birden fazla türde sayılabilir."
+                    text: (i18n.revision, i18n.t("stats.genres_note"))
                     color: Tokens.Theme.textMuted
                     font.pixelSize: Tokens.Theme.textSmall
                     wrapMode: Text.WordWrap
@@ -215,7 +314,7 @@ ColumnLayout {
                 spacing: Tokens.Theme.spaceMd
                 Label {
                     Layout.fillWidth: true
-                    text: "En çok zaman ayırdığın diziler"
+                    text: (i18n.revision, i18n.t("stats.top_shows"))
                     color: Tokens.Theme.textPrimary
                     font.pixelSize: Tokens.Theme.textEmpty
                     font.weight: Tokens.Theme.weightDemiBold
@@ -224,7 +323,7 @@ ColumnLayout {
                 Label {
                     visible: panel.shows.length === 0
                     Layout.fillWidth: true
-                    text: "Bölüm izledikçe dizilerin burada görünür."
+                    text: (i18n.revision, i18n.t("stats.top_shows_empty"))
                     color: Tokens.Theme.textMuted
                     wrapMode: Text.WordWrap
                 }
@@ -278,6 +377,74 @@ ColumnLayout {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    Rectangle {
+        objectName: "recentHistoryStatistics"
+        Layout.fillWidth: true
+        implicitHeight: historyColumn.implicitHeight + 2 * Tokens.Theme.spaceMd
+        color: Tokens.Theme.surface
+        radius: Tokens.Theme.radiusLg
+        border.color: Tokens.Theme.border
+        ColumnLayout {
+            id: historyColumn
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Tokens.Theme.spaceMd
+            spacing: Tokens.Theme.spaceMd
+            Label {
+                Layout.fillWidth: true
+                text: "Son izlemeler"
+                color: Tokens.Theme.textPrimary
+                font.pixelSize: Tokens.Theme.textEmpty
+                font.weight: Tokens.Theme.weightDemiBold
+            }
+            Label {
+                visible: panel.history.length === 0
+                Layout.fillWidth: true
+                text: "Film veya bölüm izledikçe günlük burada birikir."
+                color: Tokens.Theme.textMuted
+                wrapMode: Text.WordWrap
+            }
+            Repeater {
+                model: panel.history
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Tokens.Theme.spaceSm
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.Theme.spaceXs
+                        Label {
+                            Layout.fillWidth: true
+                            text: modelData.title
+                            color: Tokens.Theme.textPrimary
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            objectName: "historyEntryDetail"
+                            Layout.fillWidth: true
+                            text: {
+                                var bits = [modelData.subtitle || "", panel.historyDate(modelData.watchedAt)]
+                                if (modelData.minutes)
+                                    bits.push(panel.durationText(modelData.minutes))
+                                if (modelData.rewatchCount)
+                                    bits.push(modelData.rewatchCount + " yeniden izleme")
+                                return bits.filter(function(part) { return !!part }).join(" · ")
+                            }
+                            color: Tokens.Theme.textSecondary
+                            font.pixelSize: Tokens.Theme.textSmall
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                    Label {
+                        text: modelData.kind === "movie" ? "Film" : "Bölüm"
+                        color: Tokens.Theme.textMuted
+                        font.pixelSize: Tokens.Theme.textSmall
                     }
                 }
             }

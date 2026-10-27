@@ -20,7 +20,7 @@ bağlantılarını engeller; TMDb yanıtları `httpx.MockTransport` ile sağland
 CI ortamında gerçek token gerekmez. Tek tek çalıştırmak için `python -m pytest`
 ve `ruff check .` komutları da kullanılabilir.
 
-`python -m izlek` masaüstü penceresini açar. İlk açılan **Ana Sayfa**, Keşfet filtreleri ve Film/Dizi seçilebilen global aramayı içerir. **İstatistikler** (Ctrl+5) altında toplam ekran süresi, izleme sayaçları, son 12 ay bölüm grafiği, tür halkası ve en çok zaman ayrılan diziler toplanır. Aylık grafik yalnız gerçek izleme tarihi ve süresi kayıtlı bölümleri kullanır; film izleme tarihi tutulmadığı için filmler grafiğe dahil edilmez. Toplam süre yalnız süresi bilinen film ve bölümlerden hesaplanır; süresi bilinmeyen içerikler süre toplamına katılmaz ve kaç içerik dışarıda kaldığı gösterilir. **Devam Et** Diziler sekmesindedir; İstatistikler sayfası yalnız istatistikleri gösterir.
+`python -m izlek` masaüstü penceresini açar. İlk açılan **Ana Sayfa**, Keşfet filtreleri ve Film/Dizi seçilebilen global aramayı içerir. **İstatistikler** (Ctrl+5) altında toplam ekran süresi, izleme sayaçları, film yeniden izleme, son 12 ay film+bölüm aktivitesi, tür halkası, en çok zaman ayrılan diziler ve son izlemeler günlüğü toplanır. Aylık grafik `user_media.watched_at` ve bölüm `watched_at` kayıtlarını kullanır. Toplam süre yalnız süresi bilinen film ve bölümlerden hesaplanır; süresi bilinmeyen içerikler süre toplamına katılmaz ve kaç içerik dışarıda kaldığı gösterilir. **Devam Et** Diziler sekmesindedir; İstatistikler sayfası yalnız istatistikleri gösterir.
 
 Filmler ve Diziler yerel kütüphaneleri, Listeler özel listeleri gösterir. Dizi kartı ve detay ekranında bölüm sayacı ile ilerleme çubuğu bulunur; özel sezonlar ana ilerleme çubuğuna katılmaz. Bölüm satırlarındaki yazısız yuvarlak tik fare veya Space ile değiştirilir. `--gallery`, [bileşen kütüphanesini](components.md) çevrimdışı örnek veriyle gösterir. Pencere boyutu ve büyütülmüş durumu XDG config dizininde saklanır; diğer XDG yolları [mimari belgesinde](architecture.md) açıklanır. Ekransız CI için `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software python -m pytest` kullanın.
 
@@ -48,6 +48,10 @@ Bu komut `$XDG_DATA_HOME` (varsayılan `~/.local/share`) altına `applications/i
 ## TMDb API istemcisi
 
 `izlek.tmdb.client.TmdbClient(token=...)` arayüzden bağımsız olarak configuration, film/dizi araması, film/dizi detayı ve dizi sezonu uç noktalarını çağırır. Yanıtlar `izlek.tmdb.models` içindeki Pydantic modellerine çevrilir. İstemciyi ağ çağrıları için UI thread'i dışında kullanın. Timeout, HTTP ve bozuk yanıt hataları `izlek.tmdb.client` içindeki güvenli domain exceptionlarına dönüşür. Bir 429 yanıtında en fazla bir kez, en çok iki saniyelik beklemeyle tekrar denenir. Testler gerçek TMDb'ye bağlanmaz; `httpx.MockTransport` kullanır.
+
+## Meta veri kaynakları
+
+`izlek.metadata` ortak istemci arayüzünü, kaynak katalogunu ve Ayarlar kalıcılığını sağlar. TMDb varsayılan katalog yoludur; Trakt / TVmaze / OMDb Ayarlar'dan yetenek matrisiyle yapılandırılır. OMDb ticari olmama onayı olmadan açılamaz. İzleme-sağlayıcı bölgesi `MetadataSettings.watch_provider_region` üzerinden film/dizi detay sunumuna bağlanır. Ayrıntılar [METADATA_SOURCES.md](METADATA_SOURCES.md) belgesindedir.
 
 ## Görsel servisi ve cache
 

@@ -15,7 +15,7 @@ from izlek.tmdb.models import (
     TvSearchResults,
 )
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 _SQLITE_MAX_INT = 2**63 - 1
 
 
@@ -116,6 +116,8 @@ class TrackingExport(MediaRef):
     personal_rating: int | None = Field(default=None, ge=1, le=10)
     personal_note: str | None = Field(default=None, max_length=2000)
     dismissed: bool | None = None
+    watched_at: datetime | None = None
+    rewatch_count: int = Field(default=0, ge=0, le=_SQLITE_MAX_INT)
     added_at: datetime
     updated_at: datetime
 

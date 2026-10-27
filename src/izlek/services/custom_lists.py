@@ -1,5 +1,8 @@
 """Local custom list management; no TMDb list endpoints are used."""
 
+from datetime import date
+from typing import Any
+
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -8,6 +11,14 @@ from izlek.db.models import MediaType, TrackingStatus
 from izlek.repositories.local import (
     CustomListRepository,
     MediaRepository,
+    TagRepository,
+)
+from izlek.services.smart_lists import (
+    BUILTIN_SMART_LISTS,
+    builtin_by_id,
+    is_smart_list_id,
+    tag_id_from_list,
+    tag_list_id,
 )
 
 
@@ -32,12 +43,10 @@ class CustomListsService:
         return self._factory
 
     def snapshot(self, selected_id: int = 0) -> dict:
-        """Return list summaries, selected members, and locally known candidates."""
+        """Return smart + custom list summaries, selected members, and candidates."""
         with self._sessions()() as session:
             repo = CustomListRepository(session)
             lists = repo.list_all()
-            if not any(item.id == selected_id for item in lists):
-                selected_id = lists[0].id if lists else 0
             members_by_list = {item.id: [] for item in lists}
             for member in repo.list_all_items():
                 members_by_list.setdefault(member.list_id, []).append(member)
@@ -49,33 +58,94 @@ class CustomListsService:
                 media.id: user for media, user in media_with_tracking
                 if user is not None
             }
-            summaries = [
+            tag_repo = TagRepository(session)
+            tags = tag_repo.list_all()
+            tag_counts = tag_repo.counts()
+            media_tags = tag_repo.names_by_media()
+            smart_summaries = []
+            for definition in BUILTIN_SMART_LISTS:
+                matched = [
+                    media for media, user in media_with_tracking
+                    if definition.match(media, user)
+                ]
+                smart_summaries.append({
+                    "id": definition.id,
+                    "name": definition.name,
+                    "count": len(matched),
+                    "smart": True,
+                    "key": definition.key,
+                    "description": definition.description,
+                })
+            for tag in tags:
+                smart_summaries.append({
+                    "id": tag_list_id(tag.id),
+                    "name": f"Etiket: {tag.name}",
+                    "count": tag_counts.get(tag.id, 0),
+                    "smart": True,
+                    "key": f"tag:{tag.id}",
+                    "description": f"«{tag.name}» etiketli içerikler",
+                })
+            custom_summaries = [
                 {
                     "id": item.id,
                     "name": item.name,
                     "count": len(members_by_list[item.id]),
+                    "smart": False,
+                    "key": f"custom:{item.id}",
+                    "description": "",
                 }
                 for item in lists
             ]
+            summaries = smart_summaries + custom_summaries
+            known_ids = {item["id"] for item in summaries}
+            if selected_id not in known_ids:
+                selected_id = summaries[0]["id"] if summaries else 0
             members = []
-            selected_media_ids = set()
-            for member in members_by_list.get(selected_id, []):
-                media = media_by_id.get(member.media_id)
-                if media is None:
-                    continue
-                selected_media_ids.add(media.id)
-                members.append(self._media_dict(media, states.get(media.id)))
-            candidates = [
-                self._media_dict(media)
-                for media in all_media
-                if media.id not in selected_media_ids
-            ]
+            selected_media_ids: set[int] = set()
+            if is_smart_list_id(selected_id):
+                tag_id = tag_id_from_list(selected_id)
+                if tag_id is not None:
+                    wanted = tag_repo.media_ids_for_tag(tag_id)
+                    matched_media = [
+                        media for media in all_media if media.id in wanted
+                    ]
+                else:
+                    definition = builtin_by_id(selected_id)
+                    matched_media = [
+                        media for media, user in media_with_tracking
+                        if definition and definition.match(media, user)
+                    ]
+                for media in matched_media:
+                    selected_media_ids.add(media.id)
+                    entry = self._media_dict(media, states.get(media.id))
+                    entry["tags"] = media_tags.get(media.id, [])
+                    members.append(entry)
+                candidates = []
+            else:
+                for member in members_by_list.get(selected_id, []):
+                    media = media_by_id.get(member.media_id)
+                    if media is None:
+                        continue
+                    selected_media_ids.add(media.id)
+                    entry = self._media_dict(media, states.get(media.id))
+                    entry["tags"] = media_tags.get(media.id, [])
+                    members.append(entry)
+                candidates = [
+                    self._media_dict(media)
+                    for media in all_media
+                    if media.id not in selected_media_ids
+                ]
         return {
             "lists": summaries,
             "items": members,
             "candidates": candidates,
             "selected_id": selected_id,
         }
+
+    @staticmethod
+    def _require_custom(list_id: int) -> None:
+        if is_smart_list_id(list_id):
+            raise ValueError("Akıllı listeler düzenlenemez")
 
     @staticmethod
     def _media_dict(media, user=None) -> dict:
@@ -114,6 +184,7 @@ class CustomListsService:
             return repo.create(name, len(lists)).id
 
     def rename(self, list_id: int, name: str) -> None:
+        self._require_custom(list_id)
         name = _clean_name(name)
         with self._sessions().begin() as session:
             repo = CustomListRepository(session)
@@ -125,6 +196,7 @@ class CustomListsService:
             repo.rename(list_id, name)
 
     def delete(self, list_id: int) -> None:
+        self._require_custom(list_id)
         with self._sessions().begin() as session:
             repo = CustomListRepository(session)
             if not repo.delete(list_id):
@@ -133,6 +205,7 @@ class CustomListsService:
                 repo.set_position(item.id, position)
 
     def add(self, list_id: int, kind: str, tmdb_id: int) -> None:
+        self._require_custom(list_id)
         media_type = MediaType(kind.upper())
         with self._sessions().begin() as session:
             repo = CustomListRepository(session)
@@ -147,6 +220,7 @@ class CustomListsService:
 
     def add_many(self, list_id: int, selections: list[dict]) -> None:
         """Validate every selection before atomically adding unique members."""
+        self._require_custom(list_id)
         keys = list(dict.fromkeys(
             (MediaType(item["kind"].upper()), int(item["tmdb_id"]))
             for item in selections
@@ -170,6 +244,8 @@ class CustomListsService:
                     position += 1
 
     def reorder_list(self, source: int, target: int) -> None:
+        self._require_custom(source)
+        self._require_custom(target)
         with self._sessions().begin() as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
             repo = CustomListRepository(session)
@@ -186,6 +262,7 @@ class CustomListsService:
         self, list_id: int, source_kind: str, source_id: int,
         target_kind: str, target_id: int,
     ) -> None:
+        self._require_custom(list_id)
         with self._sessions().begin() as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
             repo = CustomListRepository(session)
@@ -224,7 +301,85 @@ class CustomListsService:
                 repo.add_item(chosen.id, media.id, len(members))
             return chosen.id
 
+    def add_collection_movies(
+        self, name: str, movies: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Create or update a custom list from TMDb collection parts (list-only).
+
+        Upserts local movie rows for membership without forcing tracking status,
+        so users can still add/remove list items and library state separately.
+        """
+        name = _clean_name(name)
+        cleaned: list[dict[str, Any]] = []
+        for raw in movies:
+            tmdb_id = int(raw.get("tmdb_id") or 0)
+            title = str(raw.get("title") or "").strip()
+            if tmdb_id <= 0 or not title:
+                continue
+            cleaned.append({
+                "tmdb_id": tmdb_id,
+                "title": title,
+                "poster_path": raw.get("poster_path") or None,
+                "overview": raw.get("overview") or None,
+                "release_date": raw.get("release_date") or None,
+            })
+        if not cleaned:
+            raise ValueError("Koleksiyonda eklenecek film yok")
+        with self._sessions().begin() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            repo = CustomListRepository(session)
+            media_repo = MediaRepository(session)
+            lists = repo.list_all()
+            chosen = next(
+                (item for item in lists if item.name.casefold() == name.casefold()),
+                None,
+            )
+            created = chosen is None
+            if chosen is None:
+                chosen = repo.create(name, len(lists))
+            members = repo.list_items(chosen.id)
+            existing = {item.media_id for item in members}
+            position = max((item.sort_order for item in members), default=-1) + 1
+            added = 0
+            for movie in cleaned:
+                media = media_repo.get_by_tmdb(movie["tmdb_id"], MediaType.MOVIE)
+                release = None
+                raw_date = movie.get("release_date") or ""
+                if raw_date:
+                    try:
+                        release = date.fromisoformat(str(raw_date)[:10])
+                    except ValueError:
+                        release = None
+                if media is None:
+                    media = media_repo.upsert(
+                        movie["tmdb_id"],
+                        MediaType.MOVIE,
+                        movie["title"],
+                        poster_path=movie.get("poster_path"),
+                        overview=movie.get("overview"),
+                        release_date=release,
+                    )
+                else:
+                    if not media.poster_path and movie.get("poster_path"):
+                        media.poster_path = movie["poster_path"]
+                    if release is not None and media.release_date is None:
+                        media.release_date = release
+                if media.id not in existing:
+                    repo.add_item(chosen.id, media.id, position)
+                    existing.add(media.id)
+                    position += 1
+                    added += 1
+            return {
+                "listId": chosen.id,
+                "listName": chosen.name,
+                "added": added,
+                "total": len(cleaned),
+                "already": len(cleaned) - added,
+                "created": created,
+            }
+
     def remove(self, list_id: int, kind: str, tmdb_id: int) -> None:
+        self._require_custom(list_id)
         with self._sessions().begin() as session:
             repo = CustomListRepository(session)
             media = MediaRepository(session).get_by_tmdb(
@@ -236,6 +391,7 @@ class CustomListsService:
                 repo.set_item_position(list_id, item.media_id, position)
 
     def move_list(self, list_id: int, direction: int) -> None:
+        self._require_custom(list_id)
         with self._sessions().begin() as session:
             repo = CustomListRepository(session)
             lists = repo.list_all()
@@ -248,6 +404,7 @@ class CustomListsService:
                 repo.set_position(item.id, position)
 
     def move_item(self, list_id: int, kind: str, tmdb_id: int, direction: int) -> None:
+        self._require_custom(list_id)
         with self._sessions().begin() as session:
             repo = CustomListRepository(session)
             media = MediaRepository(session).get_by_tmdb(

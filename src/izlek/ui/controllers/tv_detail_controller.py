@@ -8,11 +8,14 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from sqlalchemy.exc import SQLAlchemyError
 
+from izlek.i18n import t
+from izlek.metadata.registry import MetadataClientRegistry
+from izlek.metadata.settings import MetadataSettings
 from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.tv_detail import TvDetailService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.ui.controllers.messages import NETWORK_UNAVAILABLE
+from izlek.ui.controllers.messages import network_unavailable
 
 
 def _url(path: Path) -> str:
@@ -34,11 +37,19 @@ class TvDetailController(QObject):
         service: TvDetailService | None = None,
         images: ImageService | None = None,
         store: TokenStore | None = None,
+        metadata_settings: MetadataSettings | None = None,
+        metadata_registry: MetadataClientRegistry | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store or TokenStore()
-        self._service = service or TvDetailService(TmdbClient())
+        self._metadata_settings = metadata_settings or MetadataSettings()
+        self._metadata_registry = metadata_registry
+        self._service = service or TvDetailService(
+            TmdbClient(),
+            watch_region=lambda: self._metadata_settings.watch_provider_region,
+            metadata_registry=self._metadata_registry,
+        )
         self._images = images
         self._retired_images: list[ImageService] = []
         self._own_images = images is None
@@ -168,7 +179,7 @@ class TvDetailController(QObject):
                 self._loaded.emit(
                     generation,
                     {},
-                    NETWORK_UNAVAILABLE,
+                    network_unavailable(),
                 )
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             if cached is None:
@@ -299,7 +310,7 @@ class TvDetailController(QObject):
                     generation,
                     serial,
                     {},
-                    NETWORK_UNAVAILABLE,
+                    network_unavailable(),
                 )
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             if not cached_published:
@@ -469,7 +480,7 @@ class TvDetailController(QObject):
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             self._saved.emit(generation, {}, [], "Değişiklik kaydedilemedi.")
         else:
-            self._saved.emit(generation, detail, episodes, "Kaydedildi.")
+            self._saved.emit(generation, detail, episodes, t("detail.saved"))
 
     @Slot(int, object, object, str)
     def _apply_saved(
@@ -509,7 +520,7 @@ class TvDetailController(QObject):
 
     @Slot()
     def openProviderLink(self) -> None:
-        """Open only TMDb's provider link returned for the TR region."""
+        """Open only TMDb's provider link returned for the configured region."""
         url = self._detail.get("providerLink", "")
         if url.startswith("https://www.themoviedb.org/"):
             QDesktopServices.openUrl(QUrl(url))
