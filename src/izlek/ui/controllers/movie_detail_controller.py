@@ -63,6 +63,7 @@ class MovieDetailController(QObject):
         self._error = ""
         self._feedback = ""
         self._image_notify_pending = False
+        self._pending_images: dict[tuple[str, int], str] = {}
         self._loaded.connect(self._apply_loaded)
         self._saved.connect(self._apply_saved)
         self._imageReady.connect(self._apply_image)
@@ -172,6 +173,7 @@ class MovieDetailController(QObject):
         self._busy = False
         self._error = error
         self._image_notify_pending = False
+        self._pending_images.clear()
         if not detail:
             self._detail = detail
             self.changed.emit()
@@ -229,8 +231,22 @@ class MovieDetailController(QObject):
 
     def _flush_image_notify(self) -> None:
         self._image_notify_pending = False
-        if not self._closed:
-            self.changed.emit()
+        if self._closed or not self._pending_images:
+            self._pending_images.clear()
+            return
+        detail = dict(self._detail)
+        by_role: dict[str, dict[int, str]] = {}
+        for (role, index), url in self._pending_images.items():
+            by_role.setdefault(role, {})[index] = url
+        self._pending_images.clear()
+        for role, updates in by_role.items():
+            entries = list(detail.get(role, []))
+            for index, url in updates.items():
+                if index < len(entries):
+                    entries[index] = {**entries[index], "poster": url}
+            detail[role] = entries
+        self._detail = detail
+        self.changed.emit()
 
     @Slot(int, str, int, str)
     def _apply_image(self, generation: int, role: str, index: int, url: str) -> None:
@@ -241,11 +257,8 @@ class MovieDetailController(QObject):
             # Hero media updates immediately; secondary images are coalesced below.
             self.changed.emit()
             return
-        entries = list(self._detail.get(role, []))
-        if index >= len(entries):
-            return
-        entries[index] = {**entries[index], "poster": url}
-        self._detail = {**self._detail, role: entries}
+        # Buffer until flush so Property/QML stay in sync (tests wait on detail).
+        self._pending_images[(role, index)] = url
         if not self._image_notify_pending:
             self._image_notify_pending = True
             QTimer.singleShot(0, self._flush_image_notify)
