@@ -163,6 +163,18 @@ Rectangle {
                         onClicked: listDialog.open()
                     }
                     IzlekButton {
+                        objectName: "movieCollectionToList"
+                        visible: (page.controller.detail.collectionId || 0) > 0
+                        text: (i18n.revision, i18n.t("detail.add_collection_list"))
+                        variant: "secondary"
+                        enabled: !page.controller.saving
+                        Accessible.name: page.controller.detail.collectionName
+                            ? ((i18n.revision, i18n.t("detail.add_collection_list"))
+                               + " — " + page.controller.detail.collectionName)
+                            : (i18n.revision, i18n.t("detail.add_collection_list"))
+                        onClicked: page.controller.addCollectionToList()
+                    }
+                    IzlekButton {
                         objectName: "togglePersonalReviewButton"
                         text: personalReview.expanded ? "Puan ve notu kapat" : "Puan ve not"
                         variant: "secondary"

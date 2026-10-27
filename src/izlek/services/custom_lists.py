@@ -1,5 +1,8 @@
 """Local custom list management; no TMDb list endpoints are used."""
 
+from datetime import date
+from typing import Any
+
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -297,6 +300,83 @@ class CustomListsService:
             if not any(item.media_id == media.id for item in members):
                 repo.add_item(chosen.id, media.id, len(members))
             return chosen.id
+
+    def add_collection_movies(
+        self, name: str, movies: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Create or update a custom list from TMDb collection parts (list-only).
+
+        Upserts local movie rows for membership without forcing tracking status,
+        so users can still add/remove list items and library state separately.
+        """
+        name = _clean_name(name)
+        cleaned: list[dict[str, Any]] = []
+        for raw in movies:
+            tmdb_id = int(raw.get("tmdb_id") or 0)
+            title = str(raw.get("title") or "").strip()
+            if tmdb_id <= 0 or not title:
+                continue
+            cleaned.append({
+                "tmdb_id": tmdb_id,
+                "title": title,
+                "poster_path": raw.get("poster_path") or None,
+                "overview": raw.get("overview") or None,
+                "release_date": raw.get("release_date") or None,
+            })
+        if not cleaned:
+            raise ValueError("Koleksiyonda eklenecek film yok")
+        with self._sessions().begin() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            repo = CustomListRepository(session)
+            media_repo = MediaRepository(session)
+            lists = repo.list_all()
+            chosen = next(
+                (item for item in lists if item.name.casefold() == name.casefold()),
+                None,
+            )
+            created = chosen is None
+            if chosen is None:
+                chosen = repo.create(name, len(lists))
+            members = repo.list_items(chosen.id)
+            existing = {item.media_id for item in members}
+            position = max((item.sort_order for item in members), default=-1) + 1
+            added = 0
+            for movie in cleaned:
+                media = media_repo.get_by_tmdb(movie["tmdb_id"], MediaType.MOVIE)
+                release = None
+                raw_date = movie.get("release_date") or ""
+                if raw_date:
+                    try:
+                        release = date.fromisoformat(str(raw_date)[:10])
+                    except ValueError:
+                        release = None
+                if media is None:
+                    media = media_repo.upsert(
+                        movie["tmdb_id"],
+                        MediaType.MOVIE,
+                        movie["title"],
+                        poster_path=movie.get("poster_path"),
+                        overview=movie.get("overview"),
+                        release_date=release,
+                    )
+                else:
+                    if not media.poster_path and movie.get("poster_path"):
+                        media.poster_path = movie["poster_path"]
+                    if release is not None and media.release_date is None:
+                        media.release_date = release
+                if media.id not in existing:
+                    repo.add_item(chosen.id, media.id, position)
+                    existing.add(media.id)
+                    position += 1
+                    added += 1
+            return {
+                "listId": chosen.id,
+                "listName": chosen.name,
+                "added": added,
+                "total": len(cleaned),
+                "already": len(cleaned) - added,
+                "created": created,
+            }
 
     def remove(self, list_id: int, kind: str, tmdb_id: int) -> None:
         self._require_custom(list_id)

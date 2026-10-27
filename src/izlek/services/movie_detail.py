@@ -216,6 +216,7 @@ class MovieDetailService:
             member["name"] for member in credits.get("crew", [])
             if member.get("job") == "Director"
         ]
+        collection = detail.belongs_to_collection
         return {
             "id": detail.id,
             "title": detail.original_title,
@@ -228,6 +229,8 @@ class MovieDetailService:
             "backdropPath": detail.backdrop_path or "",
             "poster": "",
             "backdrop": "",
+            "collectionId": collection.id if collection else 0,
+            "collectionName": collection.name if collection else "",
             "cast": [
                 {
                     "id": member.get("id", 0),
@@ -281,3 +284,40 @@ class MovieDetailService:
         """Add a movie to a named list, creating the list when needed."""
         CustomListsService(self._sessions()).add_by_name("movie", movie_id, name)
         return self.cached(movie_id) or {}
+
+    def add_collection_to_list(
+        self, movie_id: int
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Fetch the movie's TMDb collection and merge parts into a custom list.
+
+        Membership is list-only: collection movies are upserted locally without
+        forcing library tracking status. Existing list members are kept; missing
+        parts are appended in TMDb part order.
+        """
+        with self._sessions()() as session:
+            item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
+            if item is None:
+                raise LookupError("Film yerel veritabanında yok")
+            detail_blob = (item.metadata_json or {}).get("detail") or {}
+            membership = detail_blob.get("belongs_to_collection")
+            if not isinstance(membership, dict) or not membership.get("id"):
+                raise LookupError("Bu film bir koleksiyona bağlı değil")
+            collection_id = int(membership["id"])
+            fallback_name = str(membership.get("name") or "").strip()
+
+        remote = self.client.collection(collection_id)
+        list_name = (remote.name or fallback_name or "Koleksiyon").strip()
+        movies = [
+            {
+                "tmdb_id": part.id,
+                "title": part.original_title,
+                "poster_path": part.poster_path,
+                "overview": part.overview,
+                "release_date": part.release_date,
+            }
+            for part in remote.parts
+        ]
+        summary = CustomListsService(self._sessions()).add_collection_movies(
+            list_name, movies
+        )
+        return self.cached(movie_id) or {}, summary

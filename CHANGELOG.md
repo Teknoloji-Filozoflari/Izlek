@@ -5,6 +5,9 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+- Film detayında TMDb koleksiyon/seri → özel liste: `belongs_to_collection`
+  ve koleksiyon uç noktasıyla filmler oluşturulur/güncellenir (liste-only;
+  kütüphane durumu elle kalır).
 - Keşfet / Filmler / Diziler'deki Rahat–Sıkı kart yoğunluğu seçici kaldırıldı;
   sunum sabit rahat (`compact: false`) düzene kilitlendi.
 - Film/dizi `watched_at` ve `rewatch_count`; JSON şema v4; istatistiklerde film

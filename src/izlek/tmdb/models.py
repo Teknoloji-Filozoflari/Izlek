@@ -98,10 +98,31 @@ class PersonTvCredits(ApiModel):
     cast: list[TvSummary] = Field(default_factory=list)
 
 
+class CollectionMembership(ApiModel):
+    """TMDb franchise/collection summary attached to a movie detail."""
+
+    id: int
+    name: str
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+
+
+class CollectionDetail(ApiModel):
+    """TMDb collection endpoint payload with ordered movie parts."""
+
+    id: int
+    name: str
+    overview: str = ""
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+    parts: list[MovieSummary] = Field(default_factory=list)
+
+
 class MovieDetail(MovieSummary):
     runtime: int | None = None
     genres: list[Genre] = Field(default_factory=list)
     original_language: str | None = None
+    belongs_to_collection: CollectionMembership | None = None
     production_companies: list["ProductionCompany"] = Field(default_factory=list)
     production_countries: list["ProductionCountry"] = Field(default_factory=list)
 

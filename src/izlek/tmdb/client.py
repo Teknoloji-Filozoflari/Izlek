@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 from izlek.i18n import tmdb_language
 from izlek.tmdb import endpoints
 from izlek.tmdb.models import (
+    CollectionDetail,
     Configuration,
     MovieCredits,
     MovieDetail,
@@ -329,6 +330,14 @@ class TmdbClient:
         """Fetch regional streaming, rental, and purchase options."""
         return self._request(
             endpoints.MOVIE_WATCH_PROVIDERS.format(id=id), MovieWatchProviders
+        )
+
+    def collection(self, id: int, *, language: str | None = None) -> CollectionDetail:
+        """Fetch a TMDb movie collection and its ordered parts."""
+        return self._request(
+            endpoints.COLLECTION.format(id=id),
+            CollectionDetail,
+            {"language": language or self.language},
         )
 
     def tv(self, id: int, *, language: str | None = None) -> TvDetail:

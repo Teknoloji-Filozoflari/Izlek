@@ -252,6 +252,13 @@ class MovieDetailController(QObject):
     def addToList(self, name: str) -> None:
         self._submit_action("list", name)
 
+    @Slot()
+    def addCollectionToList(self) -> None:
+        """Import the TMDb collection/franchise into a local custom list."""
+        if not (self._detail.get("collectionId") or 0):
+            return
+        self._submit_action("collection", None)
+
     def _submit_action(self, action: str, value: Any) -> None:
         if self._closed or not self._detail or self._saving:
             return
@@ -267,14 +274,33 @@ class MovieDetailController(QObject):
         try:
             if action == "status":
                 detail = self._service.set_status(movie_id, value)
+                feedback = t("detail.saved")
             elif action == "favorite":
                 detail = self._service.set_favorite(movie_id, value)
+                feedback = t("detail.saved")
+            elif action == "collection":
+                detail, info = self._service.add_collection_to_list(movie_id)
+                feedback = t(
+                    "detail.collection_added",
+                    name=info["listName"],
+                    added=info["added"],
+                    total=info["total"],
+                )
             else:
                 detail = self._service.add_to_list(movie_id, value)
-        except (OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
-            self._saved.emit(generation, {}, "Değişiklik kaydedilemedi.")
+                feedback = t("detail.saved")
+        except NetworkError:
+            self._saved.emit(generation, {}, network_unavailable())
+        except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
+            self._saved.emit(
+                generation,
+                {},
+                t("detail.collection_failed")
+                if action == "collection"
+                else "Değişiklik kaydedilemedi.",
+            )
         else:
-            self._saved.emit(generation, detail, t("detail.saved"))
+            self._saved.emit(generation, detail, feedback)
 
     @Slot(int, object, str)
     def _apply_saved(
