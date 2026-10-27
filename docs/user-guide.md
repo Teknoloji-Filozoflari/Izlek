@@ -94,8 +94,9 @@ durumunu değiştirmeden önce seçili içerik sayısını gösteren onay açıl
 Dizilerde toplu durum değişimi bölüm işaretlerini değiştirmez. İşlem aynı
 transaction'da tamamlanır; bir kayıt geçersizse kısmi değişiklik yapılmaz.
 Filtre değişince seçim temizlenir. Filtre veya seçim açıkken sürükleyerek
-sıralama kapalıdır; özel sıran korunur. Ana grid filtrelenir, Favoriler ve
-Devam Et bölümleri bağımsız kalır.
+sıralama kapalıdır; özel sıran korunur. Ana grid filtrelenir; Diziler'de
+**Devam Et** ızgaranın üstünde yatay şerit olarak kalır, Favoriler altta
+bağımsızdır.
 
 ## Bir daha önerme
 

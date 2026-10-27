@@ -223,6 +223,7 @@ yeniden aranır. Arama yanında ayrı medya seçimi yoktur. Puan SpinBox'ları
 0–100 tamsayıyı 0–10 puan olarak salt okunur etiketle gösterir; odak kaybında
 metin parse edilmez, Uygula yalnız mevcut değerleri controller'a aktarır.
 İndeks 4 İstatistikler'dir (Ctrl+5). Devam Et yalnız Diziler'dedir; kütüphane
+ızgarasının üstünde yatay şerit olarak gösterilir. Kütüphane
 sekme altı istatistikleri kaldırılmıştır. Kullanıcının sonraki isteğiyle Takibim ve Favorilerim İstatistikler sayfasından kaldırılmıştır; sayfa yalnız istatistik controller'ını yeniler.
 Film kütüphanesi de diziler gibi tüm takip durumlarını tek grid'de gösterir;
 ekleme `PLANNED`, açık İzlendi düğmesi `WATCHED`, İzlenmedi düğmesi `PLANNED`

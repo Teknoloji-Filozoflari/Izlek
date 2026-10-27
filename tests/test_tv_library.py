@@ -187,7 +187,18 @@ def test_shows_page_combines_statuses_progress_and_compact_sections(
         stats = window.findChild(QQuickItem, "tvStats")
         assert all(item is not None for item in (grid, tabs, favorites))
         assert stats is None
-        assert window.findChild(QQuickItem, "showsContinueSection").isVisible()
+        _wait_for(
+            application,
+            lambda: not continuing.busy and len(continuing.items) > 0,
+        )
+        continue_section = window.findChild(QQuickItem, "showsContinueSection")
+        continue_strip = window.findChild(QQuickItem, "showsContinueStrip")
+        assert continue_section is not None and continue_section.isVisible()
+        assert continue_strip is not None and continue_strip.isVisible()
+        assert continue_strip.property("count") == len(continuing.items)
+        assert continue_strip.height() == 158
+        grid_frame = window.findChild(QQuickItem, "libraryGridFrame")
+        assert continue_section.y() < grid_frame.y()
         assert not tabs.isVisible()
         assert favorites.property("count") == 3
         for width, height in ((800, 600), (1366, 768), (1920, 1080)):
