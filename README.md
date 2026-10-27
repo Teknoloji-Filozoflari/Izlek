@@ -34,7 +34,7 @@ Kütüphanen, listelerin ve izleme geçmişin cihazında kalır.
 | **Kişisel puan ve not** | Listeye Ekle yanındaki Puan ve not düğmesini aç; 1–10 puan ve 2000 karaktere kadar not kaydet. |
 | **Filtre ve toplu işlem** | Kütüphaneyi tür/yıl/süre/durum/puanla süz; kart seçip durum, favori veya liste işlemi uygula. |
 | **Öneri tercihleri** | İlgini çekmeyen yapımları Bir daha önerme ile gizle, Ayarlar'dan geri aç. |
-| **Görünüm** | Keşfet, Filmler ve Diziler'de Rahat/Sıkı kart düzenini seç; TMDb ve kişisel puanlarını ayrı gör. |
+| **Görünüm** | Keşfet, Filmler ve Diziler'de rahat kart düzeni; TMDb ve kişisel puanlarını ayrı gör. |
 | **İstatistikler** | Toplam, film ve bölüm sürelerini ayrı kartlarda; tür dağılımını ve en çok izlediğin dizileri grafiklerde gör. |
 | **Çevrimdışı kullanım** | Kayıtlı kütüphane bilgilerine eriş; kütüphane afişleri ve arka planları yerelde korunsun. |
 | **Veri aktarımı** | Kütüphaneni, ilerlemeni, özel sıralarını, puan/not ve öneri tercihlerini JSON olarak dışa aktar, başka kurulumda içe al. |

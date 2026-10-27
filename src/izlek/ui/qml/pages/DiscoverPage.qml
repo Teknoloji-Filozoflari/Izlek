@@ -271,12 +271,6 @@ Rectangle {
                         font.weight: Tokens.Theme.weightDemiBold
                         elide: Text.ElideRight
                     }
-                    SegmentedControl {
-                        objectName: "discoverCardDensity"
-                        options: ["Rahat", "Sıkı"]
-                        currentIndex: resultsGrid.compact ? 1 : 0
-                        onSelected: function(index) { resultsGrid.compact = index === 1 }
-                    }
                     Label {
                         visible: !page.searching && !controller.busy && controller.items.length > 0
                         text: "Sayfa " + controller.page + " / " + controller.totalPages
@@ -424,6 +418,7 @@ Rectangle {
                         objectName: "discoverResults"
                         anchors.fill: parent
                         visible: !page.resultsBusy && page.displayedItems.length > 0
+                        compact: false
                         items: page.displayedItems
                         quickLibraryController: page.libraryActions
                         dismissController: page.searching ? null : personalController

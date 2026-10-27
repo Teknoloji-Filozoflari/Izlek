@@ -8,7 +8,7 @@ Ana penceredeki her sayfadan **Ctrl+K** ile arama açılır, **Esc** ile kapanı
 
 ## Keşfet
 
-**Keşfet**, TMDb'nin yalnızca Discover Movie ve Discover TV uçlarını kullanır. Film veya dizi, yıl, tür, ülke ve puan aralığı seçilebilir. Sonuçlar popülerliğe (`popularity.desc`) göre sıralanır; en az oy eşiği 100'dür. Puan aralığı ve ülke filtreleri korunur. Kartlar Rahat/Sıkı görünümle gösterilir ve önceki/sonraki düğmeleriyle sayfalanır.
+**Keşfet**, TMDb'nin yalnızca Discover Movie ve Discover TV uçlarını kullanır. Film veya dizi, yıl, tür, ülke ve puan aralığı seçilebilir. Sonuçlar popülerliğe (`popularity.desc`) göre sıralanır; en az oy eşiği 100'dür. Puan aralığı ve ülke filtreleri korunur. Kartlar rahat görünümle gösterilir ve önceki/sonraki düğmeleriyle sayfalanır.
 
 Ana sayfadaki aramada ve global aramada kütüphanene kaydettiğin, favoriye
 aldığın, özel listene eklediğin veya izlediğin içerikler gizlenir. Yalnızca

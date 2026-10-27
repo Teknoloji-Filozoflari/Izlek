@@ -5,6 +5,8 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+- Keşfet / Filmler / Diziler'deki Rahat–Sıkı kart yoğunluğu seçici kaldırıldı;
+  sunum sabit rahat (`compact: false`) düzene kilitlendi.
 - Film/dizi `watched_at` ve `rewatch_count`; JSON şema v4; istatistiklerde film
   aktivitesi, son 12 ay grafiği ve son izlemeler günlüğü.
 - Listeler sayfasında akıllı listeler (izlenmemiş favoriler, favoriler, izleniyor,

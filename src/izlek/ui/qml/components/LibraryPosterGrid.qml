@@ -6,7 +6,7 @@ GridView {
     id: grid
     property var items: []
     property var controller: null
-    property bool compact: true
+    property bool compact: false
     property bool selectionMode: false
     property var selectedIds: []
     readonly property int targetCardWidth: compact ? Tokens.Theme.cardCompactWidth : Tokens.Theme.cardWidth

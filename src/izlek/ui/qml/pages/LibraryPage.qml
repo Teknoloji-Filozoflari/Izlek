@@ -157,12 +157,6 @@ Rectangle {
                     controller.setStatus(["PLANNED", "WATCHING", "WATCHED"][index])
                 }
             }
-            SegmentedControl {
-                objectName: page.kind === "movie" ? "movieCardDensity" : "tvCardDensity"
-                options: ["Rahat", "Sıkı"]
-                currentIndex: movieGrid.compact ? 1 : 0
-                onSelected: function(index) { movieGrid.compact = index === 1 }
-            }
             Item { Layout.fillWidth: true }
             Label {
                 text: (i18n.revision, i18n.t("library.sort"))
@@ -247,6 +241,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: Tokens.Theme.spaceSm
                 visible: controller.items.length > 0
+                compact: false
                 items: controller.items
                 controller: page.controller
                 selectionMode: page.selecting
