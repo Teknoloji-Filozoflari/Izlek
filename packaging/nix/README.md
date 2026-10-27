@@ -17,8 +17,8 @@ Ardından normal NixOS yapılandırma yenilemesini uygulayın. Kaynak depoyu
 indirmeden çalıştırmak veya kullanıcı profiline kurmak için:
 
 ```bash
-nix run github:Teknoloji-Filozoflari/Izlek/v1.0.1
-nix profile install github:Teknoloji-Filozoflari/Izlek/v1.0.1
+nix run github:Teknoloji-Filozoflari/Izlek/v1.1.0
+nix profile install github:Teknoloji-Filozoflari/Izlek/v1.1.0
 ```
 
 Proje kökünde yerel build ve kontrol:
@@ -50,7 +50,7 @@ gelmelidir. Mevcut diğer ayarlarınızı koruyun.
 
 ```nix
 {
-  inputs.izlek.url = "github:Teknoloji-Filozoflari/Izlek/v1.0.1";
+  inputs.izlek.url = "github:Teknoloji-Filozoflari/Izlek/v1.1.0";
 
   outputs = { nixpkgs, izlek, ... }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {

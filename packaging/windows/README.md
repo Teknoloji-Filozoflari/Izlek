@@ -2,8 +2,9 @@
 
 Hedef Windows 10/11 x64'tür. Aynı Python/PySide6 uygulaması PyInstaller ile
 Windows üzerinde derlenir; Inno Setup kullanıcıya ait bir kurulum EXE'si üretir.
-Linux'ta Windows EXE üretilmez. İlk gerçek Windows Actions koşusu henüz
-doğrulanmadı; kaynak testlerinin geçmesi Windows binary doğrulaması değildir.
+Linux'ta Windows EXE üretilmez. Tag yayını (`v*`) başarılı Windows
+işini GitHub release asset'i olarak yükler; kaynak testlerinin geçmesi
+tek başına Windows binary doğrulaması değildir.
 
 ## GitHub'dan üretme ve indirme
 
@@ -17,7 +18,6 @@ Başarılı koşuda **Artifacts → izlek-windows-x64** arşivi şunları içeri
 Artifact arşivini açıp EXE'yi çalıştır. GitHub Actions artifact'ini indirmek
 için GitHub oturumu gerekir. Yeni `v*` release etiketinde Windows workflow'u
 Linux paketleriyle birlikte çalışır ve başarılı EXE release'e yüklenir.
-Mevcut v1.0.1 release'inde Windows dosyası varmış gibi indirme bağlantısı verilmez.
 
 ## Yerelde üretme
 

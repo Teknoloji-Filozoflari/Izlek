@@ -162,8 +162,10 @@ class FakeTmdb:
         )
 
 
-def wait_for(application, condition):
-    for _ in range(100):
+def wait_for(application, condition, attempts=400):
+    # Nix/offscreen CI can spend >1s on debounce (300ms) + worker search;
+    # keep a longer default so UI waits do not flake under package check load.
+    for _ in range(attempts):
         application.processEvents()
         if condition():
             return
@@ -520,19 +522,30 @@ def test_home_left_media_choice_repeats_existing_query(qapp):
         search_controller=search,
     )
     try:
+        wait_for(
+            application,
+            lambda: window.findChild(QQuickItem, "dashboardSearch") is not None,
+        )
         field = window.findChild(QQuickItem, "dashboardSearch")
         field.setProperty("text", "example")
+        application.processEvents()
+        # Accepted runs search immediately; avoid racing DiscoverPage's 300ms
+        # debounce under offscreen/Nix package-check load.
+        field.accepted.emit()
         wait_for(application, lambda: not search.busy and bool(search.movies))
         assert search.shows == []
         selector = window.findChild(QQuickItem, "discoverMedia")
         selector.setProperty("currentIndex", 1)
         selector.activated.emit(1)
+        # Media change restarts debounce; wait past the timer before asserting.
+        QTest.qWait(350)
         wait_for(application, lambda: not search.busy and bool(search.shows))
         assert search.movies == [] and search.mediaType == "tv"
         assert field.property("text") == "example"
         assert field.property("placeholderText").startswith("Dizi")
         selector.setProperty("currentIndex", 0)
         selector.activated.emit(0)
+        QTest.qWait(350)
         wait_for(application, lambda: not search.busy and bool(search.movies))
         assert search.shows == [] and search.mediaType == "movie"
         assert field.property("placeholderText").startswith("Film")

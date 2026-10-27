@@ -28,22 +28,19 @@ ve kişisel veriyi koruma kontrollerinden sonra artifact olarak sunar.
 Workflow, tag ile `pyproject.toml` sürümünün birebir eşleşmesini zorunlu tutar.
 Başarılı adımların sonunda GitHub release, sürüme ait not dosyasıyla otomatik
 oluşturulur veya aynı tag tekrar çalıştırıldıysa notlar ve asset'ler
-güncellenir. Linux v1.0.1 dosyaları:
+güncellenir. v1.1.0 tag yayını beklenen dosyalar:
 
-- `Izlek-1.0.1-x86_64.AppImage` ve SHA-256 dosyası
-- `izlek_1.0.1_amd64.deb`
-- `Izlek-1.0.1-source.tar.gz` ve SHA-256 dosyası
+- `Izlek-1.1.0-x86_64.AppImage` ve SHA-256 dosyası
+- `izlek_1.1.0_amd64.deb`
+- `Izlek-1.1.0-windows-x64-setup.exe` ve SHA-256 dosyası
+- `Izlek-1.1.0-source.tar.gz` ve SHA-256 dosyası
 
-Yeni tag yayınlarında ayrıca `Izlek-<sürüm>-windows-x64-setup.exe` ve SHA-256
-dosyası beklenir. Var olan v1.0.1 release'ine EXE'nin eklendiği doğrulanmadı.
-Tag oluşturmadan önce **Windows EXE** workflow'unun başarılı koşusunu kontrol
-edin; ilk Windows build'i bu geliştirme oturumunda çalıştırılmadı.
 Windows iş akışı kaynak/paketleme push'unda veya elle de başlatılabilir;
 [Windows rehberi](../packaging/windows/README.md) indirme adımlarını açıklar.
 
 GitHub ayrıca tag için kendi otomatik source code `.zip` ve `.tar.gz`
 bağlantılarını gösterir. Workflow'un ürettiği source archive sabit
-`izlek-1.0.1/` kök diziniyle ayrıca release asset olarak yüklenir.
+`izlek-<sürüm>/` kök diziniyle ayrıca release asset olarak yüklenir.
 
 ## Tag sonrası
 
@@ -61,15 +58,21 @@ olarak ayrıca yüklenebilir. Snap Store yayını için ad kaydı, gerçek masa�
 sandbox kontrolü ve uygun grade/channel gerekir; Store upload otomasyonu yok.
 Snap sürümü `snap/snapcraft.yaml` ve `pyproject.toml` içinde birlikte güncellenir.
 
-## v1.0.1 yayını
+## v1.1.0 yayını
 
-v1.0.0 tag'i korunmuştur; düzeltilmiş paketler ayrı v1.0.1 sürümündedir.
-AppImage, DEB, RPM ve Snap elle başlatılan build workflow'larından alınır;
-`Installed package X11 check` workflow'u başarılı build koşusunun
-artifact'ini indirip temiz hedefte kurar ve sanal X11 penceresini açar.
-Doğrulanmış dosyalar, kaynak arşivi, wheel/sdist ve SHA256SUMS aynı
-GitHub release'ine yüklenir. Nix kullanıcıları v1.0.1 flake tag'ini kullanır.
+v1.0.x tag'leri korunmuştur; özellik hattı v1.1.0'tadır. Tag push
+`Release desktop artifacts` ile AppImage, DEB, Windows EXE ve kaynak
+arşivini GitHub release'ine yükler. RPM ve Snap `workflow_dispatch` ile
+ayrı üretilir; doğrulandıktan sonra aynı release'e eklenebilir.
+Nix kullanıcıları `v1.1.0` flake tag'ini kullanır.
 
 AppImage tabanı Ubuntu 22.04 / glibc 2.35, RPM tabanı Fedora 43 / glibc 2.42'dir.
 Snap GitHub'dan yerel dosyayla kurulabilir; Snap Store'a gönderilmemiştir.
 AUR yayını bu işlemlere dahil değildir.
+
+## v1.0.1 yayını (tarihsel)
+
+v1.0.0 tag'i korunmuştur; düzeltilmiş paketler ayrı v1.0.1 sürümündedir.
+AppImage, DEB, RPM ve Snap elle başlatılan build workflow'larından alındı;
+doğrulanmış dosyalar, kaynak arşivi, wheel/sdist ve SHA256SUMS aynı
+GitHub release'ine yüklendi.

@@ -4,10 +4,11 @@
 
 | Sürüm | Destek |
 | --- | --- |
-| 1.0.x | Desteklenir (kararlı) |
+| 1.1.x | Desteklenir (kararlı) |
+| 1.0.x | Güvenlik düzeltmeleri (mümkün olduğunca) |
 | < 1.0 | Desteklenmez |
 
-İzlek **1.0.x** kararlı sürüm hattındadır. Güvenlik düzeltmeleri mümkün
+İzlek **1.1.x** kararlı sürüm hattındadır. Güvenlik düzeltmeleri mümkün
 olduğunca bu hatta yayımlanır; sürüm notları ve `CHANGELOG.md` içinde
 açıklanır.
 

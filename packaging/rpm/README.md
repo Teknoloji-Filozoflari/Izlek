@@ -42,9 +42,9 @@ Tarif referansı: [RPM spec belgeleri](https://rpm.org/docs/4.20.x/manual/spec.h
 
 ## Hazır paket
 
-[v1.0.1 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)
-Fedora 43 x86_64 RPM dosyasını indirip `sudo dnf install ./izlek-1.0.1-1.fc43.x86_64.rpm`
-ile kurabilirsiniz. glibc 2.42 veya üzeri gerekir.
-[Build ve temiz kurulum](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213377313)
-ve [X11 pencere kontrolü](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213789351)
-başarılıdır.
+[v1.1.0 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.1.0)
+RPM asset'i yüklendiyse Fedora 43 x86_64 dosyasını indirip
+`sudo dnf install ./izlek-1.1.0-1.fc43.x86_64.rpm` ile kurabilirsiniz.
+glibc 2.42 veya üzeri gerekir. RPM tag akışına otomatik eklenmez;
+**RPM package** workflow_dispatch çıktısı doğrulandıktan sonra release'e
+yüklenebilir.

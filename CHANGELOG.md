@@ -5,32 +5,40 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
-- Film detayında TMDb koleksiyon/seri → özel liste: `belongs_to_collection`
-  ve koleksiyon uç noktasıyla filmler oluşturulur/güncellenir (liste-only;
-  kütüphane durumu elle kalır).
-- Keşfet / Filmler / Diziler'deki Rahat–Sıkı kart yoğunluğu seçici kaldırıldı;
-  sunum sabit rahat (`compact: false`) düzene kilitlendi.
-- Film/dizi `watched_at` ve `rewatch_count`; JSON şema v4; istatistiklerde film
-  aktivitesi, son 12 ay grafiği ve son izlemeler günlüğü.
-- Listeler sayfasında akıllı listeler (izlenmemiş favoriler, favoriler, izleniyor,
-  izlenecek, yüksek puanlı) ve kullanıcı etiketleri; etiketler detaydaki puan/not
-  panelinden yönetilir ve sanal liste olarak görünür.
-- Ayarlar'da koyu/açık tema seçimi (`Theme.qml` ışık token'ları, `window.ini`).
-- SECURITY.md, v1.0.x kararlı destek hattı ve yanıt süreciyle hizalandı.
-- Ayarlar cache kartında ölçülen önbellek boyutu etiketi (`cacheSizeLabel`) ve
-  erişilebilir ad doğrulandı.
+## [1.1.0] - 2026-10-27
 
-- Windows 10/11 x64 için EXE kurulum paketi ve GitHub Actions üretim akışı;
-  kurulum, açılış, kaldırma ve kişisel veri koruma kontrolleri. İlk gerçek
-  Windows build'i henüz doğrulanmadı.
-- Oyuncu/yönetmen araması, kişi yapımlarında Yeni keşifler/Tüm yapımları ve
-  kayıtlı/izlenmiş içeriklerin arama ve önerilerde ayıklanması.
+### Added
+
+- Yapılandırılabilir meta veri kaynakları (TMDb varsayılan; Trakt / TVmaze /
+  OMDb) ve izleme bölgesi; canlı OMDb/Trakt zenginleştirme.
+- Trakt / Letterboxd içe aktarma; Keşfet için DiscoverService ve sana özel
+  öneri şeridi; sağlayıcı grupları.
+- Akıllı listeler ve kullanıcı etiketleri; etiketler detay panelinden yönetilir.
+- Ayarlar'da koyu/açık tema; çok dilli arayüz (tr/en ve ek yerel paketler).
+- Film/dizi `watched_at` ve `rewatch_count`; JSON şema v4; film aktivitesi,
+  son 12 ay grafiği ve son izlemeler günlüğü.
+- TMDb koleksiyon/seri → özel liste (`belongs_to_collection`, liste-only).
+- Windows 10/11 x64 EXE kurulum paketi ve tag tabanlı release akışı.
+- Ayarlar cache kartında ölçülen önbellek boyutu (`cacheSizeLabel`).
+- Oyuncu/yönetmen araması; kişi yapımlarında Yeni keşifler/Tüm yapımları.
 - Kişisel puan/not, birleşik kütüphane filtreleri, toplu işlemler ve öneri
-  gizleme/geri açma; kişisel alanları taşıyan JSON v3 yedekleri.
-- Afişli çoklu liste seçimi, kalıcı özel sıralar, karttan doğrudan sürükleme,
-  Rahat/Sıkı görünüm ve yenilenen istatistik düzeni.
-- Detaylar arası geri geçmişi, sayfa geçişi sırasında kabul edilmiş kişisel
-  yazımların korunması ve bozuk metadata/token hata durumları düzeltildi.
+  gizleme/geri açma.
+- Afişli çoklu liste seçimi, kalıcı özel sıralar, karttan doğrudan sürükleme.
+
+### Changed
+
+- Keşfet / Filmler / Diziler'deki Rahat–Sıkı seçici kaldırıldı; sunum sabit
+  rahat (`compact: false`) düzene kilitlendi.
+- SECURITY.md, 1.1.x kararlı destek hattı ve yanıt süreciyle hizalandı.
+- README ve paket rehberleri kaynak kod ile yayımlanan indirmeleri aynı
+  sürümde tutacak şekilde güncellendi.
+
+### Fixed
+
+- Detaylar arası geri geçmişi, sayfa geçişinde kişisel yazımların korunması
+  ve bozuk metadata/token hata durumları.
+- Nix paket CI'de özel liste sürükle-bırak testinin offscreen Qt altında
+  kararsız kalması; CI'nin committed `flake.lock` kullanması.
 
 ## [1.0.1] - 2026-10-04
 
@@ -122,4 +130,6 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
   180 günlük fiziksel retention henüz uygulanmamıştır.
 - İlk binary yayın yalnızca x86_64 AppImage ve amd64 Debian/Ubuntu hedefler.
 
+[1.1.0]: https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.1.0
+[1.0.1]: https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.0

@@ -9,7 +9,7 @@ Snapcraft ve LXD build ortamı hazırlanmış bir makinede proje kökünden:
 
 ```bash
 snapcraft
-sudo snap install --dangerous ./izlek_1.0.1_amd64.snap
+sudo snap install --dangerous ./izlek_1.1.0_amd64.snap
 izlek
 ```
 
@@ -47,9 +47,8 @@ Referanslar: [Snap build action](https://github.com/canonical/action-build),
 
 ## Hazır paket
 
-[v1.0.1 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.0.1)
-`izlek_1.0.1_amd64.snap` indirilebilir. Store imzası bulunmadığından
-yukarıdaki `--dangerous` kurulum komutunu kullanın.
-[Build ve strict kurulum](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37213775236)
-ve [sanal X11 pencere kontrolü](https://github.com/Teknoloji-Filozoflari/Izlek/actions/runs/37214317330)
-başarılıdır.
+[v1.1.0 GitHub sürümünden](https://github.com/Teknoloji-Filozoflari/Izlek/releases/tag/v1.1.0)
+Snap asset'i yüklendiyse `izlek_1.1.0_amd64.snap` indirilebilir. Store
+imzası bulunmadığından yukarıdaki `--dangerous` kurulum komutunu kullanın.
+Snap tag akışına otomatik eklenmez; **Snap package** workflow_dispatch
+çıktısı doğrulandıktan sonra release'e yüklenir.
