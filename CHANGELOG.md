@@ -5,6 +5,11 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+### Changed
+
+- Koyu tema Soft dusk paletine geçti: `#0C1018` zemin, `#151B28` yüzey,
+  `#F0F3FA` metin, `#9BB4D0` vurgu (açık tema aynı).
+
 ## [1.1.0] - 2026-10-27
 
 ### Added

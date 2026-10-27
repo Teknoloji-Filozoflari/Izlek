@@ -22,7 +22,7 @@ QML bileşenleri `src/izlek/ui/qml/components/` altındadır. Her biri QML'de `i
 | `SectionHeader` | `title`, `subtitle`, `actionText`; `actionTriggered()` |
 | `CastGrid` | `cast`: `{id, name, character, profilePath, poster}` dizisi; `actorActivated(personId, name)`; `photoObjectName`: görsel test adı. Fotoğraflı ad/rol kartları fare ve klavye ile etkinleştirilir; kimliği olmayan eski kayıtlar tıklanamaz. |
 | `Badge`, `FavoriteButton` | `text`/`tone` veya `checked`; `toggledFavorite(bool)` |
-| `StatCard` | `label`, `value`, `detail`, `accented` (turkuaz kenarlık/değer); dar alanda metinler kısaltılır, tam metin erişilebilir adda korunur |
+| `StatCard` | `label`, `value`, `detail`, `accented` (vurgu kenarlık/değer); dar alanda metinler kısaltılır, tam metin erişilebilir adda korunur |
 | `EmptyState`, `ErrorState` | `title`, `description`, `actionText`; `actionRequested()` |
 | `ProviderSection` | `groups`, `providerLink`; Türkiye abonelik/kiralama/satın alma görünümü, JustWatch attribution ve TMDb izleme bağlantısı |
 | `Skeleton`, `LoadingState` | Yükleme yer tutucuları; `LoadingState.count` ve `skeletonPosterHeight` |
