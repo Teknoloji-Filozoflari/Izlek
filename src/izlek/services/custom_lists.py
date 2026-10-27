@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from izlek.db.engine import create_session_factory, initialize_database
-from izlek.db.models import MediaType, TrackingStatus
+from izlek.db.models import MediaItem, MediaType, TrackingStatus
 from izlek.repositories.local import (
     CustomListRepository,
     MediaRepository,
@@ -27,6 +27,23 @@ def _clean_name(name: str) -> str:
     if not name or len(name) > 200:
         raise ValueError("Liste adı 1–200 karakter olmalı")
     return name
+
+
+def _parse_release_date(raw: Any) -> date | None:
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(str(raw)[:10])
+    except ValueError:
+        return None
+
+
+def _collection_sort_key(movie: dict[str, Any]) -> tuple[int, str, int]:
+    """Release year ascending, then title; missing dates sort last."""
+    release = _parse_release_date(movie.get("release_date"))
+    year = release.year if release is not None else 10_000
+    title = str(movie.get("title") or "").casefold()
+    return (year, title, int(movie.get("tmdb_id") or 0))
 
 
 class CustomListsService:
@@ -308,6 +325,7 @@ class CustomListsService:
 
         Upserts local movie rows for membership without forcing tracking status,
         so users can still add/remove list items and library state separately.
+        Members are ordered by release year ascending, then title (create and merge).
         """
         name = _clean_name(name)
         cleaned: list[dict[str, Any]] = []
@@ -325,6 +343,7 @@ class CustomListsService:
             })
         if not cleaned:
             raise ValueError("Koleksiyonda eklenecek film yok")
+        cleaned.sort(key=_collection_sort_key)
         with self._sessions().begin() as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
             repo = CustomListRepository(session)
@@ -339,17 +358,11 @@ class CustomListsService:
                 chosen = repo.create(name, len(lists))
             members = repo.list_items(chosen.id)
             existing = {item.media_id for item in members}
-            position = max((item.sort_order for item in members), default=-1) + 1
             added = 0
+            collection_media: list[MediaItem] = []
             for movie in cleaned:
                 media = media_repo.get_by_tmdb(movie["tmdb_id"], MediaType.MOVIE)
-                release = None
-                raw_date = movie.get("release_date") or ""
-                if raw_date:
-                    try:
-                        release = date.fromisoformat(str(raw_date)[:10])
-                    except ValueError:
-                        release = None
+                release = _parse_release_date(movie.get("release_date"))
                 if media is None:
                     media = media_repo.upsert(
                         movie["tmdb_id"],
@@ -364,11 +377,37 @@ class CustomListsService:
                         media.poster_path = movie["poster_path"]
                     if release is not None and media.release_date is None:
                         media.release_date = release
+                collection_media.append(media)
                 if media.id not in existing:
-                    repo.add_item(chosen.id, media.id, position)
+                    # Temporary position; final year/title order is applied below.
+                    repo.add_item(chosen.id, media.id, len(existing))
                     existing.add(media.id)
-                    position += 1
                     added += 1
+            # Reorder every current member by year/title so merge and display match.
+            ordered_ids = [media.id for media in collection_media]
+            collection_ids = set(ordered_ids)
+            def _member_year(media: MediaItem) -> int:
+                stamped = media.release_date or media.first_air_date
+                return stamped.year if stamped is not None else 10_000
+
+            extras_sorted = sorted(
+                (
+                    media
+                    for member in repo.list_items(chosen.id)
+                    if member.media_id not in collection_ids
+                    for media in (media_repo.get(member.media_id),)
+                    if media is not None
+                ),
+                key=lambda media: (
+                    _member_year(media),
+                    media.original_title.casefold(),
+                    media.id,
+                ),
+            )
+            for position, media_id in enumerate(
+                ordered_ids + [media.id for media in extras_sorted]
+            ):
+                repo.set_item_position(chosen.id, media_id, position)
             return {
                 "listId": chosen.id,
                 "listName": chosen.name,

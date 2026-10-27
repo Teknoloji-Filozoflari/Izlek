@@ -4,7 +4,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -62,6 +62,7 @@ class MovieDetailController(QObject):
         self._saving = False
         self._error = ""
         self._feedback = ""
+        self._image_notify_pending = False
         self._loaded.connect(self._apply_loaded)
         self._saved.connect(self._apply_saved)
         self._imageReady.connect(self._apply_image)
@@ -168,16 +169,18 @@ class MovieDetailController(QObject):
     ) -> None:
         if generation != self._generation:
             return
-        self._detail = detail
         self._busy = False
         self._error = error
-        self.changed.emit()
+        self._image_notify_pending = False
         if not detail:
+            self._detail = detail
+            self.changed.emit()
             return
         if self._images is None:
             self._images = ImageService(self._service.client)
         placeholder = _url(self._images.poster(None).result())
         backdrop_placeholder = _url(self._images.backdrop(None).result())
+        # Single notify (like TV detail): avoid a double full-page rebind on open.
         self._detail = {
             **detail,
             "poster": placeholder,
@@ -224,19 +227,28 @@ class MovieDetailController(QObject):
 
         future.add_done_callback(finished)
 
+    def _flush_image_notify(self) -> None:
+        self._image_notify_pending = False
+        if not self._closed:
+            self.changed.emit()
+
     @Slot(int, str, int, str)
     def _apply_image(self, generation: int, role: str, index: int, url: str) -> None:
         if generation != self._generation:
             return
         if role in ("poster", "backdrop"):
             self._detail = {**self._detail, role: url}
-        else:
-            entries = list(self._detail[role])
-            if index >= len(entries):
-                return
-            entries[index] = {**entries[index], "poster": url}
-            self._detail = {**self._detail, role: entries}
-        self.changed.emit()
+            # Hero media updates immediately; secondary images are coalesced below.
+            self.changed.emit()
+            return
+        entries = list(self._detail.get(role, []))
+        if index >= len(entries):
+            return
+        entries[index] = {**entries[index], "poster": url}
+        self._detail = {**self._detail, role: entries}
+        if not self._image_notify_pending:
+            self._image_notify_pending = True
+            QTimer.singleShot(0, self._flush_image_notify)
 
     @Slot(str)
     def setStatus(self, status: str) -> None:

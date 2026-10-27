@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 
-from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 from sqlalchemy.exc import SQLAlchemyError
 
 from izlek.security.token_store import TokenStore
@@ -49,6 +49,7 @@ class CustomListsController(QObject):
         self._candidate_requested: set[tuple[str, int]] = set()
         self._busy = False
         self._error = ""
+        self._poster_notify_pending = False
         self._loaded.connect(self._apply_loaded)
         self._poster_ready.connect(self._apply_poster)
         self._candidate_ready.connect(self._apply_candidate_poster)
@@ -137,24 +138,29 @@ class CustomListsController(QObject):
         except (OSError, ValueError, LookupError, TypeError, SQLAlchemyError):
             self._loaded.emit(generation, {}, local_data_unavailable())
         else:
-            snapshot["items"] = [{**item, "poster": ""} for item in snapshot["items"]]
             self._loaded.emit(generation, snapshot, "")
-            if snapshot["items"]:
-                if self._images is None:
-                    try:
-                        stored = self._store.load()
-                    except (OSError, UnicodeError):
-                        stored = None
-                    self._images = ImageService(
-                        TmdbClient(token=stored.value if stored else None)
-                    )
-                for item in snapshot["items"]:
-                    future = self._images.poster(item["poster_path"])
-                    future.add_done_callback(
-                        lambda done, item=item: self._finish_poster(
-                            generation, item, done
-                        )
-                    )
+
+    def _ensure_images(self) -> ImageService:
+        if self._images is None:
+            try:
+                stored = self._store.load()
+            except (OSError, UnicodeError):
+                stored = None
+            self._images = ImageService(
+                TmdbClient(token=stored.value if stored else None)
+            )
+        return self._images
+
+    def _schedule_item_posters(self, generation: int, items: list[dict]) -> None:
+        images = self._ensure_images()
+        for item in items:
+            if item.get("poster"):
+                continue
+            # Empty path still resolves to the offline placeholder (prior behavior).
+            future = images.poster(item.get("poster_path"))
+            future.add_done_callback(
+                lambda done, item=item: self._finish_poster(generation, item, done)
+            )
 
     def _finish_poster(self, generation: int, item: dict, done: Future) -> None:
         if done.cancelled():
@@ -165,6 +171,11 @@ class CustomListsController(QObject):
             return
         self._poster_ready.emit(generation, item["kind"], item["tmdb_id"], url)
 
+    def _flush_poster_notify(self) -> None:
+        self._poster_notify_pending = False
+        if not self._closed:
+            self.itemsChanged.emit()
+
     @Slot(int, str, int, str)
     def _apply_poster(self, generation: int, kind: str, tmdb_id: int, url: str) -> None:
         if generation != self._generation:
@@ -172,7 +183,10 @@ class CustomListsController(QObject):
         for item in self._items:
             if item["kind"] == kind and item["tmdb_id"] == tmdb_id:
                 item["poster"] = url
-                self.itemsChanged.emit()
+                # Coalesce rapid poster arrivals into one ListView model notify.
+                if not self._poster_notify_pending:
+                    self._poster_notify_pending = True
+                    QTimer.singleShot(0, self._flush_poster_notify)
                 break
 
     @Slot()
@@ -270,11 +284,31 @@ class CustomListsController(QObject):
             return
         self._busy = False
         self._error = error
+        self._poster_notify_pending = False
         if not error:
+            previous = {
+                (item["kind"], item["tmdb_id"], item.get("poster_path")): item.get(
+                    "poster", ""
+                )
+                for item in self._items
+                if item.get("poster")
+            }
             self._selected_id = snapshot["selected_id"]
             self._lists = snapshot["lists"]
-            self._items = snapshot["items"]
-            self._candidates = snapshot["candidates"]
+            self._items = [
+                {
+                    **item,
+                    "poster": previous.get(
+                        (item["kind"], item["tmdb_id"], item.get("poster_path")), ""
+                    ),
+                }
+                for item in snapshot["items"]
+            ]
+            self._candidates = [
+                {**item, "poster": item.get("poster", "")}
+                for item in snapshot["candidates"]
+            ]
+            self._schedule_item_posters(generation, self._items)
         self.changed.emit()
         self.itemsChanged.emit()
 
