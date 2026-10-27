@@ -3,8 +3,8 @@
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0006_tags"
-down_revision = "0005_personal_preferences"
+revision = "0007_tags"
+down_revision = "0006_watched_at_rewatch"
 branch_labels = None
 depends_on = None
 

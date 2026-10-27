@@ -66,7 +66,7 @@ def test_auto_migration_and_xdg_location(tmp_path, monkeypatch):
         with engine.connect() as connection:
             assert connection.scalar(
                 text("SELECT version_num FROM alembic_version")
-            ) == ("0006_tags")
+            ) == ("0007_tags")
             assert connection.scalar(text("PRAGMA foreign_keys")) == 1
         upgrade_database(engine)
     finally:
