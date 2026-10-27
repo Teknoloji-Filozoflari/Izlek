@@ -13,7 +13,7 @@ PROVIDER_GROUPS = (
 def present_providers(
     region: Mapping[str, Any] | None,
 ) -> tuple[dict[str, list[str]], str]:
-    """Keep only TR subscription, rental, and purchase data and validate its link."""
+    """Keep subscription, rental, and purchase data for the selected region."""
     region = region or {}
     groups = {
         label: [

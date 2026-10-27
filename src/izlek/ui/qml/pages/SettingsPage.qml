@@ -11,9 +11,28 @@ Rectangle {
     property string pageTitle: "Ayarlar"
     property var controller
     property var transferModelController
+    property var metadataModelController
     property bool editingToken: false
+    property int regionComboIndex: 0
     color: Tokens.Theme.background
-    Component.onCompleted: personalController.refreshHidden()
+    Component.onCompleted: {
+        personalController.refreshHidden()
+        syncRegionCombo()
+    }
+
+    function syncRegionCombo() {
+        if (!page.metadataModelController)
+            return
+        const code = page.metadataModelController.watchProviderRegion
+        const regions = page.metadataModelController.watchProviderRegions
+        for (let i = 0; i < regions.length; i++) {
+            if (regions[i].code === code) {
+                page.regionComboIndex = i
+                return
+            }
+        }
+        page.regionComboIndex = 0
+    }
 
     component Card: Rectangle {
         property string title
@@ -48,6 +67,160 @@ Rectangle {
                 Label { text: page.controller.hasToken ? "Bağlı — " + (page.controller.storageKind === "keyring" ? "sistem anahtarlığı" : "yerel dosya") : "Bağlı değil"; color: page.controller.hasToken ? Tokens.Theme.success : Tokens.Theme.warning }
                 IzlekButton { objectName: "changeTokenButton"; text: page.editingToken ? "Vazgeç" : "Tokenı Değiştir"; variant: "secondary"; onClicked: { if (page.editingToken) tokenForm.clearInput(); page.editingToken = !page.editingToken } }
                 TokenForm { id: tokenForm; visible: page.editingToken; controller: page.controller; heading: "Yeni token"; description: "Tokenı test edip kaydedin."; Layout.fillWidth: true }
+            }
+
+            Card { objectName: "watchRegionSettingsCard"; title: "İzleme bölgesi"
+                Label {
+                    Layout.fillWidth: true
+                    text: "Nerede İzlenir bölümü TMDb/JustWatch verisini seçilen ülke koduna göre gösterir. Varsayılan Türkiye (TR)."
+                    color: Tokens.Theme.textSecondary
+                    wrapMode: Text.WordWrap
+                }
+                FilterComboBox {
+                    id: regionCombo
+                    objectName: "watchProviderRegionCombo"
+                    Layout.preferredWidth: 280
+                    model: page.metadataModelController ? page.metadataModelController.watchProviderRegions : []
+                    textRole: "label"
+                    currentIndex: page.regionComboIndex
+                    onActivated: (index) => {
+                        page.regionComboIndex = index
+                        const item = model[index]
+                        if (item && page.metadataModelController)
+                            page.metadataModelController.setWatchProviderRegion(item.code)
+                    }
+                }
+                Connections {
+                    target: page.metadataModelController
+                    function onChanged() { page.syncRegionCombo() }
+                }
+            }
+
+            Card { objectName: "metadataSourcesSettingsCard"; title: "Meta veri kaynakları"
+                Label {
+                    Layout.fillWidth: true
+                    text: "TMDb varsayılan katalog kaynağıdır. Trakt, TVmaze ve OMDb isteğe bağlıdır; her kaynakta yalnızca uygulamanın ihtiyaç duyduğu yetenekler açılabilir. Kimlikler anahtarlıkta tutulur."
+                    color: Tokens.Theme.textSecondary
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    objectName: "metadataSourcesFeedback"
+                    visible: page.metadataModelController && page.metadataModelController.feedback.length > 0
+                    text: page.metadataModelController ? page.metadataModelController.feedback : ""
+                    color: page.metadataModelController && page.metadataModelController.feedbackKind === "danger"
+                           ? Tokens.Theme.danger
+                           : (page.metadataModelController && page.metadataModelController.feedbackKind === "warning"
+                              ? Tokens.Theme.warning : Tokens.Theme.success)
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+                Repeater {
+                    model: page.metadataModelController ? page.metadataModelController.sources : []
+                    delegate: Rectangle {
+                        id: sourceCard
+                        required property var modelData
+                        readonly property string sourceId: modelData.id
+                        Layout.fillWidth: true
+                        implicitHeight: sourceColumn.implicitHeight + 2 * Tokens.Theme.spaceMd
+                        color: Tokens.Theme.surfaceElevated
+                        radius: Tokens.Theme.radiusMd
+                        border.color: Tokens.Theme.border
+                        ColumnLayout {
+                            id: sourceColumn
+                            anchors.fill: parent
+                            anchors.margins: Tokens.Theme.spaceMd
+                            spacing: Tokens.Theme.spaceSm
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: sourceCard.modelData.label + (sourceCard.modelData.isDefault ? " (varsayılan)" : "")
+                                    color: Tokens.Theme.textPrimary
+                                    font.weight: Tokens.Theme.weightDemiBold
+                                    Layout.fillWidth: true
+                                }
+                                Switch {
+                                    objectName: "metadataSourceEnabledSwitch"
+                                    checked: sourceCard.modelData.enabled
+                                    enabled: !sourceCard.modelData.isDefault
+                                    onToggled: page.metadataModelController.setSourceEnabled(sourceCard.sourceId, checked)
+                                }
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: sourceCard.modelData.summary
+                                color: Tokens.Theme.textSecondary
+                                wrapMode: Text.WordWrap
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: sourceCard.modelData.notes
+                                color: Tokens.Theme.textMuted
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: Tokens.Theme.textSmall
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: Tokens.Theme.spaceSm
+                                Repeater {
+                                    model: sourceCard.modelData.capabilities
+                                    delegate: CheckBox {
+                                        required property var modelData
+                                        objectName: "metadataCapabilityCheck"
+                                        text: modelData.label
+                                        checked: modelData.enabled
+                                        ToolTip.visible: hovered
+                                        ToolTip.text: modelData.description
+                                        onToggled: page.metadataModelController.setSourceCapability(
+                                                       sourceCard.sourceId, modelData.id, checked)
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                visible: sourceCard.modelData.requiresNonCommercialAck
+                                Layout.fillWidth: true
+                                CheckBox {
+                                    objectName: "omdbNonCommercialCheck"
+                                    text: "Kişisel / ticari olmayan kullanım — OMDb şartlarını kabul ediyorum"
+                                    checked: sourceCard.modelData.omdbNonCommercialAcknowledged
+                                    onToggled: page.metadataModelController.acknowledgeOmdbNonCommercial(checked)
+                                }
+                            }
+                            RowLayout {
+                                visible: sourceCard.modelData.credentialKind !== "none" && sourceCard.sourceId !== "tmdb"
+                                Layout.fillWidth: true
+                                TextField {
+                                    id: credentialField
+                                    objectName: "metadataCredentialInput"
+                                    Layout.fillWidth: true
+                                    echoMode: TextInput.Password
+                                    placeholderText: sourceCard.modelData.credentialLabel || "API kimliği"
+                                    color: Tokens.Theme.textPrimary
+                                    placeholderTextColor: Tokens.Theme.textMuted
+                                    background: Rectangle {
+                                        color: Tokens.Theme.surface
+                                        radius: Tokens.Theme.radiusSm
+                                        border.color: credentialField.activeFocus ? Tokens.Theme.accent : Tokens.Theme.border
+                                        border.width: credentialField.activeFocus ? 2 : 1
+                                    }
+                                }
+                                IzlekButton {
+                                    objectName: "saveMetadataCredentialButton"
+                                    text: sourceCard.modelData.hasCredential ? "Güncelle" : "Kaydet"
+                                    variant: "secondary"
+                                    onClicked: page.metadataModelController.saveSourceCredential(
+                                                   sourceCard.sourceId, credentialField.text)
+                                }
+                                IzlekButton {
+                                    objectName: "clearMetadataCredentialButton"
+                                    text: "Sil"
+                                    variant: "ghost"
+                                    visible: sourceCard.modelData.hasCredential
+                                    onClicked: page.metadataModelController.clearSourceCredential(sourceCard.sourceId)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Card { objectName: "dataSettingsCard"; title: "Veriler"

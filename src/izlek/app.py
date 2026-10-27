@@ -10,11 +10,14 @@ from PySide6.QtQml import QQmlApplicationEngine
 from izlek import __version__
 from izlek.core.paths import app_paths
 from izlek.db.engine import initialize_database
+from izlek.metadata.registry import MetadataClientRegistry
+from izlek.metadata.settings import MetadataSettings
 from izlek.ui.controllers.cache_controller import CacheController
 from izlek.ui.controllers.continue_watching_controller import ContinueWatchingController
 from izlek.ui.controllers.custom_lists_controller import CustomListsController
 from izlek.ui.controllers.discover_controller import DiscoverController
 from izlek.ui.controllers.favorites_controller import FavoritesController
+from izlek.ui.controllers.metadata_settings_controller import MetadataSettingsController
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
 from izlek.ui.controllers.personal_media_controller import PersonalMediaController
@@ -49,6 +52,8 @@ def create_application(
     cache_controller: CacheController | None = None,
     quick_library_controller: QuickLibraryController | None = None,
     personal_media_controller: PersonalMediaController | None = None,
+    metadata_settings_controller: MetadataSettingsController | None = None,
+    metadata_settings: MetadataSettings | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
@@ -56,6 +61,7 @@ def create_application(
     application.setDesktopFileName("izlek")
     application.setWindowIcon(QIcon(str(_APP_ICON)))
 
+    shared_metadata = metadata_settings or MetadataSettings()
     settings_path = app_paths().config / "window.ini"
     if gallery:
         settings = None
@@ -85,18 +91,31 @@ def create_application(
         engine.rootContext().setContextProperty("searchController", search)
         controller.tokenSaved.connect(search.refresh_token)
         application.aboutToQuit.connect(search.close)
-        movie = movie_controller or MovieDetailController(parent=engine)
+        movie = movie_controller or MovieDetailController(
+            metadata_settings=shared_metadata, parent=engine
+        )
         if movie.parent() is None:
             movie.setParent(engine)
         engine.rootContext().setContextProperty("movieController", movie)
         controller.tokenSaved.connect(movie.refresh_token)
         application.aboutToQuit.connect(movie.close)
-        tv = tv_controller or TvDetailController(parent=engine)
+        tv = tv_controller or TvDetailController(
+            metadata_settings=shared_metadata, parent=engine
+        )
         if tv.parent() is None:
             tv.setParent(engine)
         engine.rootContext().setContextProperty("tvController", tv)
         controller.tokenSaved.connect(tv.refresh_token)
         application.aboutToQuit.connect(tv.close)
+        metadata_registry = MetadataClientRegistry(shared_metadata)
+        metadata = metadata_settings_controller or MetadataSettingsController(
+            settings=shared_metadata,
+            registry=metadata_registry,
+            parent=engine,
+        )
+        if metadata.parent() is None:
+            metadata.setParent(engine)
+        engine.rootContext().setContextProperty("metadataSettingsController", metadata)
         continuing = continue_controller or ContinueWatchingController(parent=engine)
         if continuing.parent() is None:
             continuing.setParent(engine)

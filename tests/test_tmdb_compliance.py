@@ -24,6 +24,9 @@ def test_about_screen_separates_tmdb_content_from_local_tracking_data():
     assert notice in settings
     assert "yalnızca İzlek'in yerel verisidir" in settings
     assert "justWatchAttributionLabel" in settings
+    assert "watchRegionSettingsCard" in settings
+    assert "metadataSourcesSettingsCard" in settings
+    assert "omdbNonCommercialCheck" in settings
 
 
 def test_detail_and_provider_views_keep_their_remote_sources_visible():

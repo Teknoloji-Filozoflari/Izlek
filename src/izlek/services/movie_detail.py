@@ -1,5 +1,6 @@
 """Movie metadata and local tracking transactions."""
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from threading import Lock
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from izlek.db.engine import create_session_factory, initialize_database
 from izlek.db.models import MediaType, TrackingStatus, utc_now
+from izlek.metadata.catalog import normalize_watch_region
 from izlek.repositories.local import (
     CustomListRepository,
     MediaRepository,
@@ -59,11 +61,21 @@ class MovieDetailService:
         self,
         client: TmdbClient,
         session_factory: sessionmaker[Session] | None = None,
+        *,
+        watch_region: str | Callable[[], str] = "TR",
     ) -> None:
         self.client = client
         self._factory = session_factory
         self._owned_engine: Engine | None = None
         self._session_lock = Lock()
+        self._watch_region = watch_region
+
+    def watch_provider_region(self) -> str:
+        if callable(self._watch_region):
+            value = self._watch_region()
+        else:
+            value = self._watch_region
+        return normalize_watch_region(value)
 
     def _sessions(self) -> sessionmaker[Session]:
         with self._session_lock:
@@ -168,7 +180,10 @@ class MovieDetailService:
             if blob.get("videos")
             else None
         )
-        region = (blob.get("providers") or {}).get("results", {}).get("TR", {})
+        region_code = self.watch_provider_region()
+        region = (
+            (blob.get("providers") or {}).get("results", {}).get(region_code, {})
+        )
         groups, provider_link = present_providers(region)
         def related(key: str) -> list[dict[str, Any]]:
             data = blob.get(key)

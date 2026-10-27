@@ -49,6 +49,10 @@ Bu komut `$XDG_DATA_HOME` (varsayılan `~/.local/share`) altına `applications/i
 
 `izlek.tmdb.client.TmdbClient(token=...)` arayüzden bağımsız olarak configuration, film/dizi araması, film/dizi detayı ve dizi sezonu uç noktalarını çağırır. Yanıtlar `izlek.tmdb.models` içindeki Pydantic modellerine çevrilir. İstemciyi ağ çağrıları için UI thread'i dışında kullanın. Timeout, HTTP ve bozuk yanıt hataları `izlek.tmdb.client` içindeki güvenli domain exceptionlarına dönüşür. Bir 429 yanıtında en fazla bir kez, en çok iki saniyelik beklemeyle tekrar denenir. Testler gerçek TMDb'ye bağlanmaz; `httpx.MockTransport` kullanır.
 
+## Meta veri kaynakları
+
+`izlek.metadata` ortak istemci arayüzünü, kaynak katalogunu ve Ayarlar kalıcılığını sağlar. TMDb varsayılan katalog yoludur; Trakt / TVmaze / OMDb Ayarlar'dan yetenek matrisiyle yapılandırılır. OMDb ticari olmama onayı olmadan açılamaz. İzleme-sağlayıcı bölgesi `MetadataSettings.watch_provider_region` üzerinden film/dizi detay sunumuna bağlanır. Ayrıntılar [METADATA_SOURCES.md](METADATA_SOURCES.md) belgesindedir.
+
 ## Görsel servisi ve cache
 
 `ImageService(TmdbClient(token=...))`, `poster(path, "grid")`, `poster(path, "detail")` ve `backdrop(path)` çağrıları için yerel dosya yoluyla sonuçlanan `Future[Path]` döndürür. Ağ çağrıları servis işçi havuzunda yapılır; UI bu sonucu hazır olduğunda kullanmalıdır. Görsel boyutları TMDb configuration yanıtından seçilir ve `original` indirilmez. Geçerli görseller `$XDG_CACHE_HOME/izlek/images` altında hash anahtarlı dosyalarda tutulur. Cache okunamaz veya ağ kullanılamazsa servis poster/backdrop placeholder SVG yollarını döndürür. `cache_size_async()` ileride Ayarlar'da kullanılabilecek byte cinsinden cache boyutunu verir. Bu dizin yalnızca yeniden indirilebilir görseller içindir; kişisel takip verisi SQLite veri dizininde kalır.
