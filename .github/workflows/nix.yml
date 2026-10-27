@@ -35,9 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
-      - name: Resolve inputs and check package
+      - name: Check package with committed lock
         run: |
-          nix flake lock
+          # Use the committed flake.lock only — do not refresh inputs in CI.
+          # Floating nixpkgs between runs made Qt/PySide UI tests non-reproducible.
           nix flake check --print-build-logs
           nix build --print-build-logs
       - name: Save dependency lock
