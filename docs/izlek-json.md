@@ -31,11 +31,23 @@ Token, authorization alanları, yerel cache yolları ve SQLite satır kimlikleri
 export edilmez. Poster, backdrop ve bölüm görseli değerleri TMDb'nin taşınabilir
 göreli yollarıdır; indirilen yerel görsel dosyaları JSON'a girmez.
 
+## Dış kaynaklar
+
+`TransferService` ayrıca şu dosyaları İzlek belgesine çevirip aynı birleştirme
+kurallarına uygular:
+
+- **Trakt JSON dizisi:** `watched-movies`, `watched-shows`, history, ratings ve
+  watchlist dışa aktarımları. Eşleşme `ids.tmdb` ile yapılır; TMDb kimliği
+  olmayan satırlar atlanır.
+- **Letterboxd CSV:** dışa/içe aktarma sütunları. Çevrimdışı çalıştığı için
+  `tmdbID` / `tmdb_id` sütunu zorunludur; Letterboxd yıldız puanı 1–10 kişisel
+  puana çevrilir.
+
 ## Import ve birleştirme
 
-Dosya önce boyut, JSON ve Pydantic şema doğrulamasından geçer. Preview bu
-aşamanın özetini gösterir; doğrulama sırasında veritabanına yazılmaz. Onaylanan
-import tek SQLite transaction içinde uygulanır.
+Dosya önce boyut, biçim algılama ve (İzlek JSON için) Pydantic şema
+doğrulamasından geçer. Preview bu aşamanın özetini gösterir; doğrulama sırasında
+veritabanına yazılmaz. Onaylanan import tek SQLite transaction içinde uygulanır.
 
 - Aynı `media_type + tmdb_id` tek medya olarak birleştirilir.
 - Metadata için daha yeni `last_synced_at` korunur.
