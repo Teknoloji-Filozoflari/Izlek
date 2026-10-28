@@ -547,8 +547,9 @@ class FakeImages:
         return self._done()
 
 
-def wait_for(application, predicate):
-    for _ in range(100):
+def wait_for(application, predicate, attempts=400):
+    # Match suite-wide UI waits: offscreen CI can spend >1s on worker loads.
+    for _ in range(attempts):
         application.processEvents()
         if predicate():
             return

@@ -5,6 +5,13 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 
 ## [Unreleased]
 
+### Fixed
+
+- Diziler kart sürükleme testinin Continue Watching busy şeridi kapanırken
+  offscreen Qt altında tıklamayı iptal etmesi (main CI flake); TV detay /
+  dizi kütüphanesi UI beklemeleri uzatıldı; CI quality pytest çökmesinde
+  bir kez yeniden deneniyor.
+
 ### Changed
 
 - Koyu tema Soft dusk paletine geçti: `#0C1018` zemin, `#151B28` yüzey,

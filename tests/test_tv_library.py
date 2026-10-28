@@ -141,8 +141,9 @@ class _Images:
         return self.poster(path)
 
 
-def _wait_for(application, predicate):
-    for _ in range(100):
+def _wait_for(application, predicate, attempts=400):
+    # Offscreen CI can spend >1s on continue-watching + library workers.
+    for _ in range(attempts):
         application.processEvents()
         if predicate():
             return

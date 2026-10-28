@@ -1,19 +1,36 @@
 """Whole-card dragging preserves ordinary clicks and nested card controls."""
 
 import pytest
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QPointF, Qt, Slot
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
 from izlek.app import create_application
 from izlek.services.movie_library import MovieLibraryService
 from izlek.services.tv_library import TvLibraryService
+from izlek.ui.controllers.continue_watching_controller import ContinueWatchingController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
 from izlek.ui.controllers.token_controller import TokenController
 from izlek.ui.controllers.tv_library_controller import TvLibraryController
 from test_global_search import ExistingTokenStore, FakeImages, wait_for
 from test_reordering import _drag, _visual
 from test_reordering import ordered_factory as ordered_factory
+
+
+class _IdleContinueWatching(ContinueWatchingController):
+    """Keep Continue Watching chrome idle so TV library layout stays put."""
+
+    @Slot()
+    def refresh(self) -> None:
+        self._busy = False
+        self._error = ""
+        self._items = []
+        self.changed.emit()
+        self.itemsChanged.emit()
+
+    @Slot()
+    def refresh_token(self) -> None:
+        return
 
 
 def _click(window, item):
@@ -26,6 +43,37 @@ def _click(window, item):
     )
 
 
+def _stable_scene_center(application, area):
+    """Wait until the drag hit-box stops moving in scene coordinates.
+
+    TV library can still reflow under offscreen/software Qt; require a short
+    stable window before synthesizing the below-threshold click.
+    """
+    last = None
+    stable = 0
+    for _ in range(500):
+        application.processEvents()
+        if area is None or area.width() <= 10 or area.height() <= 10:
+            stable = 0
+            last = None
+            QTest.qWait(10)
+            continue
+        point = area.mapToScene(QPointF(area.width() / 2, area.height() / 2))
+        if (
+            last is not None
+            and abs(point.x() - last.x()) < 0.5
+            and abs(point.y() - last.y()) < 0.5
+        ):
+            stable += 1
+            if stable >= 8:
+                return point
+        else:
+            stable = 0
+        last = point
+        QTest.qWait(10)
+    raise AssertionError("Timed out waiting for stable card geometry")
+
+
 @pytest.mark.parametrize("kind", ["movie", "tv"])
 def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
     ordered_factory, kind
@@ -35,6 +83,7 @@ def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
     controller = controller_type(service_type(ordered_factory), images=FakeImages())
     app, engine, window = create_application(
         token_controller=TokenController(store=ExistingTokenStore()),
+        continue_controller=_IdleContinueWatching(),
         **{kind + "_library_controller": controller},
     )
     try:
@@ -48,7 +97,7 @@ def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
         area = _visual(card, "cardDragArea")
         assert not _visual(card, "cardReorderHandle")
         # Movement below the platform threshold remains an ordinary click.
-        start = area.mapToScene(QPointF(area.width() / 2, area.height() / 2))
+        start = _stable_scene_center(app, area)
         QTest.mousePress(
             window,
             Qt.MouseButton.LeftButton,
@@ -56,11 +105,15 @@ def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
             start.toPoint(),
         )
         QTest.mouseMove(window, (start + QPointF(1, 1)).toPoint())
+        # Re-map release through live geometry in case layout still drifts.
+        release = area.mapToScene(
+            QPointF(area.width() / 2, area.height() / 2)
+        ) + QPointF(1, 1)
         QTest.mouseRelease(
             window,
             Qt.MouseButton.LeftButton,
             Qt.KeyboardModifier.NoModifier,
-            (start + QPointF(1, 1)).toPoint(),
+            release.toPoint(),
         )
         wait_for(app, lambda: stack.property("depth") == 2)
         assert stack.property("currentItem").property("mediaId") == ids[0]
