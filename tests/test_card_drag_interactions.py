@@ -1,19 +1,36 @@
 """Whole-card dragging preserves ordinary clicks and nested card controls."""
 
 import pytest
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QPointF, Qt, Slot
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
 from izlek.app import create_application
 from izlek.services.movie_library import MovieLibraryService
 from izlek.services.tv_library import TvLibraryService
+from izlek.ui.controllers.continue_watching_controller import ContinueWatchingController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
 from izlek.ui.controllers.token_controller import TokenController
 from izlek.ui.controllers.tv_library_controller import TvLibraryController
 from test_global_search import ExistingTokenStore, FakeImages, wait_for
 from test_reordering import _drag, _visual
 from test_reordering import ordered_factory as ordered_factory
+
+
+class _IdleContinueWatching(ContinueWatchingController):
+    """Keep Continue Watching chrome idle so TV library layout stays put."""
+
+    @Slot()
+    def refresh(self) -> None:
+        self._busy = False
+        self._error = ""
+        self._items = []
+        self.changed.emit()
+        self.itemsChanged.emit()
+
+    @Slot()
+    def refresh_token(self) -> None:
+        return
 
 
 def _click(window, item):
@@ -29,9 +46,8 @@ def _click(window, item):
 def _stable_scene_center(application, area):
     """Wait until the drag hit-box stops moving in scene coordinates.
 
-    TV library flashes the Continue Watching busy chrome, then collapses it
-    when the worker finishes empty — that yank mid-press cancels MouseArea
-    clicks under offscreen/software Qt.
+    TV library can still reflow under offscreen/software Qt; require a short
+    stable window before synthesizing the below-threshold click.
     """
     last = None
     stable = 0
@@ -49,7 +65,7 @@ def _stable_scene_center(application, area):
             and abs(point.y() - last.y()) < 0.5
         ):
             stable += 1
-            if stable >= 5:
+            if stable >= 8:
                 return point
         else:
             stable = 0
@@ -67,6 +83,7 @@ def test_direct_drag_keeps_click_favorite_selection_and_outside_drop(
     controller = controller_type(service_type(ordered_factory), images=FakeImages())
     app, engine, window = create_application(
         token_controller=TokenController(store=ExistingTokenStore()),
+        continue_controller=_IdleContinueWatching(),
         **{kind + "_library_controller": controller},
     )
     try:

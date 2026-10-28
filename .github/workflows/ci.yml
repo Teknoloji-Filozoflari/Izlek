@@ -28,9 +28,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes libegl1 libxkbcommon-x11-0
       - name: Install project and development tools
         run: python -m pip install -e '.[dev]'
-      - name: Run Ruff
-        run: python -m ruff check .
-      - name: Run pytest with mock-only network policy
-        run: python -m pytest
+      - name: Run Ruff and pytest (retry once on crash)
+        # Same gate as packaging: offscreen Qt can SIGSEGV mid-suite; quality.py
+        # retries pytest once on signal exits while still failing real assertions.
+        run: python scripts/quality.py
       - name: Build installable wheel
         run: python -m pip wheel . --no-deps --wheel-dir dist

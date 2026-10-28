@@ -8,7 +8,9 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
 ### Fixed
 
 - Diziler kart sürükleme testinin Continue Watching busy şeridi kapanırken
-  offscreen Qt altında tıklamayı iptal etmesi (main CI flake).
+  offscreen Qt altında tıklamayı iptal etmesi (main CI flake); TV detay /
+  dizi kütüphanesi UI beklemeleri uzatıldı; CI quality pytest çökmesinde
+  bir kez yeniden deneniyor.
 
 ### Changed
 
