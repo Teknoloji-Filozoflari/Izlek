@@ -18,9 +18,31 @@ ApplicationWindow {
 
     property int currentIndex: 0
     readonly property bool compactSidebar: width < 1060
+    property bool panesReady: false
+    property int savedSidebarWidth: paneLayout.widthFor(
+        "main_sidebar", Tokens.Theme.sidebarExpanded)
     readonly property var pageComponents: [
         discoverPage, moviesPage, showsPage, listsPage, homePage, settingsPage
     ]
+
+    function applySidebarWidth() {
+        sidebar.SplitView.preferredWidth = window.compactSidebar
+                ? Tokens.Theme.sidebarCompact
+                : window.savedSidebarWidth
+    }
+
+    function persistSidebarWidth() {
+        if (!window.panesReady || window.compactSidebar
+                || sidebar.width < Tokens.Theme.sidebarMin)
+            return
+        var next = Math.round(sidebar.width)
+        if (next === window.savedSidebarWidth)
+            return
+        window.savedSidebarWidth = next
+        paneLayout.setWidthFor("main_sidebar", next)
+    }
+
+    onCompactSidebarChanged: window.applySidebarWidth()
 
     function applyThemeMode() {
         Tokens.Theme.mode = themeController.mode
@@ -140,21 +162,35 @@ ApplicationWindow {
         controller: tokenController
     }
 
-    RowLayout {
+    SplitView {
+        id: shellSplit
+        objectName: "shellSplit"
         anchors.fill: parent
-        spacing: 0
         visible: tokenController.hasToken
+        orientation: Qt.Horizontal
+        handle: PaneSplitHandle {}
+        Component.onCompleted: {
+            window.applySidebarWidth()
+            Qt.callLater(function() { window.panesReady = true })
+        }
 
         Rectangle {
             id: sidebar
             objectName: "sidebar"
-            Layout.preferredWidth: window.compactSidebar
-                                   ? Tokens.Theme.sidebarCompact
-                                   : Tokens.Theme.sidebarExpanded
-            Layout.fillHeight: true
+            SplitView.preferredWidth: window.compactSidebar
+                                      ? Tokens.Theme.sidebarCompact
+                                      : window.savedSidebarWidth
+            SplitView.minimumWidth: window.compactSidebar
+                                    ? Tokens.Theme.sidebarCompact
+                                    : Tokens.Theme.sidebarMin
+            SplitView.maximumWidth: window.compactSidebar
+                                    ? Tokens.Theme.sidebarCompact
+                                    : Tokens.Theme.sidebarMax
+            SplitView.fillHeight: true
             color: Tokens.Theme.surface
             border.color: Tokens.Theme.border
             clip: true
+            onWidthChanged: window.persistSidebarWidth()
 
             ColumnLayout {
                 anchors.fill: parent
@@ -251,8 +287,9 @@ ApplicationWindow {
         StackView {
             id: contentStack
             objectName: "contentStack"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            SplitView.fillWidth: true
+            SplitView.fillHeight: true
+            SplitView.minimumWidth: Tokens.Theme.contentMin
             clip: true
             initialItem: discoverPage
         }

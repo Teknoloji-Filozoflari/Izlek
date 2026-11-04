@@ -164,7 +164,7 @@ alınmıştır, gerçek kullanıcı verisi içermez. Tam boyutta açmak için t�
 | Veri | Varsayılan konum |
 | --- | --- |
 | Kütüphane, listeler, ilerleme, puan/not, etiketler, sıralar | `~/.local/share/izlek/izlek.sqlite3` |
-| Pencere / tema ayarları | `~/.config/izlek/window.ini` |
+| Pencere / tema / panel genişlikleri | `~/.config/izlek/window.ini` |
 | Meta veri kaynağı ayarları | `~/.config/izlek/metadata-sources.json` |
 | İndirilen görseller | `~/.cache/izlek/images` |
 | Loglar | `~/.local/state/izlek/logs` |

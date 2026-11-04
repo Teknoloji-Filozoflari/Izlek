@@ -31,22 +31,25 @@ Rectangle {
             title: "Detay yüklenemedi"
             description: page.controller.detailError
         }
-        RowLayout {
+        SplitView {
             visible: !!page.controller.detail.title
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Tokens.Theme.spaceXl
+            orientation: Qt.Horizontal
+            handle: PaneSplitHandle {}
             Image {
-                Layout.preferredWidth: 220
-                Layout.preferredHeight: 330
-                Layout.alignment: Qt.AlignTop
+                SplitView.preferredWidth: 220
+                SplitView.minimumWidth: 160
+                SplitView.maximumWidth: 320
+                SplitView.fillHeight: true
                 source: page.controller.detail.poster || ""
                 asynchronous: true
                 fillMode: Image.PreserveAspectFit
             }
             ColumnLayout {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
+                SplitView.fillWidth: true
+                SplitView.fillHeight: true
+                SplitView.minimumWidth: Tokens.Theme.contentMin
                 spacing: Tokens.Theme.spaceMd
                 Label {
                     Layout.fillWidth: true

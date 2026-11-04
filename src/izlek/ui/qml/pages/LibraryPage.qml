@@ -58,9 +58,59 @@ Rectangle {
         function onProgressSaved() { page.controller.refresh() }
     }
 
-    ScrollView {
+    property bool panesReady: false
+    property int libraryPaneWidth: paneLayout.widthFor(
+        "library_filters", Tokens.Theme.paneLibraryDefault)
+
+    function persistLibraryPaneWidth() {
+        if (!page.panesReady || !page.filtersExpanded
+                || filterSide.width < Tokens.Theme.paneMin)
+            return
+        var next = Math.round(filterSide.width)
+        if (next === page.libraryPaneWidth)
+            return
+        page.libraryPaneWidth = next
+        paneLayout.setWidthFor("library_filters", next)
+    }
+
+    SplitView {
+        id: librarySplit
+        objectName: "librarySplit"
         anchors.fill: parent
         anchors.margins: Tokens.Theme.spaceLg
+        orientation: Qt.Horizontal
+        handle: PaneSplitHandle {}
+        Component.onCompleted: Qt.callLater(function() { page.panesReady = true })
+
+        Item {
+            id: filterSide
+            objectName: "libraryFiltersSide"
+            visible: page.filtersExpanded
+            SplitView.preferredWidth: page.filtersExpanded ? page.libraryPaneWidth : 0
+            SplitView.minimumWidth: page.filtersExpanded ? Tokens.Theme.paneMin : 0
+            SplitView.maximumWidth: page.filtersExpanded ? Tokens.Theme.paneMax : 0
+            SplitView.fillHeight: true
+            onWidthChanged: page.persistLibraryPaneWidth()
+
+            ScrollView {
+                anchors.fill: parent
+                contentWidth: availableWidth
+                clip: true
+                LibraryFiltersPanel {
+                    id: filterPanel
+                    objectName: "libraryFiltersPanel"
+                    width: filterSide.width
+                    kind: page.kind
+                    controller: page.controller
+                    onApplied: page.selectedIds = []
+                }
+            }
+        }
+
+    ScrollView {
+        SplitView.fillWidth: true
+        SplitView.fillHeight: true
+        SplitView.minimumWidth: Tokens.Theme.contentMin
         contentWidth: availableWidth
         clip: true
     Column {
@@ -97,16 +147,6 @@ Rectangle {
             }
         }
 
-        LibraryFiltersPanel {
-            id: filterPanel
-            objectName: "libraryFiltersPanel"
-            visible: page.filtersExpanded
-            width: parent.width
-            height: implicitHeight
-            kind: page.kind
-            controller: page.controller
-            onApplied: page.selectedIds = []
-        }
         Label {
             visible: page.controller.filtersActive
             width: parent.width
@@ -363,9 +403,14 @@ Rectangle {
                         }
                         width: 198
                         height: favoritesStrip.height
-                        Component.onCompleted: Qt.callLater(function() {
-                            controller.requestPoster(modelData.tmdb_id)
-                        })
+                        Component.onCompleted: {
+                            var itemId = modelData.tmdb_id
+                            var ctl = page.controller
+                            Qt.callLater(function() {
+                                if (ctl)
+                                    ctl.requestPoster(itemId)
+                            })
+                        }
                         onClicked: page.mediaSelected(modelData.tmdb_id)
                         background: Rectangle {
                             color: parent.hovered ? Tokens.Theme.hoverSurface
@@ -411,6 +456,7 @@ Rectangle {
             }
         }
 
+    }
     }
     }
     LibraryBulkDialog {

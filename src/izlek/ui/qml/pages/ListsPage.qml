@@ -15,17 +15,40 @@ Rectangle {
     Component.onCompleted: controller.refresh()
     onVisibleChanged: { if (visible) controller.refresh() }
 
-    RowLayout {
+    property bool panesReady: false
+    property int listsPaneWidth: paneLayout.widthFor(
+        "lists_sidebar", Tokens.Theme.paneListsDefault)
+
+    function persistListsPaneWidth() {
+        if (!page.panesReady || listsPane.width < Tokens.Theme.paneMin)
+            return
+        var next = Math.round(listsPane.width)
+        if (next === page.listsPaneWidth)
+            return
+        page.listsPaneWidth = next
+        paneLayout.setWidthFor("lists_sidebar", next)
+    }
+
+    SplitView {
+        id: listsSplit
+        objectName: "listsSplit"
         anchors.fill: parent
         anchors.margins: Tokens.Theme.spaceLg
-        spacing: Tokens.Theme.spaceMd
+        orientation: Qt.Horizontal
+        handle: PaneSplitHandle {}
+        Component.onCompleted: Qt.callLater(function() { page.panesReady = true })
 
         Rectangle {
-            Layout.preferredWidth: Math.min(280, page.width * 0.35)
-            Layout.fillHeight: true
+            id: listsPane
+            objectName: "listsSidebar"
+            SplitView.preferredWidth: page.listsPaneWidth
+            SplitView.minimumWidth: Tokens.Theme.paneMin
+            SplitView.maximumWidth: paneLayout.maximumWidth("lists_sidebar")
+            SplitView.fillHeight: true
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusMd
             border.color: Tokens.Theme.border
+            onWidthChanged: page.persistListsPaneWidth()
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Tokens.Theme.spaceMd
@@ -131,8 +154,9 @@ Rectangle {
         }
 
         Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            SplitView.fillWidth: true
+            SplitView.fillHeight: true
+            SplitView.minimumWidth: Tokens.Theme.contentMin
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusMd
             border.color: Tokens.Theme.border

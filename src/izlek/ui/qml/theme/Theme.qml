@@ -48,8 +48,16 @@ QtObject {
     readonly property int weightDemiBold: Font.DemiBold
     readonly property int animationFast: 120
     readonly property int animationNormal: 180
-    readonly property int sidebarExpanded: 228
+    readonly property int sidebarExpanded: 248
     readonly property int sidebarCompact: 68
+    readonly property int sidebarMin: 180
+    readonly property int sidebarMax: 360
+    readonly property int paneDiscoverDefault: 280
+    readonly property int paneListsDefault: 300
+    readonly property int paneLibraryDefault: 280
+    readonly property int paneMin: 220
+    readonly property int paneMax: 420
+    readonly property int contentMin: 360
     readonly property int cardWidth: 164
     readonly property int cardCompactWidth: 142
     readonly property int posterHeight: 246

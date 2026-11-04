@@ -45,7 +45,12 @@ def test_sidebar_routes_and_compact_resize(monkeypatch, tmp_path):
         sidebar = window.findChild(QQuickItem, "sidebar")
         assert window.title() == "İzlek"
         assert (window.width(), window.height()) == (1280, 800)
-        assert sidebar.width() == 228
+        for _ in range(20):
+            application.processEvents()
+            if sidebar.width() == 248:
+                break
+            QTest.qWait(10)
+        assert sidebar.width() == 248
 
         assert window.minimumWidth() == 800
         assert window.minimumHeight() == 600

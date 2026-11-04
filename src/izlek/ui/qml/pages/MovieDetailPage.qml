@@ -16,6 +16,19 @@ Rectangle {
     signal movieSelected(int itemId)
     signal actorSelected(int personId, string name)
     color: Tokens.Theme.background
+    property bool panesReady: false
+    property int lowerPaneWidth: paneLayout.widthFor("detail_lower", 420)
+
+    function persistLowerPaneWidth() {
+        if (!page.panesReady || movieLowerSplit.width < 850
+                || movieProviders.width < 280)
+            return
+        var next = Math.round(movieProviders.width)
+        if (next === page.lowerPaneWidth)
+            return
+        page.lowerPaneWidth = next
+        paneLayout.setWidthFor("detail_lower", next)
+    }
 
     ScrollView {
         objectName: "movieDetailScroll"
@@ -288,26 +301,38 @@ Rectangle {
                             }
                         }
                     }
-                    GridLayout {
+                    SplitView {
+                        id: movieLowerSplit
+                        objectName: "movieLowerSplit"
                         Layout.fillWidth: true
-                        columns: width >= 850 ? 2 : 1
-                        columnSpacing: Tokens.Theme.spaceLg
-                        rowSpacing: Tokens.Theme.spaceMd
+                        Layout.preferredHeight: Math.max(
+                            movieProviders.implicitHeight, movieTrailerPane.implicitHeight)
+                        orientation: width >= 850 ? Qt.Horizontal : Qt.Vertical
+                        handle: PaneSplitHandle {}
+                        Component.onCompleted: Qt.callLater(function() { page.panesReady = true })
                         ProviderSection {
+                            id: movieProviders
                             objectName: "movieProviders"
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            Layout.alignment: Qt.AlignTop
+                            SplitView.preferredWidth: movieLowerSplit.width >= 850
+                                                      ? page.lowerPaneWidth
+                                                      : movieLowerSplit.width
+                            SplitView.minimumWidth: movieLowerSplit.width >= 850 ? 280 : 0
+                            SplitView.maximumWidth: movieLowerSplit.width >= 850
+                                                    ? paneLayout.maximumWidth("detail_lower")
+                                                    : movieLowerSplit.width
+                            SplitView.fillWidth: movieLowerSplit.width < 850
+                            SplitView.fillHeight: true
                             groups: page.providerGroups
                             providerLink: page.controller.detail.providerLink || ""
                             onProviderLinkRequested: page.controller.openProviderLink()
+                            onWidthChanged: page.persistLowerPaneWidth()
                         }
                         ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            Layout.alignment: Qt.AlignTop
+                            id: movieTrailerPane
+                            objectName: "movieTrailerPane"
+                            SplitView.fillWidth: true
+                            SplitView.fillHeight: true
+                            SplitView.minimumWidth: movieLowerSplit.width >= 850 ? 220 : 0
                             SectionHeader { title: (i18n.revision, i18n.t("detail.trailer")); Layout.fillWidth: true }
                             IzlekButton {
                                 text: (i18n.revision, i18n.t("detail.watch_trailer"))

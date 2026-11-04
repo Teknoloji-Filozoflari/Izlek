@@ -182,21 +182,45 @@ ColumnLayout {
             }
         }
     }
-    GridLayout {
+    property bool panesReady: false
+    property int chartsPaneWidth: paneLayout.widthFor("stats_charts", 480)
+
+    function persistChartsPaneWidth() {
+        if (!panel.panesReady || panel.width < 900 || genreStatistics.width < 280)
+            return
+        var next = Math.round(genreStatistics.width)
+        if (next === panel.chartsPaneWidth)
+            return
+        panel.chartsPaneWidth = next
+        paneLayout.setWidthFor("stats_charts", next)
+    }
+
+    SplitView {
+        id: statisticsCharts
         objectName: "statisticsCharts"
         Layout.fillWidth: true
-        columns: panel.width >= 900 ? 2 : 1
-        columnSpacing: Tokens.Theme.spaceMd
-        rowSpacing: Tokens.Theme.spaceMd
+        Layout.preferredHeight: Math.max(
+            genreStatistics.implicitHeight, topShowStatistics.implicitHeight)
+        orientation: panel.width >= 900 ? Qt.Horizontal : Qt.Vertical
+        handle: PaneSplitHandle {}
+        Component.onCompleted: Qt.callLater(function() { panel.panesReady = true })
         Rectangle {
+            id: genreStatistics
             objectName: "genreStatistics"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredWidth: 1
+            SplitView.preferredWidth: panel.width >= 900
+                                      ? panel.chartsPaneWidth
+                                      : statisticsCharts.width
+            SplitView.minimumWidth: panel.width >= 900 ? 280 : 0
+            SplitView.maximumWidth: panel.width >= 900
+                                    ? paneLayout.maximumWidth("stats_charts")
+                                    : statisticsCharts.width
+            SplitView.fillWidth: panel.width < 900
+            SplitView.fillHeight: true
             implicitHeight: genreColumn.implicitHeight + 2 * Tokens.Theme.spaceMd
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusLg
             border.color: Tokens.Theme.border
+            onWidthChanged: panel.persistChartsPaneWidth()
             ColumnLayout {
                 id: genreColumn
                 anchors.left: parent.left
@@ -297,10 +321,11 @@ ColumnLayout {
             }
         }
         Rectangle {
+            id: topShowStatistics
             objectName: "topShowStatistics"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredWidth: 1
+            SplitView.fillWidth: true
+            SplitView.fillHeight: true
+            SplitView.minimumWidth: panel.width >= 900 ? 280 : 0
             implicitHeight: topShowsColumn.implicitHeight + 2 * Tokens.Theme.spaceMd
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusLg

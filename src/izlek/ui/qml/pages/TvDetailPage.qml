@@ -18,6 +18,18 @@ Rectangle {
     signal tvSelected(int itemId)
     signal actorSelected(int personId, string name)
     color: Tokens.Theme.background
+    property bool panesReady: false
+    property int lowerPaneWidth: paneLayout.widthFor("detail_lower", 420)
+
+    function persistLowerPaneWidth() {
+        if (!page.panesReady || tvLowerSplit.width < 850 || tvProviders.width < 280)
+            return
+        var next = Math.round(tvProviders.width)
+        if (next === page.lowerPaneWidth)
+            return
+        page.lowerPaneWidth = next
+        paneLayout.setWidthFor("detail_lower", next)
+    }
 
     function confirmBulk(scope, watched) {
         bulkScope = scope
@@ -446,26 +458,38 @@ Rectangle {
                             }
                         }
                     }
-                    GridLayout {
+                    SplitView {
+                        id: tvLowerSplit
+                        objectName: "tvLowerSplit"
                         Layout.fillWidth: true
-                        columns: width >= 850 ? 2 : 1
-                        columnSpacing: Tokens.Theme.spaceLg
-                        rowSpacing: Tokens.Theme.spaceMd
+                        Layout.preferredHeight: Math.max(
+                            tvProviders.implicitHeight, tvTrailerPane.implicitHeight)
+                        orientation: width >= 850 ? Qt.Horizontal : Qt.Vertical
+                        handle: PaneSplitHandle {}
+                        Component.onCompleted: Qt.callLater(function() { page.panesReady = true })
                         ProviderSection {
+                            id: tvProviders
                             objectName: "tvProviders"
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            Layout.alignment: Qt.AlignTop
+                            SplitView.preferredWidth: tvLowerSplit.width >= 850
+                                                      ? page.lowerPaneWidth
+                                                      : tvLowerSplit.width
+                            SplitView.minimumWidth: tvLowerSplit.width >= 850 ? 280 : 0
+                            SplitView.maximumWidth: tvLowerSplit.width >= 850
+                                                    ? paneLayout.maximumWidth("detail_lower")
+                                                    : tvLowerSplit.width
+                            SplitView.fillWidth: tvLowerSplit.width < 850
+                            SplitView.fillHeight: true
                             groups: page.providerGroups
                             providerLink: page.controller.detail.providerLink || ""
                             onProviderLinkRequested: page.controller.openProviderLink()
+                            onWidthChanged: page.persistLowerPaneWidth()
                         }
                         ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            Layout.alignment: Qt.AlignTop
+                            id: tvTrailerPane
+                            objectName: "tvTrailerPane"
+                            SplitView.fillWidth: true
+                            SplitView.fillHeight: true
+                            SplitView.minimumWidth: tvLowerSplit.width >= 850 ? 220 : 0
                             SectionHeader { title: (i18n.revision, i18n.t("detail.trailer")); Layout.fillWidth: true }
                             IzlekButton {
                                 text: (i18n.revision, i18n.t("detail.watch_trailer"))

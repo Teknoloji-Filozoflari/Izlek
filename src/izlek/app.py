@@ -21,6 +21,7 @@ from izlek.ui.controllers.locale_controller import LocaleController
 from izlek.ui.controllers.metadata_settings_controller import MetadataSettingsController
 from izlek.ui.controllers.movie_detail_controller import MovieDetailController
 from izlek.ui.controllers.movie_library_controller import MovieLibraryController
+from izlek.ui.controllers.pane_layout_controller import PaneLayoutController
 from izlek.ui.controllers.personal_media_controller import PersonalMediaController
 from izlek.ui.controllers.quick_library_controller import QuickLibraryController
 from izlek.ui.controllers.search_controller import SearchController
@@ -60,6 +61,7 @@ def create_application(
     theme_controller: ThemeController | None = None,
     tags_controller: TagsController | None = None,
     locale_controller: LocaleController | None = None,
+    pane_layout_controller: PaneLayoutController | None = None,
 ) -> tuple[QGuiApplication, QQmlApplicationEngine, QWindow]:
     """Load the QML shell and restore its saved size and maximized state."""
     application = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
@@ -89,6 +91,12 @@ def create_application(
     if theme.parent() is None:
         theme.setParent(engine)
     engine.rootContext().setContextProperty("themeController", theme)
+    panes = pane_layout_controller or PaneLayoutController(
+        settings=settings, parent=engine
+    )
+    if panes.parent() is None:
+        panes.setParent(engine)
+    engine.rootContext().setContextProperty("paneLayout", panes)
     locale = locale_controller or LocaleController(parent=engine)
     if locale.parent() is None:
         locale.setParent(engine)

@@ -142,7 +142,10 @@ sonra listene döndüğünde etiket güncellenir.
 ## İçe ve dışa aktarma
 
 **Ayarlar → Görünüm** bölümünden koyu veya açık temayı seçebilirsin; tercih
-`window.ini` içinde saklanır.
+`window.ini` içinde saklanır. Yan panel / içerik bölücülerini sürükleyerek
+oranları değiştirebilirsin (Ana gezinme, Keşfet filtreleri, Listeler,
+Filmler/Diziler filtreleri, istatistik grafikleri ve detay alt bölümleri);
+genişlikler yine `window.ini` içinde sayfa anahtarlarıyla saklanır.
 
 **Ayarlar → Cache** kartı mevcut görsel önbellek boyutunu gösterir; **Yenile**
 ölçümü günceller, **Cache Temizle** yeniden indirilebilir görselleri siler.

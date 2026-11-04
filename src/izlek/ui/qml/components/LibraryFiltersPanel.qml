@@ -21,7 +21,7 @@ Rectangle {
         spacing: Tokens.Theme.spaceSm
         GridLayout {
             Layout.fillWidth: true
-            columns: width >= 900 ? 6 : width >= 600 ? 3 : 2
+            columns: width >= 900 ? 6 : width >= 600 ? 3 : width >= 260 ? 2 : 1
             columnSpacing: Tokens.Theme.spaceSm
             ColumnLayout {
                 Layout.fillWidth: true

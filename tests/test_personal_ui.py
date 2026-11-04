@@ -246,8 +246,11 @@ def test_library_filter_selection_confirm_batch_favorite_and_list(
         for width, height in ((850, 768), (1366, 768), (1920, 1080)):
             window.resize(width, height)
             app.processEvents()
+            side = window.findChild(QQuickItem, "libraryFiltersSide")
             panel = window.findChild(QQuickItem, "libraryFiltersPanel")
-            assert panel.width() > 400 and panel.height() > 0
+            assert side is not None and side.isVisible()
+            assert 220 <= side.width() <= 420
+            assert panel.width() > 0 and panel.height() > 0
         assert not warnings
     finally:
         close_all(app, engine, window)

@@ -116,19 +116,40 @@ Rectangle {
             applyFilters()
     }
 
-    RowLayout {
+    property bool panesReady: false
+    property int filterPaneWidth: paneLayout.widthFor(
+        "discover_filters", Tokens.Theme.paneDiscoverDefault)
+
+    function persistFilterPaneWidth() {
+        if (!page.panesReady || filterPanel.width < Tokens.Theme.paneMin)
+            return
+        var next = Math.round(filterPanel.width)
+        if (next === page.filterPaneWidth)
+            return
+        page.filterPaneWidth = next
+        paneLayout.setWidthFor("discover_filters", next)
+    }
+
+    SplitView {
+        id: discoverSplit
+        objectName: "discoverSplit"
         anchors.fill: parent
         anchors.margins: Tokens.Theme.spaceLg
-        spacing: Tokens.Theme.spaceLg
+        orientation: Qt.Horizontal
+        handle: PaneSplitHandle {}
+        Component.onCompleted: Qt.callLater(function() { page.panesReady = true })
 
         Rectangle {
             id: filterPanel
             objectName: "discoverFilters"
-            Layout.preferredWidth: page.width >= 1060 ? 250 : 218
-            Layout.fillHeight: true
+            SplitView.preferredWidth: page.filterPaneWidth
+            SplitView.minimumWidth: Tokens.Theme.paneMin
+            SplitView.maximumWidth: Tokens.Theme.paneMax
+            SplitView.fillHeight: true
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusLg
             border.color: Tokens.Theme.border
+            onWidthChanged: page.persistFilterPaneWidth()
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Tokens.Theme.spaceMd
@@ -252,8 +273,9 @@ Rectangle {
         }
 
         Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            SplitView.fillWidth: true
+            SplitView.fillHeight: true
+            SplitView.minimumWidth: Tokens.Theme.contentMin
             color: Tokens.Theme.surface
             radius: Tokens.Theme.radiusLg
             border.color: Tokens.Theme.border

@@ -170,11 +170,18 @@ def test_discover_page_filters_and_dense_results(tmp_path, monkeypatch):
         grid = window.findChild(QQuickItem, "discoverResults")
         next_button = window.findChild(QQuickItem, "discoverNext")
         assert all(item is not None for item in (filters, grid, next_button))
-        assert grid.property("columns") >= 4
+        for _ in range(30):
+            application.processEvents()
+            if filters.width() >= 220 and grid.width() > 0:
+                break
+            QTest.qWait(10)
+        assert 220 <= filters.width() <= 420
+        assert grid.property("columns") >= 3
         for width, height in ((1366, 768), (1920, 1080)):
             window.resize(width, height)
             application.processEvents()
             assert filters.width() > 200 and grid.width() > 0
+            assert grid.property("columns") >= 4
 
         def labels(item):
             found = [item] if item.objectName() == "filterOptionLabel" else []

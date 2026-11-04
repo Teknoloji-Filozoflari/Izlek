@@ -93,6 +93,11 @@ def test_settings_language_picker_switches_ui(monkeypatch, tmp_path):
     assert window.findChild(QQuickItem, "navSettings").property("label") == "Ayarlar"
 
     item = window.findChild(QQuickItem, "navSettings")
+    for _ in range(30):
+        application.processEvents()
+        if item.width() > 0 and item.mapToScene(QPointF(0, 0)).y() > 0:
+            break
+        QTest.qWait(10)
     center = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
     QTest.mouseClick(
         window,

@@ -450,6 +450,11 @@ def test_home_search_preserves_inline_results_after_back(qapp, monkeypatch, kind
     monkeypatch.setattr(movie, "loadMovie", lambda item_id: None)
     try:
         field = window.findChild(QQuickItem, "dashboardSearch")
+        for _ in range(30):
+            application.processEvents()
+            if field.width() > 0 and field.mapToScene(QPointF(0, 0)).x() > 0:
+                break
+            QTest.qWait(10)
         center = field.mapToScene(QPointF(field.width() / 2, field.height() / 2))
         QTest.mouseClick(
             window,
@@ -457,6 +462,7 @@ def test_home_search_preserves_inline_results_after_back(qapp, monkeypatch, kind
             Qt.KeyboardModifier.NoModifier,
             center.toPoint(),
         )
+        application.processEvents()
         overlay = window.findChild(QObject, "globalSearch")
         assert not overlay.property("visible")
         assert field.hasActiveFocus()

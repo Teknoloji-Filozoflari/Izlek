@@ -200,6 +200,7 @@ def test_statistics_uses_local_tracking_and_sums_known_durations(tmp_path):
 
 
 def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch):
+    from PySide6.QtCore import Qt
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
@@ -260,7 +261,10 @@ def test_dashboard_shows_local_statistics_and_opens_detail(tmp_path, monkeypatch
             summary = window.findChild(QQuickItem, "durationSummary")
             charts = window.findChild(QQuickItem, "statisticsCharts")
             assert summary.property("columns") == (3 if width >= 1366 else 1)
-            assert charts.property("columns") == (2 if width >= 1366 else 1)
+            expected_orientation = (
+                Qt.Orientation.Horizontal if width >= 1366 else Qt.Orientation.Vertical
+            )
+            assert charts.property("orientation") == expected_orientation
         total = window.findChild(QQuickItem, "totalScreenTime")
         movie_time = window.findChild(QQuickItem, "movieScreenTime")
         episode_time = window.findChild(QQuickItem, "episodeScreenTime")
