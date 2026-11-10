@@ -36,6 +36,7 @@ class EpisodeMetadata(TransferModel):
     air_date: date | None = None
     runtime: int | None = Field(default=None, ge=0, le=_SQLITE_MAX_INT)
     still_path: str | None = None
+    last_synced_at: datetime | None = None
 
 
 class SeasonMetadata(TransferModel):

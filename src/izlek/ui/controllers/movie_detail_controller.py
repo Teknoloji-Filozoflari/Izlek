@@ -15,7 +15,7 @@ from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.movie_detail import MovieDetailService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.ui.controllers.messages import network_unavailable
+from izlek.ui.controllers.messages import metadata_expired, network_unavailable
 
 
 def _url(path: Path) -> str:
@@ -145,7 +145,10 @@ class MovieDetailController(QObject):
         except (OSError, ValueError, KeyError, SQLAlchemyError):
             cached = None
         if cached is not None:
-            self._loaded.emit(generation, cached, "")
+            notice = (
+                metadata_expired() if cached.get("metadataExpired") else ""
+            )
+            self._loaded.emit(generation, cached, notice)
         try:
             if cached is not None and not self._service.needs_refresh(movie_id):
                 return
@@ -157,9 +160,13 @@ class MovieDetailController(QObject):
                     {},
                     network_unavailable(),
                 )
+            elif cached.get("metadataExpired"):
+                self._loaded.emit(generation, cached, metadata_expired())
         except (TMDbError, OSError, ValueError, KeyError, SQLAlchemyError):
             if cached is None:
                 self._loaded.emit(generation, {}, "Film bilgisi yüklenemedi.")
+            elif cached.get("metadataExpired"):
+                self._loaded.emit(generation, cached, metadata_expired())
         else:
             if detail != cached:
                 self._loaded.emit(generation, detail, "")

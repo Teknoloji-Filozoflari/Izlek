@@ -30,7 +30,8 @@ Listeler medya seçicisi `MediaPickerDialog` içinde afişli, sanallaştırılm�
 çoklu seçim kullanır. Seçimler sorgudan bağımsız medya türü/kimliğiyle tutulur;
 controller tek bir `CustomListsService.add_many` transaction'ı başlatır.
 Liste yazımları kapanışta tamamlanır, yalnız bekleyen okumalar iptal edilir.
-180 günlük retention korunur.
+180 günlük retention korunur; `.keep` yalnız elle cache temizliğinden
+korur, yaş sınırını aşmaz.
 
 Film/dizi özel sırası `0004_library_order` migration'ıyla nullable
 `user_media.sort_order` alanında saklanır. Sırası olmayan eski kayıtlar eklenme
@@ -94,7 +95,7 @@ yenilenir; ekleme arama sorgusunu/sonuçlarını veya gezintiyi değiştirmez.
 
 `services/movie_detail.py` film detayının TMDb bölümlerini paralel alır; başarılı metadata'yı `media_item` içinde saklar ve çevrimdışıyken son kopyayı okur. Takip durumu, favori ve liste üyeliği yalnızca `user_media` ve `custom_list_item` tablolarına yazılır. `ui/controllers/movie_detail_controller.py` önce local detayı yayımlar; `last_synced_at` 24 saatten eskiyse ağ yenilemesini aynı generation içinde arka planda yapar. Fresh kayıtta ağ isteği yapılmaz. Metadata yükleme kişisel durumu değiştirmez.
 
-`services/tv_detail.py` dizi bölümlerini ve sezon listesini TMDb'den alır; sezon/bölüm metadata'sını `season` ve `episode` tablolarına upsert eder. Medya ve tam sezon cache'i ayrı `last_synced_at` değerleriyle 24 saatlik freshness uygular. Başarılı tam sezon isteği sezon sync zamanını günceller; özet satırının varlığı tek başına bölüm cache'i sayılmaz. İzlenen bilgisi sadece `episode_progress` tablosunda tutulur. Toplu işlem önce bütün hedef bölümlerin metadata'sını tamamlar, sonra tek SQLite transaction içinde progress'i günceller; eksik sezon çevrimdışıyken işlem yapılmaz. `TvDetailController` local veriyi önce yayımlar ve eski sezon isteklerinin sonucunu yok sayar.
+`services/tv_detail.py` dizi bölümlerini ve sezon listesini TMDb'den alır; sezon/bölüm metadata'sını `season` ve `episode` tablolarına upsert eder. Medya, tam sezon ve bölüm cache'i ayrı `last_synced_at` değerleriyle 24 saatlik freshness ve 180 günlük retention uygular. Başarılı tam sezon isteği sezon ve bölüm sync zamanlarını günceller; özet satırının varlığı tek başına bölüm cache'i sayılmaz. İzlenen bilgisi sadece `episode_progress` tablosunda tutulur. Toplu işlem önce bütün hedef bölümlerin metadata'sını tamamlar, sonra tek SQLite transaction içinde progress'i günceller; eksik sezon çevrimdışıyken işlem yapılmaz. Metadata süresi dolduğunda kişisel durum çevrimdışı görünür ve “metadata expired” uyarısı gösterilir; ağ varken yenilenir. `TvDetailController` local veriyi önce yayımlar ve eski sezon isteklerinin sonucunu yok sayar.
 
 `services/tv_status.py` bölüm ilerlemesinden otomatik dizi status kararını verir. Eski dolu status kayıtları `0002_status_source` migration'ıyla manuel kabul edilir; 2026-10-04 kullanıcı isteğiyle açık bölüm işlemleri bu eski seçimi de ilerlemeye göre günceller. Repository genel manuel koruması korunur; yalnız dizi ilerleme transaction'ı açık `override_manual=True` kullanır. TMDb metadata yenilemesi status'u değiştirmez; yayınlanmış izlenmemiş bölüm sayısı detay ekranında ayrıca gösterilir. [Kurallar](status-automation.md).
 
@@ -241,15 +242,19 @@ film, bölüm ve toplam ekran süresi bilinen pozitif sürelerden gösterilir. C
 mevcut görsel servisiyle worker'da ister. Yeni migration veya kişisel veri
 yazımı eklenmedi. QML yalnız hazır verinin çizimini ve kullanıcı olaylarını yapar.
 
-2026-10-04 denetiminde `MetadataRetentionService` eklendi. `CacheController`
-açılışta ve saatlik bakımda görseller ile uzak SQLite alanlarını 180 günlük
-sınırla temizler; dosya/veritabanı işi worker'da çalışır. Kişisel tablolar ve
-onların bağlı olduğu medya/sezon/bölüm kimlikleri silinmez. İlgili kütüphane
-controller'ları bakım sonrası yenilenir. Opsiyonel TMDB yanıtlarının ayrı
-sync tarihleri metadata JSON'unda tutulur. Kapanış, başlamamış görevleri iptal
-eder; çalışan yazma işlemlerinin tamamlanmasından sonra database/görsel
-kaynakları bırakılır. Import ve retention kararları `BEGIN IMMEDIATE`, export
-ise açık `BEGIN` transaction'ıyla aynı SQLite snapshot'ını kullanır.
+2026-10-04 denetiminde `MetadataRetentionService` eklendi; 2026-11-10'da
+bölüm `last_synced_at` (`0008_episode_freshness`), import sırasında süresi
+dolmuş TMDb alanlarının atlanması ve kütüphane görsellerinin 180 günlük
+prune'u netleştirildi. `CacheController` açılışta ve saatlik bakımda
+görseller ile uzak SQLite alanlarını 180 günlük sınırla temizler;
+dosya/veritabanı işi worker'da çalışır. Kişisel tablolar ve onların bağlı
+olduğu medya/sezon/bölüm satırları silinmez; yalnız uzak alanlar temizlenir.
+İlgili kütüphane controller'ları bakım sonrası yenilenir. Opsiyonel TMDB
+yanıtlarının ayrı sync tarihleri metadata JSON'unda tutulur. Kapanış,
+başlamamış görevleri iptal eder; çalışan yazma işlemlerinin tamamlanmasından
+sonra database/görsel kaynakları bırakılır. Import ve retention kararları
+`BEGIN IMMEDIATE`, export ise açık `BEGIN` transaction'ıyla aynı SQLite
+snapshot'ını kullanır. Import özeti `metadata_skipped` sayısını bildirir.
 
 `tests/` içindeki pytest testleri XDG/logging davranışını, migration ileri/geri
 çalışmasını, SQLite kısıtlarını, repository CRUD akışlarını ve gerçek QML

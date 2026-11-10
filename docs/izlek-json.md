@@ -52,6 +52,9 @@ veritabanına yazılmaz. Onaylanan import tek SQLite transaction içinde uygulan
 
 - Aynı `media_type + tmdb_id` tek medya olarak birleştirilir.
 - Metadata için daha yeni `last_synced_at` korunur.
+- İçe aktarmada yaşı 180 günü aşmış TMDb alanları yazılmaz; kişisel takip,
+  favori, bölüm ilerlemesi ve listeler normal birleşir. Önizleme/rapor
+  `metadata_skipped` sayısını gösterir.
 - Takip durumunda daha yeni `updated_at` esas alınır.
 - Kişisel puan (1–10 veya `null`), not (en fazla 2000 karakter) ve öneri
   gizleme tercihi, kabul edilen takip kaydıyla birlikte birleştirilir.

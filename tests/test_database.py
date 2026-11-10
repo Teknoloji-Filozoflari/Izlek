@@ -63,10 +63,13 @@ def test_auto_migration_and_xdg_location(tmp_path, monkeypatch):
         assert "last_synced_at" in {
             column["name"] for column in inspect(engine).get_columns("season")
         }
+        assert "last_synced_at" in {
+            column["name"] for column in inspect(engine).get_columns("episode")
+        }
         with engine.connect() as connection:
             assert connection.scalar(
                 text("SELECT version_num FROM alembic_version")
-            ) == ("0007_tags")
+            ) == ("0008_episode_freshness")
             assert connection.scalar(text("PRAGMA foreign_keys")) == 1
         upgrade_database(engine)
     finally:

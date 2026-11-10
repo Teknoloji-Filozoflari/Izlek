@@ -329,6 +329,13 @@ Rectangle {
                             text: i18n.t("settings.import_counts").replace("{movies}", page.transferModelController.preview.movies || 0).replace("{shows}", page.transferModelController.preview.shows || 0).replace("{episodes}", page.transferModelController.preview.episode_progress || 0)
                             color: Tokens.Theme.textSecondary
                         }
+                        Label {
+                            visible: (page.transferModelController.preview.metadata_skipped || 0) > 0
+                            text: i18n.t("settings.import_metadata_skipped").replace("{count}", page.transferModelController.preview.metadata_skipped || 0)
+                            color: Tokens.Theme.textMuted
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
                         IzlekButton { objectName: "confirmImportButton"; text: page.tr("settings.import"); onClicked: page.transferModelController.importSelected() }
                     }
                 }

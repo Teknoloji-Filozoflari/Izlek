@@ -106,7 +106,7 @@
     "import_summary": "Import summary",
     "import_counts": "{movies} movies · {shows} shows · {episodes} episodes",
     "cache": "Cache",
-    "cache_help": "Downloaded images for library movies and shows are kept locally and preserved when clearing the cache. Other images and metadata expire after 180 days. Watch statuses, episode progress, favorites, and lists are kept.",
+    "cache_help": "Downloaded library images are kept across manual cache clears, but all TMDb image and metadata caches expire after 180 days. Watch statuses, episode progress, favorites, and lists are kept.",
     "cache_size": "Current cache size: {size}",
     "cache_clear": "Clear Cache",
     "hidden": "Hidden from suggestions",
@@ -135,7 +135,8 @@
     "filter_json": "JSON (*.json)",
     "discover": "Discover",
     "discover_for_you": "“For you” strip",
-    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched.",
+    "import_metadata_skipped": "Expired TMDb metadata skipped: {count}"
   },
   "errors": {
     "network": "Could not reach TMDb. Check your internet connection.",
@@ -146,13 +147,15 @@
     "empty": "Nothing here yet",
     "token_missing": "TMDb token not found. Add one in Settings.",
     "cache_failed": "Cache operation failed.",
-    "cache_cleared": "Cache cleared ({count} files)."
+    "cache_cleared": "Cache cleared ({count} files).",
+    "metadata_expired": "TMDb metadata expired. Personal tracking is still available offline; reconnect to refresh details."
   },
   "transfer": {
     "need_file": "Select a valid İzlek/Trakt JSON or Letterboxd CSV first.",
     "validated": "File validated. Review the summary and import.",
     "imported": "Data imported.",
-    "exported": "Data exported."
+    "exported": "Data exported.",
+    "imported_with_skip": "Data imported. Expired TMDb metadata was skipped ({count})."
   },
   "discover": {
     "filters": "Filters",

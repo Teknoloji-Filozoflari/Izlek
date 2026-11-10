@@ -106,7 +106,7 @@
     "import_summary": "Import xulosasi",
     "import_counts": "{movies} film · {shows} serial · {episodes} qism",
     "cache": "Kesh",
-    "cache_help": "Kutubxonadagi film va seriallarning yuklab olingan rasmlari mahalliy saqlanadi va kesh tozalanganda saqlanib qoladi. Boshqa rasmlar va metadata 180 kundan keyin oʻchiriladi. Holatlar, qism progressi, sevimlilar va roʻyxatlar saqlanadi.",
+    "cache_help": "Downloaded library images are kept across manual cache clears, but all TMDb image and metadata caches expire after 180 days. Watch statuses, episode progress, favorites, and lists are kept.",
     "cache_size": "Joriy kesh hajmi: {size}",
     "cache_clear": "Keshni tozalash",
     "hidden": "Tavsiyalardan yashirilganlar",
@@ -135,7 +135,8 @@
     "filter_json": "JSON (*.json)",
     "discover": "Discover",
     "discover_for_you": "“For you” strip",
-    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched.",
+    "import_metadata_skipped": "Expired TMDb metadata skipped: {count}"
   },
   "errors": {
     "network": "TMDb ga ulanib boʻlmadi. Internet aloqangizni tekshiring.",
@@ -146,13 +147,15 @@
     "empty": "Hali kontent yoʻq",
     "token_missing": "TMDb tokeni topilmadi. Sozlamalardan qoʻshing.",
     "cache_failed": "Kesh amaliyoti muvaffaqiyatsiz.",
-    "cache_cleared": "Kesh tozalandi ({count} fayl)."
+    "cache_cleared": "Kesh tozalandi ({count} fayl).",
+    "metadata_expired": "TMDb metadata expired. Personal tracking is still available offline; reconnect to refresh details."
   },
   "transfer": {
     "need_file": "Avval yaroqli İzlek JSON faylini tanlang.",
     "validated": "Fayl tasdiqlandi. Xulosani koʻrib chiqib import qiling.",
     "imported": "Maʼlumotlar import qilindi.",
-    "exported": "Maʼlumotlar eksport qilindi."
+    "exported": "Maʼlumotlar eksport qilindi.",
+    "imported_with_skip": "Data imported. Expired TMDb metadata was skipped ({count})."
   },
   "discover": {
     "filters": "Filtrlar",

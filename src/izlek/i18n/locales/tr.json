@@ -106,7 +106,7 @@
     "import_summary": "Import özeti",
     "import_counts": "{movies} film · {shows} dizi · {episodes} bölüm",
     "cache": "Cache",
-    "cache_help": "Kütüphanedeki film ve dizilerin indirilen görselleri yerelde tutulur ve cache temizliğinde korunur. Diğer görseller ve film/dizi bilgileri 180 gün sonunda temizlenir. İzleme durumları, bölüm ilerlemeleri, favoriler ve listeler korunur.",
+    "cache_help": "Kütüphane görselleri elle cache temizliğinde korunur; tüm TMDb görselleri ve metadata 180 gün sonunda silinir. İzleme durumları, bölüm ilerlemeleri, favoriler ve listeler korunur.",
     "cache_size": "Mevcut cache boyutu: {size}",
     "cache_clear": "Cache Temizle",
     "hidden": "Önerilerden gizlediklerim",
@@ -135,7 +135,8 @@
     "filter_json": "JSON (*.json)",
     "discover": "Keşfet",
     "discover_for_you": "“Sana göre” şeridi",
-    "discover_for_you_help": "Keşfet sayfasındaki yerel zevke göre öneri şeridini göster veya gizle. Kapalıyken şerit yüklenmez."
+    "discover_for_you_help": "Keşfet sayfasındaki yerel zevke göre öneri şeridini göster veya gizle. Kapalıyken şerit yüklenmez.",
+    "import_metadata_skipped": "Süresi dolmuş TMDb metadata atlandı: {count}"
   },
   "errors": {
     "network": "TMDb sunucusuna ulaşılamadı. İnternet bağlantınızı kontrol edin.",
@@ -146,13 +147,15 @@
     "empty": "Henüz içerik yok",
     "token_missing": "TMDb tokenı bulunamadı. Ayarlar'dan token ekleyin.",
     "cache_failed": "Cache işlemi başarısız.",
-    "cache_cleared": "Cache temizlendi ({count} dosya)."
+    "cache_cleared": "Cache temizlendi ({count} dosya).",
+    "metadata_expired": "TMDb metadata süresi doldu. Kişisel takip çevrimdışı görünür; çevrimiçi olunca yenilenecek."
   },
   "transfer": {
     "need_file": "Önce geçerli bir İzlek/Trakt JSON veya Letterboxd CSV seçin.",
     "validated": "Dosya doğrulandı. Özeti kontrol edip import edin.",
     "imported": "Veriler içe aktarıldı.",
-    "exported": "Veriler dışa aktarıldı."
+    "exported": "Veriler dışa aktarıldı.",
+    "imported_with_skip": "Veriler içe aktarıldı. Süresi dolmuş TMDb metadata atlandı ({count})."
   },
   "discover": {
     "filters": "Filtreler",

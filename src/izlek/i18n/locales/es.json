@@ -106,7 +106,7 @@
     "import_summary": "Resumen de importación",
     "import_counts": "{movies} películas · {shows} series · {episodes} episodios",
     "cache": "Caché",
-    "cache_help": "Las imágenes descargadas de la biblioteca se conservan localmente y se preservan al limpiar la caché. Otras imágenes y metadatos caducan a los 180 días. Estados, progreso, favoritos y listas se conservan.",
+    "cache_help": "Downloaded library images are kept across manual cache clears, but all TMDb image and metadata caches expire after 180 days. Watch statuses, episode progress, favorites, and lists are kept.",
     "cache_size": "Tamaño actual de la caché: {size}",
     "cache_clear": "Vaciar caché",
     "hidden": "Ocultos de sugerencias",
@@ -135,7 +135,8 @@
     "filter_json": "JSON (*.json)",
     "discover": "Discover",
     "discover_for_you": "“For you” strip",
-    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched.",
+    "import_metadata_skipped": "Expired TMDb metadata skipped: {count}"
   },
   "errors": {
     "network": "No se pudo contactar con TMDb. Comprueba tu conexión a internet.",
@@ -146,13 +147,15 @@
     "empty": "Aún no hay contenido",
     "token_missing": "No se encontró el token de TMDb. Añádelo en Ajustes.",
     "cache_failed": "Falló la operación de caché.",
-    "cache_cleared": "Caché vaciada ({count} archivos)."
+    "cache_cleared": "Caché vaciada ({count} archivos).",
+    "metadata_expired": "TMDb metadata expired. Personal tracking is still available offline; reconnect to refresh details."
   },
   "transfer": {
     "need_file": "Elige primero un JSON de İzlek válido.",
     "validated": "Archivo validado. Revisa el resumen e importa.",
     "imported": "Datos importados.",
-    "exported": "Datos exportados."
+    "exported": "Datos exportados.",
+    "imported_with_skip": "Data imported. Expired TMDb metadata was skipped ({count})."
   },
   "discover": {
     "filters": "Filtros",

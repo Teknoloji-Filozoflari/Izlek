@@ -13,3 +13,7 @@ def local_data_unavailable() -> str:
 
 def file_operation_failed() -> str:
     return t("errors.file_operation")
+
+
+def metadata_expired() -> str:
+    return t("errors.metadata_expired")

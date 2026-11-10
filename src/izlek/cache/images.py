@@ -31,18 +31,13 @@ class ImageDiskCache:
             modified_at = datetime.fromtimestamp(path.stat().st_mtime, UTC)
         except OSError:
             return None
-        if path.with_suffix(".keep").exists() or (
-            modified_at >= datetime.now(UTC) - IMAGE_CACHE_MAX_AGE
-        ):
+        if modified_at >= datetime.now(UTC) - IMAGE_CACHE_MAX_AGE:
             return path
-        try:
-            path.unlink()
-        except OSError:
-            pass
+        self._remove(path)
         return None
 
     def keep(self, kind: str, image_path: str) -> None:
-        """Protect a library image from automatic expiry and cache clearing."""
+        """Protect a library image from manual cache clearing (not retention)."""
         self.root.mkdir(parents=True, exist_ok=True)
         marker = self.path_for(kind, image_path).with_suffix(".keep")
         if not marker.exists():
@@ -94,16 +89,28 @@ class ImageDiskCache:
         return removed
 
     def prune_expired(self) -> int:
-        """Remove expired entries even when no page requests them again."""
+        """Remove expired TMDb cache files, including library .keep markers."""
         cutoff = (datetime.now(UTC) - IMAGE_CACHE_MAX_AGE).timestamp()
         removed = 0
+        if not self.root.exists():
+            return 0
         for path in self.root.glob("*.img"):
-            if path.with_suffix(".keep").exists():
-                continue
             try:
                 if path.is_file() and path.stat().st_mtime <= cutoff:
-                    path.unlink()
+                    self._remove(path)
                     removed += 1
             except FileNotFoundError:
                 continue
         return removed
+
+    def _remove(self, path: Path) -> None:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        marker = path.with_suffix(".keep")
+        try:
+            if marker.exists():
+                marker.unlink()
+        except OSError:
+            pass

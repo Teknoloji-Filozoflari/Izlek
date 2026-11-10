@@ -256,14 +256,78 @@ class TvDetailService:
         """Read saved TV metadata and user state, including watched counts."""
         with self._sessions()() as session:
             media = MediaRepository(session).get_by_tmdb(tv_id, MediaType.TV)
-            if media is None or not (media.metadata_json or {}).get("detail"):
+            if media is None:
                 return None
-            blob = media.metadata_json
-            detail = TvDetail.model_validate(blob["detail"])
             user = UserMediaRepository(session).get(media.id)
             list_repo = CustomListRepository(session)
             available_lists = list_repo.list_all()
             selected_lists = list_repo.list_names_for_media(media.id)
+            if not (media.metadata_json or {}).get("detail"):
+                rows = EpisodeRepository(session).list_for_media_with_progress(
+                    media.id
+                )
+                seasons = SeasonRepository(session).list_for_media(media.id)
+                watched = sum(
+                    1 for _, _, progress in rows if progress and progress.watched
+                )
+                season_entries = []
+                for season in seasons:
+                    season_watched = sum(
+                        1
+                        for row_season, _, progress in rows
+                        if row_season.id == season.id and progress and progress.watched
+                    )
+                    episode_count = sum(
+                        1 for row_season, _, _ in rows if row_season.id == season.id
+                    )
+                    season_entries.append(
+                        {
+                            "number": season.season_number,
+                            "name": season.name or f"Sezon {season.season_number}",
+                            "episodeCount": episode_count,
+                            "watchedCount": season_watched,
+                        }
+                    )
+                return {
+                    "id": media.tmdb_id,
+                    "title": media.original_title,
+                    "year": "",
+                    "firstAirDate": "",
+                    "lastAirDate": "",
+                    "seriesStatus": "",
+                    "genres": [],
+                    "score": 0,
+                    "overview": "",
+                    "posterPath": "",
+                    "backdropPath": "",
+                    "poster": "",
+                    "backdrop": "",
+                    "creators": [],
+                    "cast": [],
+                    "companies": [],
+                    "countries": [],
+                    "providers": {},
+                    "providerLink": "",
+                    "trailerUrl": "",
+                    "similar": [],
+                    "recommendations": [],
+                    "seasons": season_entries,
+                    "status": user.status.value if user and user.status else "",
+                    "statusIsManual": bool(user and user.status_is_manual),
+                    "favorite": bool(user.favorite) if user else False,
+                    "lists": selected_lists,
+                    "availableLists": [entry.name for entry in available_lists],
+                    "watchedEpisodeCount": watched,
+                    "watchedRegularEpisodeCount": watched,
+                    "totalEpisodeCount": len(rows),
+                    "airedEpisodeCount": 0,
+                    "unwatchedAiredCount": 0,
+                    "missingEpisodeMetadataCount": 0,
+                    "newUnwatchedEpisodes": False,
+                    "metadataExpired": True,
+                }
+            blob = media.metadata_json
+            detail = TvDetail.model_validate(blob["detail"])
             progress, counts = self._progress(session, media.id, detail)
             credits = (
                 MovieCredits.model_validate(blob["credits"]).model_dump(mode="json")
@@ -419,6 +483,7 @@ class TvDetailService:
                 last_synced_at=utc_now(),
             )
             episodes = EpisodeRepository(session)
+            synced_at = utc_now()
             for episode in detail.episodes:
                 episodes.upsert(
                     season.id,
@@ -429,6 +494,7 @@ class TvDetailService:
                     air_date=_date(episode.air_date),
                     runtime=episode.runtime,
                     still_path=episode.still_path,
+                    last_synced_at=synced_at,
                 )
         return self.cached_season(tv_id, season_number) or []
 

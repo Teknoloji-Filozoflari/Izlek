@@ -175,7 +175,7 @@ class MovieDetailService:
         sessions = self._sessions()
         with sessions() as session:
             item = MediaRepository(session).get_by_tmdb(movie_id, MediaType.MOVIE)
-            if item is None or not (item.metadata_json or {}).get("detail"):
+            if item is None:
                 return None
             user = UserMediaRepository(session).get(item.id)
             lists = CustomListRepository(session).list_all()
@@ -193,6 +193,33 @@ class MovieDetailService:
                 "lists": selected,
                 "availableLists": [entry.name for entry in lists],
             }
+            if not (item.metadata_json or {}).get("detail"):
+                return {
+                    "id": item.tmdb_id,
+                    "title": item.original_title,
+                    "year": "",
+                    "runtime": 0,
+                    "genres": [],
+                    "score": 0,
+                    "overview": "",
+                    "posterPath": "",
+                    "backdropPath": "",
+                    "poster": "",
+                    "backdrop": "",
+                    "collectionId": 0,
+                    "collectionName": "",
+                    "cast": [],
+                    "directors": [],
+                    "companies": [],
+                    "countries": [],
+                    "providers": {},
+                    "providerLink": "",
+                    "trailerUrl": "",
+                    "similar": [],
+                    "recommendations": [],
+                    "metadataExpired": True,
+                    **state,
+                }
             excluded = (
                 MediaRepository(session).recommendation_excluded_ids(
                     MediaType.MOVIE

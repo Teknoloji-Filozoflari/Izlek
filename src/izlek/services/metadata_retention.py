@@ -35,9 +35,47 @@ _EPISODE_FIELDS = (
     "air_date",
     "runtime",
     "still_path",
+    "last_synced_at",
 )
 _OPTIONAL_SECTIONS = ("credits", "videos", "providers", "similar", "recommendations")
 _SECTION_TIMES = "_section_synced_at"
+
+
+def retention_cutoff(now: datetime | None = None) -> datetime:
+    """Return the naive-UTC boundary for disposable TMDb cache."""
+    current = now or datetime.now(UTC)
+    if current.tzinfo is not None:
+        current = current.astimezone(UTC).replace(tzinfo=None)
+    return current - METADATA_RETENTION
+
+
+def as_naive_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
+
+
+def metadata_age(
+    last_synced_at: datetime | None,
+    *,
+    fallback: datetime | None = None,
+) -> datetime | None:
+    """Age is the last successful fetch time, falling back when unset."""
+    return as_naive_utc(last_synced_at) or as_naive_utc(fallback)
+
+
+def is_metadata_expired(
+    last_synced_at: datetime | None,
+    *,
+    fallback: datetime | None = None,
+    now: datetime | None = None,
+) -> bool:
+    age = metadata_age(last_synced_at, fallback=fallback)
+    if age is None:
+        return True
+    return age <= retention_cutoff(now)
 
 
 def _section_time(blob: dict, section: str, fallback: datetime) -> datetime:
@@ -102,6 +140,11 @@ def _clear(record: object, fields: tuple[str, ...]) -> bool:
     return changed
 
 
+def placeholder_title(media_type: MediaType | str, tmdb_id: int) -> str:
+    label = "Film" if str(media_type) == MediaType.MOVIE else "Dizi"
+    return f"{label} #{tmdb_id}"
+
+
 class MetadataRetentionService:
     """Clear disposable TMDB fields without deleting tracking or progress keys."""
 
@@ -126,6 +169,7 @@ class MetadataRetentionService:
             media_created = {item.id: item.created_at for item in media}
             seasons = list(session.scalars(select(Season)))
             episodes = list(session.scalars(select(Episode)))
+            season_by_id = {season.id: season for season in seasons}
             expired_media = set()
             for item in media:
                 timestamp = item.last_synced_at or item.created_at
@@ -139,8 +183,7 @@ class MetadataRetentionService:
                             changed += 1
                     continue
                 expired_media.add(item.id)
-                label = "Film" if item.media_type == MediaType.MOVIE else "Dizi"
-                placeholder = f"{label} #{item.tmdb_id}"
+                placeholder = placeholder_title(item.media_type, item.tmdb_id)
                 renamed = item.original_title != placeholder
                 cleared = _clear(item, _MEDIA_FIELDS)
                 if renamed or cleared:
@@ -158,7 +201,23 @@ class MetadataRetentionService:
                     expired_seasons.add(season.id)
                     changed += _clear(season, _SEASON_FIELDS)
             for episode in episodes:
-                if episode.season_id in expired_seasons:
+                season = season_by_id.get(episode.season_id)
+                if episode.last_synced_at is not None:
+                    expired = episode.last_synced_at <= cutoff
+                elif episode.season_id in expired_seasons:
+                    expired = True
+                elif season is not None and season.last_synced_at is not None:
+                    expired = season.last_synced_at <= cutoff
+                else:
+                    media_id = season.media_id if season is not None else None
+                    expired = (
+                        media_id in expired_media
+                        or (
+                            media_id is not None
+                            and media_created[media_id] <= cutoff
+                        )
+                    )
+                if expired:
                     changed += _clear(episode, _EPISODE_FIELDS)
         return changed
 

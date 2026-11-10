@@ -42,7 +42,15 @@ _SEASON_METADATA = frozenset(
     }
 )
 _EPISODE_METADATA = frozenset(
-    {"tmdb_episode_id", "name", "overview", "air_date", "runtime", "still_path"}
+    {
+        "tmdb_episode_id",
+        "name",
+        "overview",
+        "air_date",
+        "runtime",
+        "still_path",
+        "last_synced_at",
+    }
 )
 
 

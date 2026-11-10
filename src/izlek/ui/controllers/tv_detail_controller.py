@@ -15,7 +15,7 @@ from izlek.security.token_store import TokenStore
 from izlek.services.image_service import ImageService
 from izlek.services.tv_detail import TvDetailService
 from izlek.tmdb.client import NetworkError, TmdbClient, TMDbError
-from izlek.ui.controllers.messages import network_unavailable
+from izlek.ui.controllers.messages import metadata_expired, network_unavailable
 
 
 def _url(path: Path) -> str:
@@ -169,7 +169,10 @@ class TvDetailController(QObject):
         except (OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             cached = None
         if cached is not None:
-            self._loaded.emit(generation, cached, "")
+            notice = (
+                metadata_expired() if cached.get("metadataExpired") else ""
+            )
+            self._loaded.emit(generation, cached, notice)
         try:
             if cached is not None and not self._service.needs_refresh(tv_id):
                 return
@@ -181,9 +184,13 @@ class TvDetailController(QObject):
                     {},
                     network_unavailable(),
                 )
+            elif cached.get("metadataExpired"):
+                self._loaded.emit(generation, cached, metadata_expired())
         except (TMDbError, OSError, ValueError, LookupError, KeyError, SQLAlchemyError):
             if cached is None:
                 self._loaded.emit(generation, {}, "Dizi bilgisi yüklenemedi.")
+            elif cached.get("metadataExpired"):
+                self._loaded.emit(generation, cached, metadata_expired())
         else:
             if detail != cached:
                 self._loaded.emit(generation, detail, "")
