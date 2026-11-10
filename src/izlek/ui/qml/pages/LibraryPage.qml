@@ -69,24 +69,29 @@ Rectangle {
 
         RowLayout {
             width: parent.width
-            height: 40
+            height: Tokens.Theme.controlHeight
+            spacing: Tokens.Theme.spaceMd
             Label {
                 text: page.pageTitle
                 color: Tokens.Theme.textPrimary
                 font.pixelSize: Tokens.Theme.textHeading
                 font.weight: Tokens.Theme.weightDemiBold
+                Layout.fillWidth: false
+                elide: Text.ElideRight
             }
             Item { Layout.fillWidth: true }
             IzlekButton {
                 objectName: "toggleLibraryFiltersButton"
                 text: page.filtersExpanded ? "Filtreleri kapat" : "Filtreler"
                 variant: "secondary"
+                Layout.fillWidth: false
                 onClicked: page.filtersExpanded = !page.filtersExpanded
             }
             IzlekButton {
                 objectName: "toggleLibrarySelectionButton"
                 text: page.selecting ? "Seçimi kapat" : "Seç"
                 variant: "secondary"
+                Layout.fillWidth: false
                 enabled: !page.controller.batchBusy
                 onClicked: { page.selecting = !page.selecting; page.selectedIds = [] }
             }
@@ -94,6 +99,40 @@ Rectangle {
                 text: (controller.stats.total || 0) + " " + page.mediaNoun
                 color: Tokens.Theme.textSecondary
                 font.pixelSize: Tokens.Theme.textBody
+                Layout.fillWidth: false
+            }
+            SegmentedControl {
+                id: statusTabs
+                visible: false
+                objectName: page.kind === "movie" ? "movieStatusTabs" : "tvStatusTabs"
+                options: ["İzlenecek", "İzleniyor", "İzlendi"]
+                currentIndex: ["PLANNED", "WATCHING", "WATCHED"].indexOf(controller.status)
+                onSelected: function(index) {
+                    controller.setStatus(["PLANNED", "WATCHING", "WATCHED"][index])
+                }
+            }
+            Label {
+                text: (i18n.revision, i18n.t("library.sort"))
+                color: Tokens.Theme.textSecondary
+                Layout.fillWidth: false
+            }
+            FilterComboBox {
+                id: sortBox
+                objectName: page.kind === "movie" ? "movieSort" : "tvSort"
+                Layout.preferredWidth: 168
+                Layout.fillWidth: false
+                Accessible.name: (i18n.revision, i18n.t("library.sort"))
+                model: [
+                    { text: (i18n.revision, i18n.t("library.sort_custom")), value: "custom" },
+                    { text: (i18n.revision, i18n.t("library.sort_recent")), value: "recent" },
+                    { text: (i18n.revision, i18n.t("library.sort_title")), value: "title" },
+                    { text: (i18n.revision, i18n.t("library.sort_year")), value: "year" },
+                    { text: (i18n.revision, i18n.t("library.sort_score")), value: "score" }
+                ]
+                textRole: "text"
+                valueRole: "value"
+                currentIndex: ["custom", "recent", "title", "year", "score"].indexOf(controller.sortBy)
+                onActivated: controller.setSort(currentValue)
             }
         }
 
@@ -141,44 +180,6 @@ Rectangle {
             text: page.controller.error || page.feedback
             color: page.controller.error ? Tokens.Theme.danger : Tokens.Theme.success
             wrapMode: Text.WordWrap
-        }
-
-        RowLayout {
-            width: parent.width
-            height: Tokens.Theme.controlHeight
-            spacing: Tokens.Theme.spaceMd
-            SegmentedControl {
-                id: statusTabs
-                visible: false
-                objectName: page.kind === "movie" ? "movieStatusTabs" : "tvStatusTabs"
-                options: ["İzlenecek", "İzleniyor", "İzlendi"]
-                currentIndex: ["PLANNED", "WATCHING", "WATCHED"].indexOf(controller.status)
-                onSelected: function(index) {
-                    controller.setStatus(["PLANNED", "WATCHING", "WATCHED"][index])
-                }
-            }
-            Item { Layout.fillWidth: true }
-            Label {
-                text: (i18n.revision, i18n.t("library.sort"))
-                color: Tokens.Theme.textSecondary
-            }
-            FilterComboBox {
-                id: sortBox
-                objectName: page.kind === "movie" ? "movieSort" : "tvSort"
-                Layout.preferredWidth: 168
-                Accessible.name: (i18n.revision, i18n.t("library.sort"))
-                model: [
-                    { text: (i18n.revision, i18n.t("library.sort_custom")), value: "custom" },
-                    { text: (i18n.revision, i18n.t("library.sort_recent")), value: "recent" },
-                    { text: (i18n.revision, i18n.t("library.sort_title")), value: "title" },
-                    { text: (i18n.revision, i18n.t("library.sort_year")), value: "year" },
-                    { text: (i18n.revision, i18n.t("library.sort_score")), value: "score" }
-                ]
-                textRole: "text"
-                valueRole: "value"
-                currentIndex: ["custom", "recent", "title", "year", "score"].indexOf(controller.sortBy)
-                onActivated: controller.setSort(currentValue)
-            }
         }
 
         ColumnLayout {
