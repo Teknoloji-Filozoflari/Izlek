@@ -1,0 +1,41 @@
+name: Arch PKGBUILD
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - packaging/arch/**
+      - scripts/verify_arch_pkgbuild.py
+      - tests/test_arch_packaging.py
+      - .github/workflows/arch.yml
+  pull_request:
+    paths:
+      - packaging/arch/**
+      - scripts/verify_arch_pkgbuild.py
+      - tests/test_arch_packaging.py
+      - .github/workflows/arch.yml
+
+concurrency:
+  group: arch-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project for packaging tests
+        run: python -m pip install -e '.[dev]'
+      - name: Offline PKGBUILD shape checks
+        run: |
+          python -m pytest tests/test_arch_packaging.py -q
+          python scripts/verify_arch_pkgbuild.py --offline
+      - name: Download published tag archive and verify checksum
+        run: python scripts/verify_arch_pkgbuild.py

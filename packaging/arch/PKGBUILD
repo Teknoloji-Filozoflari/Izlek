@@ -1,7 +1,8 @@
 # Maintainer: İzlek contributors
 #
-# AUR'a gönderirken `sha256sums` değerini yayımlanan v${pkgver} kaynak
-# arşivinin gerçek SHA-256 değeriyle değiştirin.
+# sha256sums is the published GitHub tag archive for v${pkgver}.
+# Refresh with: curl -sL "$source_url" | sha256sum
+# then makepkg --printsrcinfo > .SRCINFO
 
 pkgname=izlek
 pkgver=1.1.0
@@ -29,7 +30,7 @@ checkdepends=(
   'python-ruff'
 )
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('35bb9c5294b30b8595b2c75a58d3613666025ff10cdabd827eb859ec4512cc68')
 _srcdir="Izlek-${pkgver}"
 
 build() {
