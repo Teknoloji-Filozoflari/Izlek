@@ -106,7 +106,7 @@
     "import_summary": "Import gysgaça",
     "import_counts": "{movies} film · {shows} serial · {episodes} bölüm",
     "cache": "Keş",
-    "cache_help": "Kitaphanadaky film we seriallaryň ýüklenen suratlar ýerli saklanýar we keş arassalananda goralýar. Beýleki suratlar we metadata 180 günden soň pozulýar. Statuslar, bölüm ösüşi, halanýanlar we sanawlar goralýar.",
+    "cache_help": "Downloaded library images are kept across manual cache clears, but all TMDb image and metadata caches expire after 180 days. Watch statuses, episode progress, favorites, and lists are kept.",
     "cache_size": "Häzirki keş ölçegi: {size}",
     "cache_clear": "Keşi arassala",
     "hidden": "Tekliplerden gizlenenler",
@@ -135,7 +135,8 @@
     "filter_json": "JSON (*.json)",
     "discover": "Discover",
     "discover_for_you": "“For you” strip",
-    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched.",
+    "import_metadata_skipped": "Expired TMDb metadata skipped: {count}"
   },
   "errors": {
     "network": "TMDb-ä ýetip bolmady. Internet birikmäňizi barlaň.",
@@ -146,13 +147,15 @@
     "empty": "Entek mazmun ýok",
     "token_missing": "TMDb tokeni tapylmady. Sazlamalardan goşuň.",
     "cache_failed": "Keş amaly şowsuz.",
-    "cache_cleared": "Keş arassalandy ({count} faýl)."
+    "cache_cleared": "Keş arassalandy ({count} faýl).",
+    "metadata_expired": "TMDb metadata expired. Personal tracking is still available offline; reconnect to refresh details."
   },
   "transfer": {
     "need_file": "Ilki dogry İzlek JSON faýlyny saýlaň.",
     "validated": "Faýl tassyklanyldy. Gysgaçany barlap import ediň.",
     "imported": "Maglumatlar import edildi.",
-    "exported": "Maglumatlar eksport edildi."
+    "exported": "Maglumatlar eksport edildi.",
+    "imported_with_skip": "Data imported. Expired TMDb metadata was skipped ({count})."
   },
   "discover": {
     "filters": "Süzgüçler",

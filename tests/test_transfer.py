@@ -1,7 +1,7 @@
 """Portable İzlek JSON round trips and deterministic merge behavior."""
 
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from stat import S_IMODE
 
 import pytest
@@ -31,8 +31,9 @@ from izlek.services.transfer import TransferError, TransferService
 
 
 def _seed_full_state(factory) -> None:
-    timestamp = datetime(2025, 5, 6, 7, 8, 9)
-    watched_at = datetime(2025, 5, 7, 8, 9, 10)
+    # Keep seed metadata inside the 180-day retention window for round-trips.
+    timestamp = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
+    watched_at = timestamp + timedelta(days=1)
     with factory.begin() as session:
         media = MediaRepository(session)
         users = UserMediaRepository(session)
@@ -174,6 +175,7 @@ def test_export_import_round_trip_preserves_equivalent_user_state(tmp_path):
             "list_items_added": 3,
             "list_items_existing": 0,
             "skipped": 0,
+            "metadata_skipped": 0,
         }
         assert _portable_sections(actual) == _portable_sections(expected)
     finally:
@@ -196,10 +198,11 @@ def test_repeated_import_merges_identity_lists_and_keeps_watched_progress(tmp_pa
 
     try:
         target.import_file(export_path)
+        kept_watched_at = datetime.now(UTC).replace(tzinfo=None)
         with target_factory.begin() as session:
             progress = session.scalar(select(EpisodeProgress))
             progress.watched = True
-            progress.watched_at = datetime(2026, 6, 1)
+            progress.watched_at = kept_watched_at
             custom_list = session.scalar(
                 select(CustomList).where(CustomList.name == "Hafta Sonu")
             )
@@ -214,7 +217,7 @@ def test_repeated_import_merges_identity_lists_and_keeps_watched_progress(tmp_pa
             assert session.scalar(select(func.count()).select_from(CustomListItem)) == 3
             progress = session.scalar(select(EpisodeProgress))
             assert progress.watched is True
-            assert progress.watched_at == datetime(2026, 6, 1)
+            assert progress.watched_at == kept_watched_at
         assert report["lists_created"] == 0
         assert report["lists_merged"] == 2
         assert report["list_items_existing"] == 3
@@ -311,7 +314,7 @@ def test_old_import_keeps_newer_episode_metadata_and_restores_missing_rows(tmp_p
     try:
         with factory.begin() as session:
             season = session.scalar(select(Season))
-            season.last_synced_at = datetime(2026, 10, 4)
+            season.last_synced_at = datetime.now(UTC).replace(tzinfo=None)
             first = session.scalar(select(Episode).where(Episode.episode_number == 1))
             first.name = "New episode title"
             first.runtime = 60
@@ -322,6 +325,8 @@ def test_old_import_keeps_newer_episode_metadata_and_restores_missing_rows(tmp_p
             episodes = list(
                 session.scalars(select(Episode).order_by(Episode.episode_number))
             )
+            # Fresher local season wins; missing episode identity is restored
+            # from the still-fresh backup metadata.
             assert [(item.name, item.runtime) for item in episodes] == [
                 ("New episode title", 60),
                 ("Second", 51),

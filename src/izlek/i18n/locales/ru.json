@@ -106,7 +106,7 @@
     "import_summary": "Сводка импорта",
     "import_counts": "{movies} фильмов · {shows} сериалов · {episodes} эпизодов",
     "cache": "Кэш",
-    "cache_help": "Скачанные изображения фильмов и сериалов из библиотеки хранятся локально и сохраняются при очистке кэша. Прочие изображения и метаданные удаляются через 180 дней. Статусы, прогресс, избранное и списки сохраняются.",
+    "cache_help": "Downloaded library images are kept across manual cache clears, but all TMDb image and metadata caches expire after 180 days. Watch statuses, episode progress, favorites, and lists are kept.",
     "cache_size": "Текущий размер кэша: {size}",
     "cache_clear": "Очистить кэш",
     "hidden": "Скрыто из рекомендаций",
@@ -135,7 +135,8 @@
     "filter_json": "JSON (*.json)",
     "discover": "Discover",
     "discover_for_you": "“For you” strip",
-    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched."
+    "discover_for_you_help": "Show or hide the taste-based recommendation strip on Discover. When off, the strip is not fetched.",
+    "import_metadata_skipped": "Expired TMDb metadata skipped: {count}"
   },
   "errors": {
     "network": "Не удалось связаться с TMDb. Проверьте интернет-соединение.",
@@ -146,13 +147,15 @@
     "empty": "Пока нет содержимого",
     "token_missing": "Токен TMDb не найден. Добавьте его в Настройках.",
     "cache_failed": "Ошибка операции с кэшем.",
-    "cache_cleared": "Кэш очищен ({count} файлов)."
+    "cache_cleared": "Кэш очищен ({count} файлов).",
+    "metadata_expired": "TMDb metadata expired. Personal tracking is still available offline; reconnect to refresh details."
   },
   "transfer": {
     "need_file": "Сначала выберите действительный JSON-файл İzlek.",
     "validated": "Файл проверен. Просмотрите сводку и импортируйте.",
     "imported": "Данные импортированы.",
-    "exported": "Данные экспортированы."
+    "exported": "Данные экспортированы.",
+    "imported_with_skip": "Data imported. Expired TMDb metadata was skipped ({count})."
   },
   "discover": {
     "filters": "Фильтры",

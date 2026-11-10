@@ -32,7 +32,18 @@ from izlek.services.import_adapters import (
     load_json_payload,
     trakt_to_export,
 )
-from izlek.services.transfer_schema import SCHEMA_VERSION, IzlekExport
+from izlek.services.metadata_retention import (
+    MetadataRetentionService,
+    is_metadata_expired,
+    placeholder_title,
+)
+from izlek.services.transfer_schema import (
+    SCHEMA_VERSION,
+    EpisodeMetadata,
+    IzlekExport,
+    MediaExport,
+    SeasonMetadata,
+)
 
 _MAX_IMPORT_BYTES = 64 * 1024 * 1024
 _CSV_SUFFIXES = {".csv"}
@@ -131,6 +142,129 @@ def _validation_message(exc: ValidationError) -> str:
     return f"Şema doğrulanamadı: {location or 'root'} — {first['msg']}"
 
 
+def _has_media_payload(record: MediaExport) -> bool:
+    return any(
+        (
+            record.overview,
+            record.poster_path,
+            record.backdrop_path,
+            record.release_date,
+            record.first_air_date,
+            record.runtime,
+            record.original_language,
+            record.metadata,
+        )
+    )
+
+
+def _has_season_payload(season: SeasonMetadata) -> bool:
+    return any(
+        (
+            season.tmdb_season_id,
+            season.name,
+            season.overview,
+            season.poster_path,
+            season.air_date,
+            season.last_synced_at,
+        )
+    )
+
+
+def _has_episode_payload(episode: EpisodeMetadata) -> bool:
+    return any(
+        (
+            episode.tmdb_episode_id,
+            episode.name,
+            episode.overview,
+            episode.air_date,
+            episode.runtime,
+            episode.still_path,
+            episode.last_synced_at,
+        )
+    )
+
+
+def _strip_expired_media(
+    record: MediaExport, *, now: datetime
+) -> tuple[MediaExport, int]:
+    """Drop TMDb fields older than retention; keep identity rows for personal data."""
+    skipped = 0
+    media_expired = is_metadata_expired(
+        record.last_synced_at, fallback=record.created_at, now=now
+    )
+    seasons: list[SeasonMetadata] = []
+    for season in record.seasons:
+        season_expired = (
+            is_metadata_expired(
+                season.last_synced_at, fallback=record.created_at, now=now
+            )
+            if season.last_synced_at is not None or _has_season_payload(season)
+            else media_expired
+        )
+        episodes: list[EpisodeMetadata] = []
+        for episode in season.episodes:
+            episode_age = episode.last_synced_at or season.last_synced_at
+            episode_expired = (
+                is_metadata_expired(
+                    episode_age, fallback=record.created_at, now=now
+                )
+                if episode_age is not None or _has_episode_payload(episode)
+                else season_expired
+            )
+            if episode_expired and _has_episode_payload(episode):
+                skipped += 1
+                episodes.append(
+                    EpisodeMetadata(episode_number=episode.episode_number)
+                )
+            else:
+                episodes.append(episode)
+        if season_expired and (_has_season_payload(season) or season.episodes):
+            if _has_season_payload(season):
+                skipped += 1
+            seasons.append(
+                SeasonMetadata(
+                    season_number=season.season_number,
+                    episodes=episodes,
+                )
+            )
+        else:
+            seasons.append(season.model_copy(update={"episodes": episodes}))
+    updates: dict[str, Any] = {"seasons": seasons}
+    if media_expired and _has_media_payload(record):
+        skipped += 1
+        updates.update(
+            {
+                "original_title": placeholder_title(
+                    record.media_type, record.tmdb_id
+                ),
+                "original_language": None,
+                "overview": None,
+                "poster_path": None,
+                "backdrop_path": None,
+                "release_date": None,
+                "first_air_date": None,
+                "runtime": None,
+                "metadata": None,
+                "last_synced_at": None,
+            }
+        )
+    return record.model_copy(update=updates), skipped
+
+
+def prepare_document_for_import(
+    document: IzlekExport, *, now: datetime | None = None
+) -> tuple[IzlekExport, int]:
+    """Strip expired TMDb metadata while preserving personal sections."""
+    current = now or datetime.now(UTC)
+    media: list[MediaExport] = []
+    skipped = 0
+    for record in document.media:
+        cleaned, count = _strip_expired_media(record, now=current)
+        media.append(cleaned)
+        skipped += count
+    return document.model_copy(update={"media": media}), skipped
+
+
 class TransferService:
     """Export and merge portable user data using one local transaction."""
 
@@ -191,6 +325,7 @@ class TransferService:
                                     "air_date": episode.air_date,
                                     "runtime": episode.runtime,
                                     "still_path": episode.still_path,
+                                    "last_synced_at": _aware(episode.last_synced_at),
                                 }
                                 for episode in episodes_by_season[season.id]
                             ],
@@ -376,6 +511,7 @@ class TransferService:
         *,
         source: str = "izlek",
         skipped: int = 0,
+        metadata_skipped: int = 0,
     ) -> dict[str, int | str]:
         media_keys = {(item.media_type, item.tmdb_id) for item in document.media}
         list_names = {item.name.casefold() for item in document.lists}
@@ -384,6 +520,7 @@ class TransferService:
             "app_version": document.app_version,
             "source": source,
             "skipped": skipped,
+            "metadata_skipped": metadata_skipped,
             "media": len(media_keys),
             "movies": sum(kind == "MOVIE" for kind, _ in media_keys),
             "shows": sum(kind == "TV" for kind, _ in media_keys),
@@ -398,12 +535,17 @@ class TransferService:
 
     def preview_file(self, path: Path) -> dict[str, int | str]:
         parsed = self.parse_import(path)
+        _, metadata_skipped = prepare_document_for_import(parsed.document)
         return self.summary(
-            parsed.document, source=parsed.source, skipped=parsed.skipped
+            parsed.document,
+            source=parsed.source,
+            skipped=parsed.skipped,
+            metadata_skipped=metadata_skipped,
         )
 
     def import_file(self, path: Path) -> dict[str, int]:
         parsed = self.parse_import(path)
+        document, metadata_skipped = prepare_document_for_import(parsed.document)
         report = {
             "media_created": 0,
             "media_merged": 0,
@@ -414,10 +556,13 @@ class TransferService:
             "list_items_added": 0,
             "list_items_existing": 0,
             "skipped": parsed.skipped,
+            "metadata_skipped": metadata_skipped,
         }
         with self._sessions().begin() as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
-            self._import_document(session, parsed.document, report)
+            self._import_document(session, document, report)
+        # Absolute age may still leave edge cases; prune never resurrects fields.
+        MetadataRetentionService(self._sessions()).prune()
         return report
 
     def _import_document(
@@ -519,6 +664,9 @@ class TransferService:
                             still_path=episode_data.still_path
                             if episode_data.still_path is not None
                             else getattr(local_episode, "still_path", None),
+                            last_synced_at=_naive(episode_data.last_synced_at)
+                            if episode_data.last_synced_at is not None
+                            else getattr(local_episode, "last_synced_at", None),
                         )
                     local_episodes[episode_data.episode_number] = episode
                     episode_by_key[

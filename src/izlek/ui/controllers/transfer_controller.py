@@ -140,7 +140,12 @@ class TransferController(QObject):
         elif action == "export":
             self._feedback = t("transfer.exported")
         else:
-            self._feedback = t("transfer.imported")
+            skipped = int(result.get("metadata_skipped") or 0)
+            self._feedback = (
+                t("transfer.imported_with_skip", count=skipped)
+                if skipped
+                else t("transfer.imported")
+            )
             self._preview = {}
             self._import_path = None
             self.dataImported.emit()

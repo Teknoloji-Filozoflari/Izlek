@@ -168,6 +168,7 @@ class Episode(Base):
     air_date: Mapped[date | None] = mapped_column(Date)
     runtime: Mapped[int | None] = mapped_column(Integer)
     still_path: Mapped[str | None] = mapped_column(String(500))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class EpisodeProgress(Base):

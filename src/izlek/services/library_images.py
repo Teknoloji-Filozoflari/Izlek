@@ -53,7 +53,7 @@ class LibraryImagesService:
                 if not path or (kind, path) in seen:
                     continue
                 seen.add((kind, path))
-                # Mark before requesting: maintenance cannot expire a library image.
+                # Protect from manual cache clear; 180-day retention still applies.
                 self._images.cache.keep(kind, path)
                 future = (
                     self._images.poster(path, "detail") if kind == "poster-detail"

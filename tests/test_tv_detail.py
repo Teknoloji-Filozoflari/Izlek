@@ -195,7 +195,10 @@ def test_imported_progress_without_detail_can_be_updated(tmp_path):
         EpisodeRepository(session).upsert(season.id, 1)
     service = TvDetailService(TmdbClient(), factory)
     try:
-        assert service.cached(77) is None
+        cached = service.cached(77)
+        assert cached is not None
+        assert cached["metadataExpired"] is True
+        assert cached["title"] == "Portable Show"
         assert service.set_episode_watched(77, 1, 1, True)[0]["watched"]
         with factory() as session:
             from izlek.repositories.local import UserMediaRepository

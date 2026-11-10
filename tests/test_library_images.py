@@ -1,4 +1,4 @@
-"""All tracked artwork is kept locally, independently of visible cards."""
+"""Tracked artwork is protected from manual clear but still expires at 180 days."""
 
 import os
 from datetime import UTC, datetime, timedelta
@@ -12,7 +12,7 @@ from izlek.services.library_images import LibraryImagesService
 from test_image_service import JPEG, FakeTmdb, make_service
 
 
-def test_sync_downloads_all_tracked_artwork_and_keeps_it_offline(tmp_path):
+def test_sync_downloads_tracked_artwork_and_retention_still_expires_it(tmp_path):
     engine = initialize_database(tmp_path / "library.sqlite3")
     factory = create_session_factory(engine)
     with factory.begin() as session:
@@ -38,10 +38,11 @@ def test_sync_downloads_all_tracked_artwork_and_keeps_it_offline(tmp_path):
         expired = (datetime.now(UTC) - timedelta(days=200)).timestamp()
         for path in images.cache.root.glob("*.img"):
             os.utime(path, (expired, expired))
-        assert images.cache.prune_expired() == 0
+        assert images.cache.prune_expired() == 4
+        assert list(images.cache.root.glob("*.img")) == []
         assert images.cache.clear() == 0
         assert service.sync() == {"saved": 4, "unavailable": 0}
-        assert len(requests) == 4
+        assert len(requests) == 8
         assert images.poster("/MOVIE.jpg").result().read_bytes() == JPEG
     finally:
         service.close()
