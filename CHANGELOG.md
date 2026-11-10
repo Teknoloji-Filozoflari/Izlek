@@ -11,6 +11,9 @@ izler ve proje [Semantic Versioning](https://semver.org/) kullanır.
   offscreen Qt altında tıklamayı iptal etmesi (main CI flake); TV detay /
   dizi kütüphanesi UI beklemeleri uzatıldı; CI quality pytest çökmesinde
   bir kez yeniden deneniyor.
+- Arch `PKGBUILD` artık yayımlanmış `v1.1.0` tag arşivinin gerçek SHA-256
+  değerini kullanıyor (`SKIP` kaldırıldı); `.SRCINFO` / README senkronu ve
+  kaynak doğrulama testi eklendi.
 
 ### Changed
 

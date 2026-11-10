@@ -13,8 +13,10 @@ yanıtlarını mock'lar.
 2. Yerelde `python scripts/quality.py` ve
    `python -m pip wheel . --no-deps --wheel-dir dist` komutunu çalıştırın.
 3. Arch yayını yapılacaksa `packaging/arch/PKGBUILD` içindeki upstream URL,
-   tag kaynak adresi ve SHA-256 değerini gerçek release kaynağıyla güncelleyin;
-   ardından `.SRCINFO` dosyasını `makepkg --printsrcinfo` ile yenileyin.
+   tag kaynak adresi ve SHA-256 değerini gerçek release kaynağıyla güncelleyin
+   (`SKIP` kullanmayın); `.SRCINFO` dosyasını `makepkg --printsrcinfo` ile
+   yenileyin; `python scripts/verify_arch_pkgbuild.py` ile yayımlanmış
+   arşivi doğrulayın.
 4. Token, SQLite verisi, cache veya başka kişisel bilgi içermezken imzalı ya da
    normal bir `vX.Y.Z` git tag'i oluşturup remote'a push edin.
 
